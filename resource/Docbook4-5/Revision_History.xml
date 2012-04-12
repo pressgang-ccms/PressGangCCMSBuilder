@@ -8,7 +8,7 @@
                                 <author>
                                         <firstname><!-- Inject authorInformation.firstName --></firstname>
                                         <surname><!-- Inject authorInformation.lastName --></surname>
-                                        <email><!-- Inject authorInformation.email -->></email>
+                                        <email><!-- Inject authorInformation.email --></email>
                                 </author>
                                 <revdescription>
                                         <simplelist>
