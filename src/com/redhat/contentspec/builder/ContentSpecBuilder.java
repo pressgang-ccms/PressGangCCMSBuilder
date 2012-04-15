@@ -358,7 +358,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	 * @param ignoreErrors Whether or not errors should be ignored
 	 */
 	public void createBook(UserV1 requester, boolean ignoreErrors) {
-		String bookXIncludes = "";
+		StringBuffer bookXIncludes = new StringBuffer();
 		
 		// Build the base of the book
 		String book = buildBookBase(contentSpec, requester);
@@ -381,14 +381,14 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 			if (node instanceof Part) {
 				Part part = (Part)node;
 				
-				bookXIncludes += "/t<part>\n";
-				bookXIncludes += "/t<title>" + part.getTitle() + "</title>\n";
+				bookXIncludes.append("\t<part>\n");
+				bookXIncludes.append("\t<title>" + part.getTitle() + "</title>\n");
 				
 				for (Level childLevel: part.getChildLevels()) {
 					createChapterXML(bookXIncludes, childLevel, basicChapter);
 				}
 				
-				bookXIncludes += "/t</part>\n";
+				bookXIncludes.append("\t</part>\n");
 			} else if (node instanceof Level) {
 				createChapterXML(bookXIncludes, (Level)node, basicChapter);
 			}
@@ -397,7 +397,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		if (errorDatabase.hasItems() && !ignoreErrors) {
 			files.put(BOOK_EN_US_FOLDER + "Errors.xml", buildErrorChapter().getBytes());
 			// Add the error to the book.xml
-			bookXIncludes += "\t<xi:include href=\"Errors.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n";
+			bookXIncludes.append("\t<xi:include href=\"Errors.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
 		}
 		book = book.replace(BuilderConstants.XIINCLUDES_INJECTION_STRING, bookXIncludes);
 		files.put(BOOK_EN_US_FOLDER + escapedTitle + ".xml", book.getBytes());
@@ -410,7 +410,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	 * @param level The level to build the chapter from.
 	 * @param basicChapter A string representation of a basic chapter.
 	 */
-	protected void createChapterXML(String bookXIncludes, Level level, String basicChapter) {
+	protected void createChapterXML(StringBuffer bookXIncludes, Level level, String basicChapter) {
 			
 		// Check if the app should be shutdown
 		if (isShuttingDown.get()) {
@@ -427,7 +427,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		}
 		
 		// Add to the list of XIncludes that will get set in the book.xml
-		bookXIncludes += "\t<xi:include href=\"" + chapterName + "\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n";
+		bookXIncludes.append("\t<xi:include href=\"" + chapterName + "\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
 		
 		//Create the chapter.xml
 		Element titleNode = chapter.createElement("title");
