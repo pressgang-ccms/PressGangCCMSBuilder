@@ -40,6 +40,7 @@ import com.redhat.contentspec.entities.AuthorInformation;
 import com.redhat.contentspec.ContentSpec;
 import com.redhat.contentspec.Level;
 import com.redhat.contentspec.SpecTopic;
+import com.redhat.contentspec.Part;
 import com.redhat.contentspec.enums.LevelType;
 import com.redhat.contentspec.rest.RESTManager;
 import com.redhat.contentspec.rest.RESTReader;
@@ -280,17 +281,14 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 			return null;
 		}
 		
-		// Build the base of the book
-		String book = buildBookBase(contentSpec, requester);
-		
 		// Create the XML for each topic in the book
 		for (Integer topicId: bookTopics.keySet()) {
 			createTopicXML(bookTopics.get(topicId), ignoreErrors, fixedUrlsSuccess);
 			if (shutdown.get()) return null;
 		}
 		
-		// Create the chapters
-		createChapters(book, ignoreErrors);
+		// Create the rest of the book
+		createBook(requester, ignoreErrors);
 		if (shutdown.get()) return null;
 		
 		// Create the zip file
@@ -354,55 +352,48 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	}
 	
 	/**
-	 * Creates all the chapters for a book and generates the section/topic data inside of each chapter.
+	 * Create the main content of the book (chapters, sections, etc...)
 	 * 
-	 * @param book The book Document object to add the chapters to.
+	 * @param reequester The user who requested the book to be built
+	 * @param ignoreErrors Whether or not errors should be ignored
 	 */
-	protected void createChapters(String book, boolean ignoreErrors) {
+	public void createBook(UserV1 requester, boolean ignoreErrors) {
 		String bookXIncludes = "";
+		
+		// Build the base of the book
+		String book = buildBookBase(contentSpec, requester);
 		
 		// Get the initial levels items as these will be chapters.
 		LinkedList<com.redhat.contentspec.Node> levelData = contentSpec.getBaseLevel().getChildNodes();
 		
 		// Setup the basic chapter.xml
 		String basicChapter = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "Chapter.xml");
-		
+
 		// Loop through and create each chapter and the topics inside those chapters
 		for (com.redhat.contentspec.Node node: levelData) {
-			
+		
 			// Check if the app should be shutdown
 			if (isShuttingDown.get()) {
 				shutdown.set(true);
 				return;
 			}
 			
-			Document chapter = XMLUtilities.convertStringToDocument(basicChapter);
-			if (node instanceof Level) {
-				Level level = (Level)node;
+			if (node instanceof Part) {
+				Part part = (Part)node;
 				
-				// Create the title
-				String chapterName = levelFileNames.get(level) + ".xml";
-				if (level.getType() == LevelType.APPENDIX) {
-					chapter.renameNode(chapter.getDocumentElement(), null, "appendix");
-				} else {
-					
+				bookXIncludes += "/t<part>\n";
+				bookXIncludes += "/t<title>" + part.getTitle() + "</title>\n";
+				
+				for (Level childLevel: part.getChildLevels()) {
+					createChapterXML(bookXIncludes, childLevel, basicChapter);
 				}
 				
-				// Add to the list of XIncludes that will get set in the book.xml
-				bookXIncludes += "\t<xi:include href=\"" + chapterName + "\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n";
-				
-				//Create the chapter.xml
-				Element titleNode = chapter.createElement("title");
-				titleNode.setTextContent(level.getTitle());
-				chapter.getDocumentElement().appendChild(titleNode);
-				chapter.getDocumentElement().setAttribute("id", levelFileNames.get(level));
-				createSectionXML(level, chapter, chapter.getDocumentElement());
-				
-				// Add the boiler plate text and add the chapter to the book
-				String chapterString = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent");
-				files.put(BOOK_EN_US_FOLDER + chapterName, chapterString.getBytes());
+				bookXIncludes += "/t</part>\n";
+			} else if (node instanceof Level) {
+				createChapterXML(bookXIncludes, (Level)node, basicChapter);
 			}
 		}
+		
 		if (errorDatabase.hasItems() && !ignoreErrors) {
 			files.put(BOOK_EN_US_FOLDER + "Errors.xml", buildErrorChapter().getBytes());
 			// Add the error to the book.xml
@@ -410,6 +401,44 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		}
 		book = book.replace(BuilderConstants.XIINCLUDES_INJECTION_STRING, bookXIncludes);
 		files.put(BOOK_EN_US_FOLDER + escapedTitle + ".xml", book.getBytes());
+	}
+	
+	/**
+	 * Creates all the chapters/appendixes for a book and generates the section/topic data inside of each chapter.
+	 * 
+	 * @param bookXIncludes The string based list of XIncludes to be used in the book.xml
+	 * @param level The level to build the chapter from.
+	 * @param basicChapter A string representation of a basic chapter.
+	 */
+	protected void createChapterXML(String bookXIncludes, Level level, String basicChapter) {
+			
+		// Check if the app should be shutdown
+		if (isShuttingDown.get()) {
+			shutdown.set(true);
+			return;
+		}
+		
+		Document chapter = XMLUtilities.convertStringToDocument(basicChapter);
+		
+		// Create the title
+		String chapterName = levelFileNames.get(level) + ".xml";
+		if (level.getType() == LevelType.APPENDIX) {
+			chapter.renameNode(chapter.getDocumentElement(), null, "appendix");
+		}
+		
+		// Add to the list of XIncludes that will get set in the book.xml
+		bookXIncludes += "\t<xi:include href=\"" + chapterName + "\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n";
+		
+		//Create the chapter.xml
+		Element titleNode = chapter.createElement("title");
+		titleNode.setTextContent(level.getTitle());
+		chapter.getDocumentElement().appendChild(titleNode);
+		chapter.getDocumentElement().setAttribute("id", levelFileNames.get(level));
+		createSectionXML(level, chapter, chapter.getDocumentElement());
+		
+		// Add the boiler plate text and add the chapter to the book
+		String chapterString = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent");
+		files.put(BOOK_EN_US_FOLDER + chapterName, chapterString.getBytes());
 	}
 	
 	/**

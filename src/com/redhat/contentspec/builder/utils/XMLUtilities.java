@@ -155,8 +155,7 @@ public class XMLUtilities extends com.redhat.ecs.commonutils.XMLUtilities {
 
 		/* make the substitutions for all children nodes */
 		final NodeList nodeList = node.getChildNodes();
-		final int childrenCount = nodeList.getLength();
-		for (int i = 0; i < childrenCount; ++i)
+		for (int i = 0; i < nodeList.getLength(); ++i)
 			restoreEntities(replacements, nodeList.item(i));
 
 		/* cdata sections just use a straight text replace */
