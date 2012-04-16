@@ -1,4 +1,4 @@
-package com.redhat.builder.constants;
+package com.redhat.contentspec.builder.constants;
 
 public class DTDConstants 
 {
