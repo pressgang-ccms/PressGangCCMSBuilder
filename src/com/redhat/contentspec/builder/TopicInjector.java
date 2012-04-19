@@ -618,7 +618,7 @@ public class TopicInjector {
 	 * @param document The XML document object that is being processed for injections
 	 * @param topic The topic that the document was created from.
 	 */
-	public boolean addBugzillaLinksToTopic(Document document, TopicV1 topic, BugzillaOptions bzOptions) {	
+	public boolean addBugzillaLinksToTopic(final Document document, final TopicV1 topic, final BugzillaOptions bzOptions, final String bookDetails) {	
 		
 		final Element bugzillaSection = document.createElement("simplesect");
 		final Element bugzillaSectionTitle = document.createElement("title");
@@ -644,7 +644,7 @@ public class TopicInjector {
 			String bugzillaKeywords = null;
 			String bugzillaAssignedTo = null;
 			final String bugzillaBuildID = URLEncoder.encode(topic.getBugzillaBuildId(), "UTF-8");
-			final String bugzillaEnvironment = URLEncoder.encode("Instance Name: " + fixedInstanceNameProperty + "\nCSProcessor Builder: " + BuilderConstants.BUILDER_VERSION, "UTF-8");
+			final String bugzillaEnvironment = URLEncoder.encode("Instance Name: " + fixedInstanceNameProperty + "\nCSProcessor Builder: " + BuilderConstants.BUILDER_VERSION + "\n" + bookDetails, "UTF-8");
 
 			/* look for the bugzilla options */
 			if (topic.getTags() != null && topic.getTags().getItems() != null)

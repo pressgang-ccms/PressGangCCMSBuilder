@@ -6,7 +6,7 @@ public class BuilderConstants {
 	public static final Integer MAXIMUM_SET_PROP_TAGS_RETRY = 5;
 	public static final Integer MAXIMUM_SET_PROP_TAG_NAME_RETRY = 50;
 	
-	public static final String BUILDER_VERSION			= "1.2";
+	public static final String BUILDER_VERSION			= "1.3";
 	public static final String RESOURCE_LOCATION		= "/";
 	public static final String DOCBOOK_DTD_LOCATION		= "/docbook-xml-4.5/";
 	public static final String DOCBOOK_45_RESOURCE_LOCATION = "/Docbook4-5/";

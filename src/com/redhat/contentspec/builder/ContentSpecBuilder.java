@@ -651,7 +651,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 				// Inject the relationships and bugzilla links
 				injector.processRelationshipInjections(topicDoc, topicMapping.get(key), topicMappings, topicIdNames, levelFileNames);
 				if (injectBugzillaLinks && contentSpec.getBugzillaOptions().isBugzillaLinksEnabled()) {
-					injector.addBugzillaLinksToTopic(topicDoc, topic, contentSpec.getBugzillaOptions());
+					injector.addBugzillaLinksToTopic(topicDoc, topic, contentSpec.getBugzillaOptions(), getBookDetails());
 				}
 				
 				// Validate the XML again after the final injections
@@ -688,7 +688,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 					// Inject the relationships and bugzilla links
 					injector.processRelationshipInjections(clonedDoc, t, topicMappings, topicIdNames, levelFileNames);
 					if (injectBugzillaLinks && contentSpec.getBugzillaOptions().isBugzillaLinksEnabled()) {
-						injector.addBugzillaLinksToTopic(clonedDoc, topic, contentSpec.getBugzillaOptions());
+						injector.addBugzillaLinksToTopic(clonedDoc, topic, contentSpec.getBugzillaOptions(), getBookDetails());
 					}
 					
 					// Validate the XML again after the final injections
@@ -1413,5 +1413,9 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 			}
 		}
 		return titles;
+	}
+	
+	private String getBookDetails() {
+		return "Book: " + contentSpec.getTitle() + "\nEdition: " + (contentSpec.getEdition() == null ? "" : contentSpec.getEdition()) + "\nVersion: " + contentSpec.getVersion();
 	}
 }
