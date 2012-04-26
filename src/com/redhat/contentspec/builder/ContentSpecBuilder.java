@@ -91,7 +91,6 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	private ArrayList<String> inlineElements;
 	private ArrayList<String> contentsInlineElements;
 	
-	private TopicV1 cs = null;
 	private HashMap<Integer, TopicV1> bookTopics = new HashMap<Integer, TopicV1>();
 	private HashMap<Integer, HashMap<Integer, SpecTopic>> topicMappings = new HashMap<Integer, HashMap<Integer, SpecTopic>>();
 	
@@ -186,17 +185,18 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	/**
 	 * Builds a book into a zip file for the passed Content Specification
 	 * 
-	 * @param contentSpec The content specification that is to be built. It should have already been validated.
+	 * @param contentSpec The content specification that is to be built. It should have already been validated, if not errors may occur.
 	 * @param requester The user who requested the book to be built.
 	 * @return A byte array that is the zip file
 	 * @throws Exception 
 	 */
 	public byte[] buildBook(ContentSpec contentSpec, UserV1 requester) throws Exception {
+		if (contentSpec == null) throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
+		if (requester == null) throw new BuilderCreationException("A user must be specified as the user who requested the build.");
+		
 		boolean ignoreErrors = builderOptions.getIgnoreErrors();
 		this.CSId = contentSpec.getId();
 		this.contentSpec = contentSpec;
-		cs = reader.getContentSpecById(CSId, null);
-		if (cs == null) throw new BuilderCreationException("Content Specification is null. So most likely there isn't any data for the ID and Revision specified.");
 		
 		// Check if the app should be shutdown
 		if (isShuttingDown.get()) {
@@ -243,10 +243,9 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		}
 		
 		injector = new TopicInjector(bookTopics, reader, injectionOptions, errorDatabase);
-		if (cs == null) throw new Exception("Content Specification doesn't exist");
 		
 		// Setup the constants
-		escapedTitle = StringUtilities.escapeTitle(cs.getTitle());
+		escapedTitle = StringUtilities.escapeTitle(contentSpec.getTitle());
 		BOOK_FOLDER = escapedTitle + "/";
 		BOOK_EN_US_FOLDER = BOOK_FOLDER + "en-US/";
 		BOOK_TOPICS_FOLDER = BOOK_EN_US_FOLDER + "topics/";
@@ -1018,7 +1017,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		
 		// Add the revision information
 		Element listMemberEle = doc.createElement("member");
-		listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, cs.getId(), reader.getLatestCSRevById(CSId)) + (authorInfo.getAuthorId() > 0 ? " by " + requester.getName() : ""));
+		listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(), reader.getLatestCSRevById(CSId)) + (authorInfo.getAuthorId() > 0 ? " by " + requester.getName() : ""));
 		simplelist.appendChild(listMemberEle);
 		return doc;
 	}
