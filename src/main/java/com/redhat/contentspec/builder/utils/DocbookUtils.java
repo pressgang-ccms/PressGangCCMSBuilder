@@ -64,7 +64,7 @@ public class DocbookUtils extends
 	 * 
 	 * @param xmlDoc The XML Document object where the link will be added.
 	 * @param xref A string that's used normally as the xref link.
-	 * @return An element node that can cantains the data for the link.
+	 * @return An element node that can contains the data for the link.
 	 */
 	public static List<Element> buildLiteral(final Document xmlDoc, final String xref)
 	{

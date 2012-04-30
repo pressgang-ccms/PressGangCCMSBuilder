@@ -28,7 +28,6 @@ import com.google.code.regexp.NamedPattern;
 import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
 import com.redhat.contentspec.builder.constants.BuilderConstants;
-import com.redhat.contentspec.builder.constants.DTDConstants;
 import com.redhat.contentspec.builder.exception.BuilderCreationException;
 import com.redhat.contentspec.builder.utils.BuilderOptions;
 import com.redhat.contentspec.builder.utils.DocbookUtils;
@@ -56,6 +55,8 @@ import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorData
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorDatabase;
 import com.redhat.topicindex.rest.collections.BaseRestCollectionV1;
 import com.redhat.topicindex.rest.entities.*;
+import com.redhat.topicindex.rest.exceptions.InternalProcessingException;
+import com.redhat.topicindex.rest.exceptions.InvalidParameterException;
 
 /**
  * 
@@ -97,6 +98,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	private final RESTReader reader;
 	private final RESTManager restManager;
 	private final BuilderOptions builderOptions;
+	private final BlobConstantV1 dtd;
 	private ContentSpec contentSpec;
 	
 	private HashMap<String, Document> inlineTopics = new HashMap<String, Document>();
@@ -111,11 +113,12 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	 */
 	private TopicErrorDatabase errorDatabase = new TopicErrorDatabase();
 
-	public ContentSpecBuilder(RESTManager dbManager, BuilderOptions builderOptions) {
+	public ContentSpecBuilder(RESTManager dbManager, BuilderOptions builderOptions) throws InvalidParameterException, InternalProcessingException {
 		reader = dbManager.getReader();
 		this.restManager = dbManager;
 		this.injectBugzillaLinks = builderOptions.getInjectBugzillaLinks();
 		this.builderOptions = builderOptions;
+		this.dtd = dbManager.getRESTClient().getJSONBlobConstant(BuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
 		
 		// Add the options that were passed to the builder
 		injectionOptions = new InjectionOptions();
@@ -209,7 +212,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		for (SpecTopic specTopic: specTopics) {
 			TopicV1 topic = null;
 			if (builderOptions.getSnapshotId() != null) {
-				SnapshotV1 snapshot = reader.getTopicSnapshotById(builderOptions.getSnapshotId());
+				/*SnapshotV1 snapshot = reader.getTopicSnapshotById(builderOptions.getSnapshotId());
 				if (snapshot != null) {
 					for (SnapshotTopicV1 snapshotTopic: snapshot.getSnaphotTopics().getItems()) {
 						if (snapshotTopic.getTopicId().equals(specTopic.getDBId())) {
@@ -217,7 +220,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 							break;
 						}
 					}
-				}
+				}*/
 			} else {
 				topic = reader.getTopicById(specTopic.getDBId(), null);
 			}
@@ -736,7 +739,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	private Document validateTopicXMLFirstPass(final TopicV1 topic, final Document topicDoc, boolean ignoreErrors) {
 		// Validate the topic against its DTD/Schema
 		SAXXMLValidator validator = new SAXXMLValidator();
-		if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, DTDConstants.ROCBOOK45_DTD)) {
+		if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, dtd.getValue())) {
 			String topicXML = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "FailedValidationTopic.xml");
 			topicXML = topicXML.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topic.getId()));
 			if (!ignoreErrors) {
@@ -761,7 +764,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	private Document validateTopicXMLSecondPass(final TopicV1 topic, final Document topicDoc, final boolean ignoreErrors) {
 		// Validate the topic against its DTD/Schema
 		SAXXMLValidator validator = new SAXXMLValidator();
-		if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, DTDConstants.ROCBOOK45_DTD)) {
+		if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, dtd.getValue())) {
 			String topicXML = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "FailedInjectionTopic.xml");
 			topicXML = topicXML.replaceAll(BuilderConstants.TOPIC_ID_REGEX, topic.getId().toString());
 			if (!ignoreErrors) {
