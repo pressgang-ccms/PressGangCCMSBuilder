@@ -2,10 +2,11 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
 	<artifactId>contentspec</artifactId>
-	<groupId>com.redhat.contentspec</groupId>
+	<groupId>com.redhat</groupId>
 	<version>0.0.1-SNAPSHOT</version>
 	<relativePath>..</relativePath>
   </parent>
+  <groupId>com.redhat.contentspec</groupId>
   <artifactId>csbuilder</artifactId>
   <version>0.1.2-SNAPSHOT</version>
   <name>Content Specification Builder</name>
