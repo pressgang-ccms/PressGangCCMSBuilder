@@ -113,12 +113,17 @@ public class XMLUtilities {
      * Clones a document object.
      */
     public static Document cloneDocument(Document doc) throws TransformerException {
+    	final Node rootNode = doc.getDocumentElement();
     	TransformerFactory tfactory = TransformerFactory.newInstance();
     	Transformer tx   = tfactory.newTransformer();
     	DOMSource source = new DOMSource(doc);
     	DOMResult result = new DOMResult();
     	tx.transform(source,result);
-    	return (Document)result.getNode();
+    	final Document copy = (Document)result.getNode();
+    	copy.removeChild(copy.getDocumentElement());
+    	Node copyRootNode = copy.importNode(rootNode, true);
+    	copy.appendChild(copyRootNode);
+    	return copy;
     }
     
     /**
