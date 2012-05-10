@@ -10,7 +10,6 @@ public class BuilderOptions {
 	private boolean ignoreErrors = false;
 	private List<String> injectionTypes = new ArrayList<String>();
 	private boolean injection = true;
-	private Integer snapshotId = null;
 	private boolean permissive = false;
 	private Map<String, String> overrides = new HashMap<String, String>();
 	private boolean injectBugzillaLinks = true;
@@ -37,14 +36,6 @@ public class BuilderOptions {
 	
 	public void setInjection(Boolean injection) {
 		this.injection = injection;
-	}
-	
-	public Integer getSnapshotId() {
-		return snapshotId;
-	}
-	
-	public void setSnapshotId(Integer snapshotId) {
-		this.snapshotId = snapshotId;
 	}
 	
 	public boolean getPermissive() {
