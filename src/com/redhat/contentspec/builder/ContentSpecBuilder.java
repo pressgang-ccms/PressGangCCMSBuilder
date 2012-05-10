@@ -28,7 +28,6 @@ import com.google.code.regexp.NamedPattern;
 import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
 import com.redhat.contentspec.builder.constants.BuilderConstants;
-import com.redhat.contentspec.builder.constants.DTDConstants;
 import com.redhat.contentspec.builder.exception.BuilderCreationException;
 import com.redhat.contentspec.builder.utils.BuilderOptions;
 import com.redhat.contentspec.builder.utils.DocbookUtils;
@@ -56,6 +55,8 @@ import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorData
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorDatabase;
 import com.redhat.topicindex.rest.collections.BaseRestCollectionV1;
 import com.redhat.topicindex.rest.entities.*;
+import com.redhat.topicindex.rest.exceptions.InternalProcessingException;
+import com.redhat.topicindex.rest.exceptions.InvalidParameterException;
 
 /**
  * 
@@ -84,8 +85,8 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	private HashMap<String, byte[]> files = new HashMap<String, byte[]>();
 	private String entFile;
 	private TopicInjector injector;
-	private final InjectionOptions injectionOptions;
-	private final boolean injectBugzillaLinks;
+	private InjectionOptions injectionOptions;
+	private boolean injectBugzillaLinks;
 	
 	private ArrayList<String> verbatimElements;
 	private ArrayList<String> inlineElements;
@@ -96,7 +97,8 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	
 	private final RESTReader reader;
 	private final RESTManager restManager;
-	private final BuilderOptions builderOptions;
+	private final BlobConstantV1 rocbookdtd;
+	private BuilderOptions builderOptions;
 	private ContentSpec contentSpec;
 	
 	private HashMap<String, Document> inlineTopics = new HashMap<String, Document>();
@@ -111,33 +113,10 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	 */
 	private TopicErrorDatabase errorDatabase = new TopicErrorDatabase();
 
-	public ContentSpecBuilder(RESTManager dbManager, BuilderOptions builderOptions) {
+	public ContentSpecBuilder(final RESTManager dbManager) throws InvalidParameterException, InternalProcessingException {
 		reader = dbManager.getReader();
 		this.restManager = dbManager;
-		this.injectBugzillaLinks = builderOptions.getInjectBugzillaLinks();
-		this.builderOptions = builderOptions;
-		
-		// Add the options that were passed to the builder
-		injectionOptions = new InjectionOptions();
-		
-		// Get the injection mode
-		InjectionOptions.UserType injectionType = InjectionOptions.UserType.NONE;
-		Boolean injection = builderOptions.getInjection();
-		if (injection != null && !injection) injectionType = InjectionOptions.UserType.OFF;
-		else if (injection != null && injection) injectionType = InjectionOptions.UserType.ON;
-		
-		// Add the strict injection types
-		if (builderOptions.getInjectionTypes() != null) {
-			for (String injectType: builderOptions.getInjectionTypes()) {
-				injectionOptions.addStrictTopicType(injectType.trim());
-			}
-			if (injection != null && injection) {
-				injectionType = InjectionOptions.UserType.STRICT;
-			}
-		}
-		
-		// Set the injection mode
-		injectionOptions.setClientType(injectionType);
+		this.rocbookdtd = dbManager.getRESTClient().getJSONBlobConstant(BuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
 		
 		/*
 		 * Get the XML formatting details. These are used to pretty-print
@@ -190,9 +169,34 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	 * @return A byte array that is the zip file
 	 * @throws Exception 
 	 */
-	public byte[] buildBook(ContentSpec contentSpec, UserV1 requester) throws Exception {
+	public byte[] buildBook(final ContentSpec contentSpec, final UserV1 requester, final BuilderOptions builderOptions) throws Exception {
 		if (contentSpec == null) throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
 		if (requester == null) throw new BuilderCreationException("A user must be specified as the user who requested the build.");
+		
+		this.injectBugzillaLinks = builderOptions.getInjectBugzillaLinks();
+		this.builderOptions = builderOptions;
+		
+		// Add the options that were passed to the builder
+		injectionOptions = new InjectionOptions();
+		
+		// Get the injection mode
+		InjectionOptions.UserType injectionType = InjectionOptions.UserType.NONE;
+		Boolean injection = builderOptions.getInjection();
+		if (injection != null && !injection) injectionType = InjectionOptions.UserType.OFF;
+		else if (injection != null && injection) injectionType = InjectionOptions.UserType.ON;
+		
+		// Add the strict injection types
+		if (builderOptions.getInjectionTypes() != null) {
+			for (final String injectType : builderOptions.getInjectionTypes()) {
+				injectionOptions.addStrictTopicType(injectType.trim());
+			}
+			if (injection != null && injection) {
+				injectionType = InjectionOptions.UserType.STRICT;
+			}
+		}
+		
+		// Set the injection mode
+		injectionOptions.setClientType(injectionType);
 		
 		boolean ignoreErrors = builderOptions.getIgnoreErrors();
 		this.CSId = contentSpec.getId();
@@ -206,21 +210,9 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		
 		// Create the mapping of skynet topics that are in the content spec
 		List<SpecTopic> specTopics = contentSpec.getSpecTopics();
-		for (SpecTopic specTopic: specTopics) {
-			TopicV1 topic = null;
-			if (builderOptions.getSnapshotId() != null) {
-				SnapshotV1 snapshot = reader.getTopicSnapshotById(builderOptions.getSnapshotId());
-				if (snapshot != null) {
-					for (SnapshotTopicV1 snapshotTopic: snapshot.getSnaphotTopics().getItems()) {
-						if (snapshotTopic.getTopicId().equals(specTopic.getDBId())) {
-							topic = reader.getTopicById(specTopic.getDBId(), snapshotTopic.getTopicRevision());
-							break;
-						}
-					}
-				}
-			} else {
-				topic = reader.getTopicById(specTopic.getDBId(), null);
-			}
+		for (final SpecTopic specTopic : specTopics) {
+			final TopicV1 topic = reader.getTopicById(specTopic.getDBId(), null);
+
 			if (topic != null) {
 				bookTopics.put(topic.getId(), topic);
 			}
@@ -281,7 +273,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		}
 		
 		// Create the XML for each topic in the book
-		for (Integer topicId: bookTopics.keySet()) {
+		for (final Integer topicId: bookTopics.keySet()) {
 			createTopicXML(bookTopics.get(topicId), ignoreErrors, fixedUrlsSuccess);
 			if (shutdown.get()) return null;
 		}
@@ -736,7 +728,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	private Document validateTopicXMLFirstPass(final TopicV1 topic, final Document topicDoc, boolean ignoreErrors) {
 		// Validate the topic against its DTD/Schema
 		SAXXMLValidator validator = new SAXXMLValidator();
-		if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, DTDConstants.ROCBOOK45_DTD)) {
+		if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue())) {
 			String topicXML = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "FailedValidationTopic.xml");
 			topicXML = topicXML.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topic.getId()));
 			if (!ignoreErrors) {
@@ -761,7 +753,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	private Document validateTopicXMLSecondPass(final TopicV1 topic, final Document topicDoc, final boolean ignoreErrors) {
 		// Validate the topic against its DTD/Schema
 		SAXXMLValidator validator = new SAXXMLValidator();
-		if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, DTDConstants.ROCBOOK45_DTD)) {
+		if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue())) {
 			String topicXML = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "FailedInjectionTopic.xml");
 			topicXML = topicXML.replaceAll(BuilderConstants.TOPIC_ID_REGEX, topic.getId().toString());
 			if (!ignoreErrors) {

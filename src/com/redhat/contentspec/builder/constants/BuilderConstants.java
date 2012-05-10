@@ -14,6 +14,9 @@ public class BuilderConstants {
 	public static final String DOCBOOK_45_DTD = "docbookx.dtd";
 	public static final String ROCBOOK_45_DTD = "rocbookx.dtd";
 	
+	/** The BlobConstant ID for the Rocbook DTD */
+	public static final Integer ROCBOOK_DTD_BLOB_ID = 9;
+	
 	/** A prefix for error xref ids */
 	public static final String ERROR_XREF_ID_PREFIX = "TagErrorXRef";
 	
