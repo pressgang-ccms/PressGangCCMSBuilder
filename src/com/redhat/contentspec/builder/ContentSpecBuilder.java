@@ -1378,12 +1378,13 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	 */
 	private HashMap<String, List<Level>> getLevelTitles(Level level) {
 		HashMap<String, List<Level>> titles = new HashMap<String, List<Level>>();
+		final String title = StringUtilities.escapeTitle(level.getTitle().toLowerCase());
 		
 		// Add the current title to the list of titles
-		if (!titles.containsKey(level.getTitle().toLowerCase())) {
-			titles.put(level.getTitle().toLowerCase(), new ArrayList<Level>());
+		if (!titles.containsKey(title)) {
+			titles.put(title, new ArrayList<Level>());
 		}
-		titles.get(level.getTitle().toLowerCase()).add(level);
+		titles.get(title).add(level);
 		
 		// Add all the child levels titles to the list
 		for (Level childLevel: level.getChildLevels()) {
