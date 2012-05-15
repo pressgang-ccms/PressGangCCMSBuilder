@@ -29,10 +29,10 @@ import org.w3c.dom.ls.LSSerializer;
 
 import com.google.code.regexp.NamedMatcher;
 import com.google.code.regexp.NamedPattern;
-import com.redhat.contentspec.utils.ExceptionUtilities;
 import com.redhat.ecs.commonstructures.Pair;
 import com.redhat.ecs.commonstructures.StringToNodeCollection;
 import com.redhat.ecs.commonutils.CollectionUtilities;
+import com.redhat.ecs.commonutils.ExceptionUtilities;
 import com.redhat.ecs.commonutils.StringUtilities;
 import com.redhat.ecs.internalsort.EntitySubstitutionBoundaryDataBoundaryStartSort;
 import com.redhat.ecs.internaltructures.EntitySubstitutionBoundaryData;

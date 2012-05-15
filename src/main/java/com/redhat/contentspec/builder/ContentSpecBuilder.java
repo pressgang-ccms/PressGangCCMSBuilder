@@ -1,8 +1,11 @@
 package com.redhat.contentspec.builder;
 
 import java.net.URLEncoder;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -11,9 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 
 import org.jboss.resteasy.logging.Logger;
 import org.jboss.resteasy.specimpl.PathSegmentImpl;
@@ -29,11 +29,9 @@ import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
 import com.redhat.contentspec.builder.constants.BuilderConstants;
 import com.redhat.contentspec.builder.exception.BuilderCreationException;
-import com.redhat.contentspec.builder.utils.BuilderOptions;
 import com.redhat.contentspec.builder.utils.DocbookUtils;
 import com.redhat.contentspec.builder.utils.SAXXMLValidator;
 import com.redhat.contentspec.builder.utils.XMLUtilities;
-import com.redhat.contentspec.builder.TopicInjector;
 import com.redhat.contentspec.constants.CSConstants;
 import com.redhat.contentspec.entities.AuthorInformation;
 import com.redhat.contentspec.ContentSpec;
@@ -43,16 +41,24 @@ import com.redhat.contentspec.Part;
 import com.redhat.contentspec.enums.LevelType;
 import com.redhat.contentspec.rest.RESTManager;
 import com.redhat.contentspec.rest.RESTReader;
+import com.redhat.contentspec.structures.BuilderOptions;
+import com.redhat.contentspec.structures.SpecDatabase;
 import com.redhat.contentspec.entities.InjectionOptions;
 import com.redhat.contentspec.interfaces.ShutdownAbleApp;
-import com.redhat.contentspec.utils.ExceptionUtilities;
-import com.redhat.contentspec.utils.ResourceUtilities;
-import com.redhat.contentspec.utils.StringUtilities;
+import com.redhat.ecs.commonstructures.Pair;
 import com.redhat.ecs.commonutils.CollectionUtilities;
+import com.redhat.ecs.commonutils.DocBookUtilities;
+import com.redhat.ecs.commonutils.ExceptionUtilities;
+import com.redhat.ecs.commonutils.NotificationUtilities;
+import com.redhat.ecs.commonutils.ResourceUtilities;
+import com.redhat.ecs.commonutils.StringUtilities;
 import com.redhat.ecs.commonutils.ZipUtilities;
 import com.redhat.ecs.constants.CommonConstants;
+import com.redhat.ecs.services.docbookcompiling.DocbookBuilderConstants;
+import com.redhat.ecs.services.docbookcompiling.DocbookBuildingOptions;
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorData;
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorDatabase;
+import com.redhat.topicindex.component.docbookrenderer.structures.TopicImageData;
 import com.redhat.topicindex.rest.collections.BaseRestCollectionV1;
 import com.redhat.topicindex.rest.entities.*;
 import com.redhat.topicindex.rest.exceptions.InternalProcessingException;
@@ -67,56 +73,117 @@ import com.redhat.topicindex.rest.exceptions.InvalidParameterException;
  */
 public class ContentSpecBuilder implements ShutdownAbleApp {
 	
-	private static final Logger log = Logger.getLogger(ContentSpecBuilder.class);
+	private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
+	private final AtomicBoolean shutdown = new AtomicBoolean(false);
 	
+	@SuppressWarnings("unused")
+	private final RESTReader reader;
+	private final BlobConstantV1 rocbookdtd;
+	private final RESTManager restManager;	
+	@SuppressWarnings("rawtypes")
+	private DocbookBuilder docbookBuilder;
+
+	public ContentSpecBuilder(final RESTManager restManager) throws InvalidParameterException, InternalProcessingException {
+		this.restManager = restManager;
+		reader = restManager.getReader();
+		this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(BuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
+	}
+	
+	@Override
+	public void shutdown() {
+		isShuttingDown.set(true);
+		docbookBuilder.shutdown();
+	}
+
+	@Override
+	public boolean isShutdown() {
+		return shutdown.get();
+	}
+	
+	public int getNumWarnings() {
+		return docbookBuilder == null ? 0 : docbookBuilder.getNumWarnings();
+	}
+
+	public int getNumErrors() {
+		return docbookBuilder == null ? 0 : docbookBuilder.getNumErrors();
+	}
+	
+	/**
+	 * Builds a book into a zip file for the passed Content Specification
+	 * 
+	 * @param contentSpec The content specification that is to be built. It should have already been validated, if not errors may occur.
+	 * @param requester The user who requested the book to be built.
+	 * @return A byte array that is the zip file
+	 * @throws Exception 
+	 */
+	public byte[] buildBook(final ContentSpec contentSpec, final UserV1 requester, final BuilderOptions builderOptions) throws Exception {
+		if (contentSpec == null) throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
+		if (requester == null) throw new BuilderCreationException("A user must be specified as the user who requested the build.");
+		
+		if (contentSpec.getLocale() == null || contentSpec.getLocale().equals("en-US"))
+			docbookBuilder = new DocbookBuilder<TopicV1>(restManager, rocbookdtd, "en-US");
+		else
+			docbookBuilder = new DocbookBuilder<TranslatedTopicV1>(restManager, rocbookdtd, "en-US");
+			
+		return docbookBuilder.buildBook(contentSpec, requester, builderOptions);
+	}
+}
+
+
+class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
+{
+	private static final Logger log = Logger.getLogger(DocbookBuilder.class);
 	private static final String STARTS_WITH_NUMBER_RE = "^(?<Numbers>\\d+)(?<EverythingElse>.*)$";
 	
 	private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
 	private final AtomicBoolean shutdown = new AtomicBoolean(false);
 	
-	private String BOOK_FOLDER;
-	private String BOOK_EN_US_FOLDER;
-	private String BOOK_TOPICS_FOLDER;
-	private String BOOK_IMAGES_FOLDER;
-	
-	private String escapedTitle;
-	private int CSId;
-	private String RESOURCE_LOCATION;
-	private HashMap<String, byte[]> files = new HashMap<String, byte[]>();
-	private String entFile;
-	private TopicInjector injector;
-	private InjectionOptions injectionOptions;
-	private boolean injectBugzillaLinks;
-	
-	private ArrayList<String> verbatimElements;
-	private ArrayList<String> inlineElements;
-	private ArrayList<String> contentsInlineElements;
-	
-	private HashMap<Integer, TopicV1> bookTopics = new HashMap<Integer, TopicV1>();
-	private HashMap<Integer, HashMap<Integer, SpecTopic>> topicMappings = new HashMap<Integer, HashMap<Integer, SpecTopic>>();
+	private final List<String> verbatimElements;
+	private final List<String> inlineElements;
+	private final List<String> contentsInlineElements;
 	
 	private final RESTReader reader;
 	private final RESTManager restManager;
 	private final BlobConstantV1 rocbookdtd;
-	private BuilderOptions builderOptions;
-	private ContentSpec contentSpec;
+	private final String defaultLocale;
 	
-	private HashMap<String, Document> inlineTopics = new HashMap<String, Document>();
-	private HashMap<Integer, String> topicFileNames = new HashMap<Integer, String>();
-	private HashMap<Integer, String> topicIdNames = new HashMap<Integer, String>();
-	private HashMap<Level, String> levelFileNames = new HashMap<Level, String>();
-	private HashSet<String> bookFileNames = new HashSet<String>();
+	private BuilderOptions builderOptions;
+	private InjectionOptions injectionOptions;
+	private DocbookBuildingOptions docbookBuildingOptions;
+	private Date buildDate;
+	
+	private String escapedTitle;
+	private String locale;
+	
+	private String BOOK_FOLDER;
+	private String BOOK_LOCALE_FOLDER;
+	private String BOOK_TOPICS_FOLDER;
+	private String BOOK_IMAGES_FOLDER;
+	private String RESOURCE_LOCATION;
 	
 	/**
 	 * Holds the compiler errors that form the Errors.xml file in the compiled
 	 * docbook
 	 */
-	private TopicErrorDatabase errorDatabase = new TopicErrorDatabase();
-
-	public ContentSpecBuilder(final RESTManager dbManager) throws InvalidParameterException, InternalProcessingException {
-		reader = dbManager.getReader();
-		this.restManager = dbManager;
-		this.rocbookdtd = dbManager.getRESTClient().getJSONBlobConstant(BuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
+	private TopicErrorDatabase<T> errorDatabase;;
+	
+	/**
+	 * Holds the SpecTopics and their XML that exist within the content specification
+	 */
+	private SpecDatabase specDatabase;
+	
+	/**
+	 * Holds information on file url locations, which will be downloaded and
+	 * included in the docbook zip file
+	 */
+	private final ArrayList<TopicImageData<T>> imageLocations = new ArrayList<TopicImageData<T>>();
+	
+	public DocbookBuilder(final RESTManager restManager, final BlobConstantV1 rocbookDtd, final String defaultLocale) throws InvalidParameterException, InternalProcessingException
+	{
+		reader = restManager.getReader();
+		this.restManager = restManager;
+		this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(BuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
+		this.defaultLocale = defaultLocale;
 		
 		/*
 		 * Get the XML formatting details. These are used to pretty-print
@@ -140,40 +207,50 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	public boolean isShutdown() {
 		return shutdown.get();
 	}
-
-	public String getEscapedName() {
-		return escapedTitle;
-	}
 	
 	public int getNumWarnings() {
 		int numWarnings = 0;
-		for (TopicErrorData errorData: errorDatabase.getErrors()) {
-			numWarnings += errorData.getItemsOfType(TopicErrorDatabase.WARNING).size();
+		if (errorDatabase != null && errorDatabase.getErrors(locale) != null) 
+		{
+			for (TopicErrorData<T> errorData: errorDatabase.getErrors(locale)) {
+				numWarnings += errorData.getItemsOfType(TopicErrorDatabase.WARNING).size();
+			}
 		}
 		return numWarnings;
 	}
 
 	public int getNumErrors() {
 		int numErrors = 0;
-		for (TopicErrorData errorData: errorDatabase.getErrors()) {
-			numErrors += errorData.getItemsOfType(TopicErrorDatabase.ERROR).size();
+		if (errorDatabase != null && errorDatabase.getErrors(locale) != null) 
+		{
+			for (TopicErrorData<T> errorData: errorDatabase.getErrors(locale)) {
+				numErrors += errorData.getItemsOfType(TopicErrorDatabase.ERROR).size();
+			}
 		}
 		return numErrors;
 	}
 	
-	/**
-	 * Builds a book into a zip file for the passed Content Specification
-	 * 
-	 * @param contentSpec The content specification that is to be built. It should have already been validated, if not errors may occur.
-	 * @param requester The user who requested the book to be built.
-	 * @return A byte array that is the zip file
-	 * @throws Exception 
-	 */
-	public byte[] buildBook(final ContentSpec contentSpec, final UserV1 requester, final BuilderOptions builderOptions) throws Exception {
+	public byte[] buildBook(final ContentSpec contentSpec, final UserV1 requester, final BuilderOptions builderOptions) throws Exception
+	{
 		if (contentSpec == null) throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
 		if (requester == null) throw new BuilderCreationException("A user must be specified as the user who requested the build.");
 		
-		this.injectBugzillaLinks = builderOptions.getInjectBugzillaLinks();
+		errorDatabase = new TopicErrorDatabase<T>();
+		specDatabase = new SpecDatabase();
+		
+		// Setup the constants
+		escapedTitle = DocBookUtilities.escapeTitle(contentSpec.getTitle());
+		locale = contentSpec.getLocale() == null ? defaultLocale : contentSpec.getLocale();
+		BOOK_FOLDER = escapedTitle + "/";
+		BOOK_LOCALE_FOLDER = BOOK_FOLDER + locale + "/";
+		BOOK_TOPICS_FOLDER = BOOK_LOCALE_FOLDER + "topics/";
+		BOOK_IMAGES_FOLDER = BOOK_LOCALE_FOLDER + "images/";
+		buildDate = new Date();
+		
+		// Set the book mode and resource file locations
+		// (atm Docbook 4.5 is the only supported format)
+		RESOURCE_LOCATION = BuilderConstants.DOCBOOK_45_RESOURCE_LOCATION;
+		
 		this.builderOptions = builderOptions;
 		
 		// Add the options that were passed to the builder
@@ -198,54 +275,19 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		// Set the injection mode
 		injectionOptions.setClientType(injectionType);
 		
-		boolean ignoreErrors = builderOptions.getIgnoreErrors();
-		this.CSId = contentSpec.getId();
-		this.contentSpec = contentSpec;
-		
-		// Check if the app should be shutdown
-		if (isShuttingDown.get()) {
-			shutdown.set(true);
-			return null;
-		}
-		
-		// Create the mapping of skynet topics that are in the content spec
-		List<SpecTopic> specTopics = contentSpec.getSpecTopics();
-		for (final SpecTopic specTopic : specTopics) {
-			final TopicV1 topic = reader.getTopicById(specTopic.getDBId(), null);
-
-			if (topic != null) {
-				bookTopics.put(topic.getId(), topic);
-			}
-			
-			// Setup the mappings
-			if (!topicMappings.containsKey(specTopic.getDBId())) topicMappings.put(specTopic.getDBId(), new HashMap<Integer, SpecTopic>());
-			topicMappings.get(specTopic.getDBId()).put(topicMappings.get(specTopic.getDBId()).size(), specTopic);
-		}
-		
-		// Check if the app should be shutdown
-		if (isShuttingDown.get()) {
-			shutdown.set(true);
-			return null;
-		}
-		
 		// Set the injection options for the content spec
 		if (contentSpec.getInjectionOptions() != null) {
 			injectionOptions.setContentSpecType(contentSpec.getInjectionOptions().getContentSpecType());
 			injectionOptions.addStrictTopicTypes(contentSpec.getInjectionOptions().getStrictTopicTypes());
 		}
 		
-		injector = new TopicInjector(bookTopics, reader, injectionOptions, errorDatabase);
-		
-		// Setup the constants
-		escapedTitle = StringUtilities.escapeTitle(contentSpec.getTitle());
-		BOOK_FOLDER = escapedTitle + "/";
-		BOOK_EN_US_FOLDER = BOOK_FOLDER + "en-US/";
-		BOOK_TOPICS_FOLDER = BOOK_EN_US_FOLDER + "topics/";
-		BOOK_IMAGES_FOLDER = BOOK_EN_US_FOLDER + "images/";
-		
-		// Set the book mode and resource file locations
-		// (atm Docbook 4.5 is the only supported format)
-		RESOURCE_LOCATION = BuilderConstants.DOCBOOK_45_RESOURCE_LOCATION;
+		// populate the dummy set of docbook building options to be used when processing injections
+		boolean ignoreErrors = builderOptions.getIgnoreErrors();
+		docbookBuildingOptions = new DocbookBuildingOptions();
+		docbookBuildingOptions.setIgnoreMissingCustomInjections(ignoreErrors);
+		docbookBuildingOptions.setBuildName("\nBook: " + contentSpec.getTitle() + "\nEdition: " + (contentSpec.getEdition() == null ? "" : contentSpec.getEdition()) + "\nVersion: " + contentSpec.getVersion());
+		docbookBuildingOptions.setSuppressErrorsPage(ignoreErrors);
+		docbookBuildingOptions.setInsertBugzillaLinks(builderOptions.getInjectBugzillaLinks());
 		
 		// Check if the app should be shutdown
 		if (isShuttingDown.get()) {
@@ -253,18 +295,8 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 			return null;
 		}
 		
-		/*
-		 * assign fixed urls property tags to the topics. If
-		 * fixedUrlsSuccess is true, the id of the topic sections,
-		 * xfref injection points and file names in the zip file
-		 * will be taken from the fixed url property tag, defaulting
-		 * back to the TopicID## format if for some reason that
-		 * property tag does not exist.
-		 */
-		final boolean fixedUrlsSuccess = setFixedURLsPass();
-		
-		// Create the topic and level fileNames
-		createFileNames(fixedUrlsSuccess);
+		final Map<Integer, Set<String>> usedIdAttributes = new HashMap<Integer, Set<String>>();
+		final boolean fixedUrlsSuccess = doPopulateDatabasePass(contentSpec, ignoreErrors, usedIdAttributes);
 		
 		// Check if the app should be shutdown
 		if (isShuttingDown.get()) {
@@ -272,89 +304,748 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 			return null;
 		}
 		
-		// Create the XML for each topic in the book
-		for (final Integer topicId: bookTopics.keySet()) {
-			createTopicXML(bookTopics.get(topicId), ignoreErrors, fixedUrlsSuccess);
-			if (shutdown.get()) return null;
+		// second topic pass to set the ids and process injections
+		doSpecTopicPass(contentSpec, usedIdAttributes, ignoreErrors, fixedUrlsSuccess, BuilderConstants.BUILD_NAME);
+		
+		// Check if the app should be shutdown
+		if (isShuttingDown.get()) {
+			shutdown.set(true);
+			return null;
 		}
 		
-		// Create the rest of the book
-		createBook(requester, ignoreErrors);
-		if (shutdown.get()) return null;
+		/* Process the images in the topics */
+		processImageLocations();
 		
-		// Create the zip file
-		byte[] zipFile = null;
-		try {
-			zipFile = ZipUtilities.createZip(files);
-		} catch (final Exception e) {
-			e.printStackTrace();
+		// Check if the app should be shutdown
+		if (isShuttingDown.get()) {
+			shutdown.set(true);
+			return null;
 		}
-		return zipFile;
+		
+		return doBuildZipPass(contentSpec, requester, ignoreErrors, fixedUrlsSuccess);
 	}
 	
 	/**
-	 * Creates a Chapter for the errors and warnings
+	 * Populates the SpecTopicDatabase with the SpecTopics inside the content specification.
+	 * It also adds the equivalent real topics to each SpecTopic.
 	 * 
-	 * Modified from Matt Casperson's code
+	 * @param contentSpec The content spec to populate the database from
 	 */
-	private String buildErrorChapter()
+	@SuppressWarnings("unchecked")
+	private boolean doPopulateDatabasePass(final ContentSpec contentSpec, final boolean ignoreErrors, final Map<Integer, Set<String>> usedIdAttributes)
 	{
-		String errorItemizedLists = "";
-
-		if (errorDatabase.hasItems())
+		/* Add all the levels and topics to the database first */
+		final Set<Integer> topicIds = addLevelAndTopicsToDatabase(contentSpec.getBaseLevel());
+		
+		final BaseRestCollectionV1<T> topics;
+		final boolean fixedUrlsSuccess;
+		if (contentSpec.getLocale() == null || contentSpec.getLocale().equals(defaultLocale))
 		{
-			for (final TopicErrorData topicErrorData : errorDatabase.getErrors())
-			{
-				final TopicV1 topic = topicErrorData.getTopic();
-
-				final List<String> topicErrorItems = new ArrayList<String>();
-
-				final String tags = topic.getCommaSeparatedTagList();
-
-				topicErrorItems.add(DocbookUtils.buildListItem("INFO: " + tags));
-
-				for (final String error : topicErrorData.getItemsOfType(TopicErrorDatabase.ERROR))
-					topicErrorItems.add(DocbookUtils.buildListItem("ERROR: " + error));
-
-				for (final String warning : topicErrorData.getItemsOfType(TopicErrorDatabase.WARNING))
-					topicErrorItems.add(DocbookUtils.buildListItem("WARNING: " + warning));
-
-				/*
-				 * this should never be false, because a topic will only be
-				 * listed in the errors collection once a error or warning has
-				 * been added. The count of 1 comes from the standard list items
-				 * we added above for the tags.
-				 */
-				if (topicErrorItems.size() > 1)
-				{
-					final String title = "Topic ID " + topic.getId();
-					final String id = BuilderConstants.ERROR_XREF_ID_PREFIX + topic.getId();
-
-					errorItemizedLists += DocbookUtils.wrapListItems(topicErrorItems, title, id);
-				}
-			}
+			final BaseRestCollectionV1<TopicV1> normalTopics = reader.getTopicsByIds(CollectionUtilities.toArrayList(topicIds));
+			
+			/*
+			 * assign fixed urls property tags to the topics. If
+			 * fixedUrlsSuccess is true, the id of the topic sections,
+			 * xfref injection points and file names in the zip file
+			 * will be taken from the fixed url property tag, defaulting
+			 * back to the TopicID## format if for some reason that
+			 * property tag does not exist.
+			 */
+			fixedUrlsSuccess = setFixedURLsPass(normalTopics);
+			
+			topics = (BaseRestCollectionV1<T>) normalTopics;
 		}
 		else
 		{
-			errorItemizedLists = "<para>No Errors Found</para>";
+			final BaseRestCollectionV1<TranslatedTopicV1> translatedTopics = reader.getTranslatedTopicsByTopicIds(CollectionUtilities.toArrayList(topicIds), contentSpec.getLocale());
+			List<Integer> dummyTopicIds = new ArrayList<Integer>(topicIds);
+			
+			/* Remove any topic ids for translated topics that were found */
+			if (translatedTopics != null && translatedTopics.getItems() != null)
+			{
+				for (final TranslatedTopicV1 topic : translatedTopics.getItems())
+				{
+					// Check if the app should be shutdown
+					if (isShuttingDown.get()) {
+						return false;
+					}
+					
+					dummyTopicIds.remove(topic.getTopicId());
+				}
+			}
+			
+			/* Create the dummy translated topics */
+			populateDummyTranslatedTopicsPass(translatedTopics, dummyTopicIds);
+			
+			/* 
+			 * Translations should reference an existing historical topic with
+			 * the fixed urls set, so we assume this to be the case
+			 */
+			fixedUrlsSuccess = true;
+			
+			/* set the topics variable now all initialisation is done */
+			topics = (BaseRestCollectionV1<T>) translatedTopics;
 		}
-
-		return DocbookUtils.buildChapter(errorItemizedLists, "Compiler Output");
+		
+		// Check if the app should be shutdown
+		if (isShuttingDown.get()) {
+			return false;
+		}
+		
+		doTopicPass(topics, ignoreErrors, fixedUrlsSuccess, usedIdAttributes);
+		
+		return fixedUrlsSuccess;
+	}
+	
+	private Set<Integer> addLevelAndTopicsToDatabase(final Level level)
+	{
+		/* Add the level to the database */
+		specDatabase.add(level);
+		
+		/* Add the topics at this level to the database */
+		final Set<Integer> topicIds = new HashSet<Integer>();
+		for (final SpecTopic specTopic : level.getSpecTopics())
+		{
+			// Check if the app should be shutdown
+			if (isShuttingDown.get()) {
+				return topicIds;
+			}
+			
+			specDatabase.add(specTopic);
+			
+			if (specTopic.getDBId() != 0)
+				topicIds.add(specTopic.getDBId());
+		}
+		
+		/* Add the child levels to the database */
+		
+		for (final Level childLevel : level.getChildLevels())
+		{
+			topicIds.addAll(addLevelAndTopicsToDatabase(childLevel));
+		}
+		
+		return topicIds;
 	}
 	
 	/**
-	 * Create the main content of the book (chapters, sections, etc...)
+	 * Populates the topics with a set of dummy topics as specified by the dummyTopicIds list.
 	 * 
-	 * @param reequester The user who requested the book to be built
-	 * @param ignoreErrors Whether or not errors should be ignored
+	 * @param topics The set of topics to add the dummy translated topics to.
+	 * @param dummyTopicIds The list of topics to be added as dummy translated topics.
 	 */
-	public void createBook(UserV1 requester, boolean ignoreErrors) {
-		StringBuffer bookXIncludes = new StringBuffer();
+	private void populateDummyTranslatedTopicsPass(final BaseRestCollectionV1<TranslatedTopicV1> topics, final List<Integer> dummyTopicIds) 
+	{
+		log.info("Doing dummy translated topic pass");
 		
-		// Build the base of the book
-		String book = buildBookBase(contentSpec, requester);
+		final BaseRestCollectionV1<TopicV1> dummyTopics = reader.getTopicsByIds(dummyTopicIds);
 		
-		// Get the initial levels items as these will be chapters.
+		/* Only continue if we found dummy topics */
+		if (dummyTopics == null || dummyTopics.getItems() == null || dummyTopics.getItems().isEmpty()) return;
+		
+		/* Split the topics up into their different locales */
+		final Map<String, Map<Integer, TranslatedTopicV1>> groupedLocaleTopics = new HashMap<String, Map<Integer, TranslatedTopicV1>>();
+		
+		if (topics != null && topics.getItems() != null)
+		{
+			for (final TranslatedTopicV1 topic: topics.getItems())
+			{
+				// Check if the app should be shutdown
+				if (isShuttingDown.get()) {
+					return;
+				}
+				
+				if (!groupedLocaleTopics.containsKey(topic.getLocale()))
+					groupedLocaleTopics.put(topic.getLocale(), new HashMap<Integer, TranslatedTopicV1>());
+				groupedLocaleTopics.get(topic.getLocale()).put(topic.getTopicId(), topic);
+			}
+		}
+		
+		/* create and add the dummy topics per locale */
+		for (final String locale : groupedLocaleTopics.keySet())
+		{
+			final Map<Integer, TranslatedTopicV1> translatedTopicsMap = groupedLocaleTopics.get(locale);
+			for (final TopicV1 topic: dummyTopics.getItems())
+			{
+				// Check if the app should be shutdown
+				if (isShuttingDown.get()) {
+					return;
+				}
+				
+				if (!translatedTopicsMap.containsKey(topic.getId()))
+				{
+					final TranslatedTopicV1 dummyTopic = createDummyTranslatedTopic(translatedTopicsMap, topic, true, locale);
+					
+					topics.addItem(dummyTopic);
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Creates a dummy translated topic so that a book
+	 * can be built using the same relationships as a 
+	 * normal build.
+	 * 
+	 * @param translatedTopicsMap A map of topic ids to translated topics
+	 * @param topic The topic to create the dummy topic from
+	 * @param expandRelationships Whether the relationships should be expanded for the dummy topic
+	 * @return The dummy translated topic
+	 */
+	private TranslatedTopicV1 createDummyTranslatedTopic(final Map<Integer, TranslatedTopicV1> translatedTopicsMap, final TopicV1 topic, final boolean expandRelationships, final String locale)
+	{
+		final TranslatedTopicV1 translatedTopic = new TranslatedTopicV1();
+		
+		translatedTopic.setId(topic.getId() * -1);
+		translatedTopic.setTopicId(topic.getId());
+		translatedTopic.setTopicRevision(topic.getRevision().intValue());
+		translatedTopic.setTopic(topic);
+		translatedTopic.setTranslationPercentage(100);
+		translatedTopic.setRevision(topic.getRevision());
+		translatedTopic.setXml(topic.getXml());
+		translatedTopic.setTags(topic.getTags());
+		translatedTopic.setSourceUrls_OTM(topic.getSourceUrls_OTM());
+		translatedTopic.setProperties(topic.getProperties());
+		translatedTopic.setLocale(locale);
+		
+		/* prefix the locale to show that it is missing the related translated topic */
+		translatedTopic.setTitle("[" + topic.getLocale() + "] " + topic.getTitle());
+		
+		/* Add the dummy outgoing relationships */
+		if (topic.getOutgoingRelationships() != null && topic.getOutgoingRelationships().getItems() != null)
+		{
+			final BaseRestCollectionV1<TranslatedTopicV1> outgoingRelationships = new BaseRestCollectionV1<TranslatedTopicV1>();
+			for (final TopicV1 relatedTopic : topic.getOutgoingRelationships().getItems())
+			{
+				// Check if the app should be shutdown
+				if (isShuttingDown.get()) {
+					return translatedTopic;
+				}
+				
+				/* check to see if the translated topic already exists */
+				if (translatedTopicsMap.containsKey(relatedTopic.getId()))
+				{
+					outgoingRelationships.addItem(translatedTopicsMap.get(relatedTopic.getId()));
+				}
+				else
+				{
+					outgoingRelationships.addItem(createDummyTranslatedTopic(translatedTopicsMap, relatedTopic, false, locale));
+				}
+			}
+			translatedTopic.setOutgoingRelationships(outgoingRelationships);
+		}
+		
+		/* Add the dummy incoming relationships */
+		if (topic.getIncomingRelationships() != null && topic.getIncomingRelationships().getItems() != null)
+		{
+			final BaseRestCollectionV1<TranslatedTopicV1> incomingRelationships = new BaseRestCollectionV1<TranslatedTopicV1>();
+			for (final TopicV1 relatedTopic : topic.getIncomingRelationships().getItems())
+			{
+				// Check if the app should be shutdown
+				if (isShuttingDown.get()) {
+					return translatedTopic;
+				}
+				
+				/* check to see if the translated topic already exists */
+				if (translatedTopicsMap.containsKey(relatedTopic.getId()))
+				{
+					incomingRelationships.addItem(translatedTopicsMap.get(relatedTopic.getId()));
+				}
+				else
+				{
+					incomingRelationships.addItem(createDummyTranslatedTopic(translatedTopicsMap, relatedTopic, false, locale));
+				}
+			}
+			translatedTopic.setIncomingRelationships(incomingRelationships);
+		}
+		
+		return translatedTopic;
+	}
+	
+	private void doTopicPass(final BaseRestCollectionV1<T> topics, final boolean ignoreErrors, final boolean fixedUrlsSuccess, final Map<Integer, Set<String>> usedIdAttributes)
+	{
+		log.info("Doing first pass of topics");
+		
+		for (final T topic : topics.getItems())
+		{
+			/* Find the Topic ID */
+			final Integer topicId;
+			if (topic instanceof TranslatedTopicV1)
+			{
+				topicId = ((TranslatedTopicV1) topic).getTopicId();
+			}
+			else
+			{
+				topicId = topic.getId();
+			}
+			
+			Document topicDoc = null;
+			final String topicXML = topic == null ? null : topic.getXml();
+			
+			// Check if the app should be shutdown
+			if (isShuttingDown.get()) {
+				return;
+			}
+			
+			boolean xmlValid = true;
+			
+			// Check that the Topic XML exists and isn't empty
+			if (topicXML == null || topicXML.equals("")) {
+				// Create an empty topic with the topic title from the resource file
+				String topicXMLErrorTemplate = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "EmptyTopic.xml");
+				topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
+				topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topic.getId()));
+				
+				if (!ignoreErrors)
+				{
+					topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + topic.getErrorXRefID() + "\"/> for more detailed information.</para>");
+				}
+				else
+				{
+					topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
+				}
+				
+				errorDatabase.addWarning(topic, BuilderConstants.EMPTY_TOPIC_XML);
+				topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, fixedUrlsSuccess);
+				xmlValid = false;
+			}
+			
+			// Check if the app should be shutdown
+			if (isShuttingDown.get()) {
+				return;
+			}
+			
+			/* make sure we have valid XML */
+			if (xmlValid)
+			{
+				topicDoc = XMLUtilities.convertStringToDocument(topic.getXml());
+				if (topicDoc == null)
+				{
+					String topicXMLErrorTemplate = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "FailedValidationTopic.xml");
+					topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topic.getId()));
+					
+					if (!ignoreErrors)
+					{
+						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"TagErrorXRef" + topic.getId() + "\"/> for more detailed information.</para>");
+					}
+					else
+					{
+						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
+					}
+					
+					errorDatabase.addError(topic, BuilderConstants.BAD_XML_STRUCTURE);
+					topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, fixedUrlsSuccess);
+				}
+				else
+				{
+					DocbookUtils.setSectionTitle(topic.getTitle(), topicDoc);
+				}
+			}
+			
+			/*
+			 * Extract the id attributes used in this topic. We'll use this data
+			 * in the second pass to make sure that individual topics don't
+			 * repeat id attributes.
+			 */
+			usedIdAttributes.putAll(collectIdAttributes(topicId, topicDoc));
+			
+			processTopicID(topic, topicDoc, fixedUrlsSuccess);
+			
+			/* Add the document & topic to the database spec topics */
+			List<SpecTopic> specTopics = specDatabase.getSpecTopicsForTopicID(topicId);
+			for (final SpecTopic specTopic : specTopics)
+			{
+				// Check if the app should be shutdown
+				if (isShuttingDown.get()) {
+					return;
+				}
+				
+				specTopic.setTopic(topic.clone(false));
+				specTopic.setXmlDocument((Document) topicDoc.cloneNode(true));
+			}
+
+		}
+	}
+	
+	/**
+	 * Loops through each of the spec topics in the database and sets the injections and unique ids for
+	 * each id attribute in the Topics XML.
+	 * 
+	 * @param usedIdAttributes The set of ids that have been used in the set of topics in the content spec.
+	 * @param fixedUrlsSuccess If during processing the fixed urls should be used.
+	 */
+	@SuppressWarnings("unchecked")
+	private void doSpecTopicPass(final ContentSpec contentSpec, final Map<Integer, Set<String>> usedIdAttributes, final boolean ignoreErrors, final boolean fixedUrlsSuccess, final String buildName)
+	{	
+		for (final SpecTopic specTopic : specDatabase.getAllSpecTopics())
+		{
+			// Check if the app should be shutdown
+			if (isShuttingDown.get()) {
+				return;
+			}
+			
+			final T topic = (T) specTopic.getTopic();
+			final Document doc = specTopic.getXmlDocument();
+			final Level baseLevel = contentSpec.getBaseLevel();
+			
+			final XMLPreProcessor<T> xmlPreProcessor = new XMLPreProcessor<T>();
+			boolean valid = true;
+			
+			if (doc != null)
+			{
+				/* process the injection points */
+				if (injectionOptions.isInjectionAllowed())
+				{
+	
+					final ArrayList<Integer> customInjectionIds = new ArrayList<Integer>();
+					final List<Integer> genericInjectionErrors;
+					
+					final List<Integer> customInjectionErrors = xmlPreProcessor.processInjections(baseLevel, specTopic, customInjectionIds, doc, docbookBuildingOptions, fixedUrlsSuccess);
+					
+					if (contentSpec.getOutputStyle().equalsIgnoreCase(CSConstants.SKYNET_OUTPUT_FORMAT))
+					{
+						/*
+						 * create a collection of the tags that make up the topics types
+						 * that will be included in generic injection points
+						 */
+						final List<Pair<Integer, String>> topicTypeTagDetails = new ArrayList<Pair<Integer, String>>();
+						topicTypeTagDetails.add(Pair.newPair(DocbookBuilderConstants.TASK_TAG_ID, DocbookBuilderConstants.TASK_TAG_NAME));
+						topicTypeTagDetails.add(Pair.newPair(DocbookBuilderConstants.REFERENCE_TAG_ID, DocbookBuilderConstants.REFERENCE_TAG_NAME));
+						topicTypeTagDetails.add(Pair.newPair(DocbookBuilderConstants.CONCEPT_TAG_ID, DocbookBuilderConstants.CONCEPT_TAG_NAME));
+						topicTypeTagDetails.add(Pair.newPair(DocbookBuilderConstants.CONCEPTUALOVERVIEW_TAG_ID, DocbookBuilderConstants.CONCEPTUALOVERVIEW_TAG_NAME));
+						
+						genericInjectionErrors = xmlPreProcessor.processGenericInjections(baseLevel, specTopic, doc, customInjectionIds, topicTypeTagDetails, docbookBuildingOptions, fixedUrlsSuccess);
+					}
+					else
+					{
+						xmlPreProcessor.processPrerequisiteInjections(specTopic, doc, fixedUrlsSuccess);
+						xmlPreProcessor.processPrevRelationshipInjections(specTopic, doc, fixedUrlsSuccess);
+						xmlPreProcessor.processNextRelationshipInjections(specTopic, doc, fixedUrlsSuccess);
+						xmlPreProcessor.processSeeAlsoInjections(specTopic, doc, fixedUrlsSuccess);
+						
+						genericInjectionErrors = new ArrayList<Integer>();
+					}
+					
+					final List<Integer> topicContentFragmentsErrors = xmlPreProcessor.processTopicContentFragments(specTopic, doc, docbookBuildingOptions);
+					final List<Integer> topicTitleFragmentsErrors = xmlPreProcessor.processTopicTitleFragments(specTopic, doc, docbookBuildingOptions);
+					
+					// Check if the app should be shutdown
+					if (isShuttingDown.get()) {
+						return;
+					}
+	
+					if (!customInjectionErrors.isEmpty())
+					{
+						final String message = "Topic has referenced Topic(s) " + CollectionUtilities.toSeperatedString(customInjectionErrors) + " in a custom injection point that was either not related, or not included in the filter used to build this book.";
+						if (ignoreErrors)
+						{
+							errorDatabase.addWarning(topic, message);
+						}
+						else
+						{
+							errorDatabase.addError(topic, message);
+							valid = false;
+						}
+					}
+					
+
+					if (!genericInjectionErrors.isEmpty())
+					{
+						final String message = "Topic has related Topic(s) " + CollectionUtilities.toSeperatedString(CollectionUtilities.toAbsIntegerList(genericInjectionErrors)) + " that were not included in the filter used to build this book.";
+						if (ignoreErrors)
+						{
+							errorDatabase.addWarning(topic, message);
+						}
+						else
+						{
+							errorDatabase.addError(topic, message);
+							valid = false;
+						}
+					}
+	
+					if (!topicContentFragmentsErrors.isEmpty())
+					{
+						final String message = "Topic has injected content from Topic(s) " + CollectionUtilities.toSeperatedString(topicContentFragmentsErrors) + " that were not related.";
+						if (ignoreErrors)
+						{
+							errorDatabase.addWarning(topic, message);
+						}
+						else
+						{
+							errorDatabase.addError(topic, message);
+							valid = false;
+						}
+					}
+	
+					if (!topicTitleFragmentsErrors.isEmpty())
+					{
+						final String message = "Topic has injected a title from Topic(s) " + CollectionUtilities.toSeperatedString(topicTitleFragmentsErrors) + " that were not related.";
+						if (ignoreErrors)
+						{
+							errorDatabase.addWarning(topic, message);
+						}
+						else
+						{
+							errorDatabase.addError(topic, message);
+							valid = false;
+						}
+					}
+					
+					/* check for dummy topics */
+					if (topic instanceof TranslatedTopicV1)
+					{
+						/* Add the warning for the topics relationships that haven't been translated */
+						if (topic.getOutgoingRelationships() != null && topic.getOutgoingRelationships().getItems() != null)
+						{
+							for (T relatedTopic: topic.getOutgoingRelationships().getItems())
+							{
+								// Check if the app should be shutdown
+								if (isShuttingDown.get()) {
+									return;
+								}
+								
+								final TranslatedTopicV1 relatedTranslatedTopic = (TranslatedTopicV1) relatedTopic;
+								
+								/* Only show errors for topics that weren't included in the injections */
+								if (!customInjectionErrors.contains(relatedTranslatedTopic.getTopicId()) && !genericInjectionErrors.contains(relatedTopic.getId()))
+								{
+									if ((!baseLevel.isSpecTopicInLevelByTopicID(relatedTranslatedTopic.getTopicId()) && !ignoreErrors) || baseLevel.isSpecTopicInLevelByTopicID(relatedTranslatedTopic.getTopicId()))
+									{
+										if (relatedTopic.isDummyTopic() && relatedTranslatedTopic.hasBeenPushedForTranslation())
+											errorDatabase.addWarning(topic, "Topic ID " + relatedTranslatedTopic.getTopicId() + ", Revision " + relatedTranslatedTopic.getTopicRevision() + ", Title \"" + relatedTopic.getTitle() + "\" is an untranslated topic.");
+										else if (relatedTopic.isDummyTopic())
+											errorDatabase.addWarning(topic, "Topic ID " + relatedTranslatedTopic.getTopicId() + ", Revision " + relatedTranslatedTopic.getTopicRevision() + ", Title \"" + relatedTopic.getTitle() + "\" hasn't been pushed for translation.");
+									}
+								}
+							}
+						}
+						
+						/* Check the topic itself isn't a dummy topic */
+						if (topic.isDummyTopic() && ((TranslatedTopicV1) topic).hasBeenPushedForTranslation())
+							errorDatabase.addWarning(topic, "This topic is an untranslated topic.");
+						else if (topic.isDummyTopic())
+							errorDatabase.addWarning(topic, "This topic hasn't been pushed for translation.");
+					}
+				}
+				
+				// Check if the app should be shutdown
+				if (isShuttingDown.get()) {
+					return;
+				}
+
+				if (!valid)
+				{
+					String topicXMLErrorTemplate = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "FailedInjectionTopic.xml");
+					topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(specTopic.getDBId()));
+					
+					
+					if (!ignoreErrors)
+					{
+						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + topic.getErrorXRefID() + "\"/> for more detailed information.</para>");
+					}
+					else
+					{
+						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
+					}
+					
+					final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(XMLUtilities.convertNodeToString(doc, verbatimElements, inlineElements, contentsInlineElements, true));
+					errorDatabase.addError(topic, "Topic has invalid Injection Points. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+					
+					setSpecTopicXMLForError(specTopic, topicXMLErrorTemplate, fixedUrlsSuccess);
+				}
+				else
+				{
+					/* add the standard boilerplate xml */
+					xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, docbookBuildingOptions, "", buildName, buildDate);
+					
+					setUniqueIds(specTopic, doc, usedIdAttributes);
+					
+					/*
+					 * make sure the XML is valid docbook after the standard
+					 * processing has been done
+					 */
+					validateTopicXML(specTopic, doc, ignoreErrors, fixedUrlsSuccess);
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Sets the "id" attributes in the supplied XML node so that they will be
+	 * unique within the book.
+	 * 
+	 * @param specTopic The topic the node belongs to.
+	 * @param node The node to process for id attributes.
+	 * @param usedIdAttributes The list of usedIdAttributes.
+	 */
+	private void setUniqueIds(final SpecTopic specTopic, final Node node, final Map<Integer, Set<String>> usedIdAttributes)
+	{	
+		// Check if the app should be shutdown
+		if (isShuttingDown.get()) {
+			return;
+		}
+		
+		final NamedNodeMap attributes = node.getAttributes();
+		if (attributes != null)
+		{
+			final Node idAttribute = attributes.getNamedItem("id");
+			if (idAttribute != null)
+			{
+				String idAttributeValue = idAttribute.getNodeValue();
+				
+				if (specTopic.getDuplicateId() != null)
+					idAttributeValue += "-" + specTopic.getDuplicateId();
+				
+				if (!isUniqueAttributeId(idAttributeValue, specTopic.getDBId(), usedIdAttributes))
+					idAttributeValue += "-" + specTopic.getStep();
+				
+				setUniqueIdReferences(node, idAttribute.getNodeValue(), idAttributeValue);
+				
+				idAttribute.setNodeValue(idAttributeValue);
+			}
+		}
+
+		final NodeList elements = node.getChildNodes();
+		for (int i = 0; i < elements.getLength(); ++i)
+			setUniqueIds(specTopic, elements.item(i), usedIdAttributes);
+	}
+	
+	/**
+	 * ID attributes modified in the setUniqueIds() method may have been referenced
+	 * locally in the XML. When an ID is updated, and attribute that referenced
+	 * that ID is also updated.
+	 * 
+	 * @param node
+	 *            The node to check for attributes
+	 * @param id
+	 *            The old ID attribute value
+	 * @param fixedId
+	 *            The new ID attribute
+	 */
+	private void setUniqueIdReferences(final Node node, final String id, final String fixedId)
+	{
+		// Check if the app should be shutdown
+		if (isShuttingDown.get()) {
+			return;
+		}
+		
+		final NamedNodeMap attributes = node.getAttributes();
+		if (attributes != null)
+		{
+			for (int i = 0; i < attributes.getLength(); ++i)
+			{
+				final String attibuteValue = attributes.item(i).getNodeValue();
+				if (attibuteValue.equals(id))
+				{
+					attributes.item(i).setNodeValue(fixedId);
+				}
+			}
+		}
+
+		final NodeList elements = node.getChildNodes();
+		for (int i = 0; i < elements.getLength(); ++i)
+			setUniqueIdReferences(elements.item(i), id, fixedId);
+	}
+	
+	/**
+	 * Checks to see if a supplied attribute id is unique within this book, based
+	 * upon the used id attributes that were calculated earlier.
+	 * 
+	 * @param id The Attribute id to be checked
+	 * @param topicId The id of the topic the attribute id was found in
+	 * @param usedIdAttributes The set of used ids calculated earlier
+	 * @return True if the id is unique otherwise false.
+	 */
+	private boolean isUniqueAttributeId(final String id, final Integer topicId, final Map<Integer, Set<String>> usedIdAttributes)
+	{
+		boolean retValue = true;
+
+		if (usedIdAttributes.containsKey(topicId))
+		{
+			final Set<String> ids1 = usedIdAttributes.get(topicId);
+
+			for (final Integer topicId2 : usedIdAttributes.keySet())
+			{
+				// Check if the app should be shutdown
+				if (isShuttingDown.get()) {
+					return false;
+				}
+				
+				if (topicId2 == topicId)
+					continue;
+
+				if (usedIdAttributes.containsKey(topicId2))
+				{
+					final Set<String> ids2 = usedIdAttributes.get(topicId2);
+
+					for (final String id1 : ids1)
+					{
+						// Check if the app should be shutdown
+						if (isShuttingDown.get()) {
+							return false;
+						}
+						
+						if (ids2.contains(id1))
+						{
+							retValue = false;
+						}
+					}
+				}
+			}
+		}
+
+		return retValue;
+	}
+	
+	/**
+	 * This function scans the supplied XML node and it's children for id
+	 * attributes, collecting them in the usedIdAttributes parameter
+	 * 
+	 * @param node
+	 *            The current node being processed (will be the document root to
+	 *            start with, and then all the children as this function is
+	 *            recursively called)
+	 */
+	private Map<Integer, Set<String>> collectIdAttributes(final Integer topicId, final Node node)
+	{
+		// Check if the app should be shutdown
+		if (isShuttingDown.get()) {
+			return null;
+		}
+		
+		final Map<Integer, Set<String>> usedIdAttributes = new HashMap<Integer, Set<String>>();
+		final NamedNodeMap attributes = node.getAttributes();
+		if (attributes != null)
+		{
+			final Node idAttribute = attributes.getNamedItem("id");
+			if (idAttribute != null)
+			{
+				final String idAttibuteValue = idAttribute.getNodeValue();
+				if (!usedIdAttributes.containsKey(topicId))
+					usedIdAttributes.put(topicId, new HashSet<String>());
+				usedIdAttributes.get(topicId).add(idAttibuteValue);
+			}
+		}
+
+		final NodeList elements = node.getChildNodes();
+		for (int i = 0; i < elements.getLength(); ++i)
+			usedIdAttributes.putAll(collectIdAttributes(topicId, elements.item(i)));
+		
+		return usedIdAttributes;
+	}
+	
+	private byte[] doBuildZipPass(final ContentSpec contentSpec, final UserV1 requester, final boolean ignoreErrors, final boolean fixedUrlsSuccess) throws InvalidParameterException, InternalProcessingException
+	{
+		log.info("Building the ZIP file");
+		
+		final StringBuffer bookXIncludes = new StringBuffer();
+		
+		/* Add the base book information */
+		final HashMap<String, byte[]> files = new HashMap<String, byte[]>();
+		final String bookBase = buildBookBase(contentSpec, requester, files);
+		
+		/* add the images to the book */
+		addImagesToBook(files);
+		
 		LinkedList<com.redhat.contentspec.Node> levelData = contentSpec.getBaseLevel().getChildNodes();
 		
 		// Setup the basic chapter.xml
@@ -365,8 +1056,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		
 			// Check if the app should be shutdown
 			if (isShuttingDown.get()) {
-				shutdown.set(true);
-				return;
+				return null;
 			}
 			
 			if (node instanceof Part) {
@@ -376,22 +1066,122 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 				bookXIncludes.append("\t<title>" + part.getTitle() + "</title>\n");
 				
 				for (Level childLevel: part.getChildLevels()) {
-					createChapterXML(bookXIncludes, childLevel, basicChapter);
+					createChapterXML(files, bookXIncludes, childLevel, basicChapter, fixedUrlsSuccess);
 				}
 				
 				bookXIncludes.append("\t</part>\n");
 			} else if (node instanceof Level) {
-				createChapterXML(bookXIncludes, (Level)node, basicChapter);
+				final Level level = (Level) node;
+				
+				if (level.hasSpecTopics())
+				{
+					createChapterXML(files, bookXIncludes, level, basicChapter, fixedUrlsSuccess);
+				}
+				else if (builderOptions.isAllowEmptySections())
+				{
+					bookXIncludes.append(DocbookUtils.wrapInPara("No Content"));
+				}
 			}
 		}
 		
-		if (errorDatabase.hasItems() && !ignoreErrors) {
-			files.put(BOOK_EN_US_FOLDER + "Errors.xml", buildErrorChapter().getBytes());
-			// Add the error to the book.xml
-			bookXIncludes.append("\t<xi:include href=\"Errors.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
+		
+		/* add any compiler errors */
+		if (!ignoreErrors)
+		{
+			final String compilerOutput = buildErrorChapter(locale);
+			files.put(BOOK_LOCALE_FOLDER + "Errors.xml", StringUtilities.getStringBytes(StringUtilities.cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
+			bookXIncludes.append("	<xi:include href=\"Errors.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
 		}
-		book = book.replace(BuilderConstants.XIINCLUDES_INJECTION_STRING, bookXIncludes);
-		files.put(BOOK_EN_US_FOLDER + escapedTitle + ".xml", book.getBytes());
+		
+		final String book = bookBase.replace(BuilderConstants.XIINCLUDES_INJECTION_STRING, bookXIncludes);
+		files.put(BOOK_LOCALE_FOLDER + escapedTitle + ".xml", book.getBytes());
+		
+		// Check if the app should be shutdown
+		if (isShuttingDown.get()) {
+			return null;
+		}
+		
+		// Create the zip file
+		byte[] zipFile = null;
+		try {
+			zipFile = ZipUtilities.createZip(files);
+		} catch (final Exception e) {
+			e.printStackTrace();
+		}
+		
+		return zipFile;
+	}
+	
+	/**
+	 * Builds the basics of a Docbook from the resource files for a specific content specification.
+	 * 
+	 * @param contentSpec The content specification object to be built.
+	 * @param vairables A mapping of variables that are used as override parameters
+	 * @param requester The User who requested the book be built
+	 * @return A Document object to be used in generating the book.xml
+	 */
+	private String buildBookBase(final ContentSpec contentSpec, final UserV1 requester, final Map<String, byte[]> files) {
+		final Map<String, String> variables = builderOptions.getOverrides();
+		final DateFormat dateFormatter = new SimpleDateFormat(BuilderConstants.DATE_STRING_FORMAT);
+
+		String entFile;
+		
+		String brand = contentSpec.getBrand();
+		if (brand == null) brand = "common";
+		
+		// Setup publican.cfg
+		String publicanCfg = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "publican.cfg");
+		publicanCfg = publicanCfg.replaceAll(BuilderConstants.BRAND_REGEX, brand);
+		publicanCfg = publicanCfg.replaceAll(BuilderConstants.DATE_FORMAT_REGEX, dateFormatter.format(buildDate));
+		publicanCfg = publicanCfg.replaceAll(BuilderConstants.BUILDER_VERSION_REGEX, BuilderConstants.BUILDER_VERSION);
+		if (contentSpec.getPublicanCfg() != null) {
+			publicanCfg += contentSpec.getPublicanCfg();
+		}
+		files.put(BOOK_FOLDER + "publican.cfg", publicanCfg.getBytes());
+		
+		// Setup Book_Info.xml
+		String pubsNumber = (variables.containsKey("pubsnumber") && variables.containsKey("pubsnumber")) ? variables.get("pubsnumber") : (contentSpec.getPubsNumber() == null ? BuilderConstants.PUBSNUMBER_DEFAULT : contentSpec.getPubsNumber().toString());
+		String bookInfo = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "Book_Info.xml");
+		bookInfo = bookInfo.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
+		bookInfo = bookInfo.replaceAll(BuilderConstants.TITLE_REGEX, contentSpec.getTitle());
+		bookInfo = bookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX, contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : contentSpec.getSubtitle());
+		bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
+		bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
+		bookInfo = bookInfo.replaceAll(BuilderConstants.EDITION_REGEX, contentSpec.getEdition() == null ? BuilderConstants.EDITION_DEFAULT : contentSpec.getEdition());
+		bookInfo = bookInfo.replaceAll(BuilderConstants.PUBSNUMBER_REGEX, pubsNumber);
+		bookInfo = bookInfo.replaceAll(BuilderConstants.CONTENT_SPEC_DECRIPTION_REGEX, contentSpec.getAbstract() == null ? BuilderConstants.DEFAULT_CS_DECRIPTION : contentSpec.getAbstract());
+		files.put(BOOK_LOCALE_FOLDER + "Book_Info.xml", bookInfo.getBytes());
+		
+		// Setup Author_Group.xml
+		buildAuthorGroup(contentSpec, files);
+		
+		// Setup Preface.xml
+		String preface = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "Preface.xml");
+		preface = preface.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
+		files.put(BOOK_LOCALE_FOLDER + "Preface.xml", preface.getBytes());
+		
+		// Setup Revision_History.xml
+		buildRevisionHistory(contentSpec, requester, files);
+		
+		// Setup the <<contentSpec.title>>.ent file
+		entFile = BuilderConstants.CS_NAME_ENT_FILE.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
+		entFile = entFile.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
+		entFile = entFile.replaceAll(BuilderConstants.TITLE_REGEX, contentSpec.getTitle());
+		entFile = entFile.replaceAll(BuilderConstants.YEAR_FORMAT_REGEX, Integer.toString(Calendar.getInstance().get(Calendar.YEAR)));
+		entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_COPYRIGHT_REGEX, contentSpec.getCopyrightHolder());
+		entFile = entFile.replaceAll(BuilderConstants.BZPRODUCT_REGEX, contentSpec.getBugzillaProduct() == null ? contentSpec.getProduct() : contentSpec.getBugzillaProduct());
+		entFile = entFile.replaceAll(BuilderConstants.BZCOMPONENT_REGEX, contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec.getBugzillaComponent());
+		entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, "https://bugzilla.redhat.com/");
+		files.put(BOOK_LOCALE_FOLDER + escapedTitle + ".ent", entFile.getBytes());
+		
+		// Setup the icon.svg
+		files.put(BOOK_IMAGES_FOLDER + "icon.svg", ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "icon.svg").getBytes());
+		
+		// Setup the basic book.xml
+		String basicBook = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "Book.xml").replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
+		basicBook = basicBook.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
+		basicBook = basicBook.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
+		return basicBook;
 	}
 	
 	/**
@@ -401,18 +1191,17 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	 * @param level The level to build the chapter from.
 	 * @param basicChapter A string representation of a basic chapter.
 	 */
-	protected void createChapterXML(StringBuffer bookXIncludes, Level level, String basicChapter) {
+	protected void createChapterXML(final Map<String, byte[]> files, final StringBuffer bookXIncludes, final Level level, final String basicChapter, final boolean fixedUrlsSuccess) {
 			
 		// Check if the app should be shutdown
 		if (isShuttingDown.get()) {
-			shutdown.set(true);
 			return;
 		}
 		
 		Document chapter = XMLUtilities.convertStringToDocument(basicChapter);
 		
 		// Create the title
-		String chapterName = levelFileNames.get(level) + ".xml";
+		String chapterName = level.getUniqueLinkId(fixedUrlsSuccess) + ".xml";
 		if (level.getType() == LevelType.APPENDIX) {
 			chapter.renameNode(chapter.getDocumentElement(), null, "appendix");
 		}
@@ -424,12 +1213,12 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		Element titleNode = chapter.createElement("title");
 		titleNode.setTextContent(level.getTitle());
 		chapter.getDocumentElement().appendChild(titleNode);
-		chapter.getDocumentElement().setAttribute("id", levelFileNames.get(level));
-		createSectionXML(level, chapter, chapter.getDocumentElement());
+		chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(fixedUrlsSuccess));
+		createSectionXML(files, level, chapter, chapter.getDocumentElement(), fixedUrlsSuccess);
 		
 		// Add the boiler plate text and add the chapter to the book
 		String chapterString = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent");
-		files.put(BOOK_EN_US_FOLDER + chapterName, chapterString.getBytes());
+		files.put(BOOK_LOCALE_FOLDER + chapterName, chapterString.getBytes());
 	}
 	
 	/**
@@ -439,7 +1228,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	 * @param chapter The chapter document object that this section is to be added to.
 	 * @param parentNode The parent XML node of this section.
 	 */
-	protected void createSectionXML(Level level, Document chapter, Element parentNode) {
+	protected void createSectionXML(final Map<String, byte[]> files, final Level level, final Document chapter, final Element parentNode, final boolean fixedUrlsSuccess) {
 		LinkedList<com.redhat.contentspec.Node> levelData = level.getChildNodes();
 		
 		// Add the section and topics for this level to the chapter.xml
@@ -447,7 +1236,6 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 			
 			// Check if the app should be shutdown
 			if (isShuttingDown.get()) {
-				shutdown.set(true);
 				return;
 			}
 			
@@ -459,387 +1247,126 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 				Element sectionTitleNode = chapter.createElement("title");
 				sectionTitleNode.setTextContent(childLevel.getTitle());
 				sectionNode.appendChild(sectionTitleNode);
-				sectionNode.setAttribute("id", levelFileNames.get(childLevel));
+				sectionNode.setAttribute("id", childLevel.getUniqueLinkId(fixedUrlsSuccess));
 				
-				// Add this sections child sections/topics
-				createSectionXML(childLevel, chapter, sectionNode);
+				// Ignore sections that have no spec topics
+				if (!childLevel.hasSpecTopics())
+				{
+					if (builderOptions.isAllowEmptySections())
+					{	
+						Element warning = chapter.createElement("warning");
+						warning.setTextContent("No Content");
+						sectionNode.appendChild(warning);
+					}
+					else
+					{
+						continue;
+					}
+				}
+				else
+				{
+					// Add this sections child sections/topics
+					createSectionXML(files, childLevel, chapter, sectionNode, fixedUrlsSuccess);
+				}
+				
 				parentNode.appendChild(sectionNode);
 			} else if (node instanceof SpecTopic) {
-				SpecTopic topic = (SpecTopic)node;
-				String topicNameId = topic.getDBId() + ".xml";
-				String topicFileName = topicFileNames.get(topic.getDBId());
-				if (topicMappings.get(topic.getDBId()).size() > 1) {
-					// The topic is duplicated in the content spec so use the appropriate topic
-					for (Integer i: topicMappings.get(topic.getDBId()).keySet()) {
-						if (topicMappings.get(topic.getDBId()).get(i).equals(topic)) {
-							
-							// Create the String that will be appended to the end of the topic xml id
-							String postFix = "";
-							if (i != 0) {
-								postFix = "-" + i;
-							}
-							
-							topicNameId = topic.getDBId() + postFix + ".xml";
-							topicFileName = topicFileName + postFix;
-							break;
-						}
-					}
-				}
+				SpecTopic specTopic = (SpecTopic)node;
+				String topicFileName;
+				
+				if (fixedUrlsSuccess)
+					topicFileName = specTopic.getTopic().getXrefPropertyOrId(CommonConstants.FIXED_URL_PROP_TAG_ID);
+				else
+					topicFileName = specTopic.getTopic().getXRefID();
+				
+				if (specTopic.getDuplicateId() != null)
+					topicFileName += "-" + specTopic.getDuplicateId();			
+					
 				topicFileName += ".xml";
 				
-				// Inject the topic either inline or as an XInclude
-				if (topic.isInlineTopic()) {
-					// TODO Fix inline injection
-					Document topicDoc = inlineTopics.get(topicNameId);
-					NodeList childNodes = topicDoc.getDocumentElement().getChildNodes();
-					for (int i = 0; i < childNodes.getLength(); i++) {
-						parentNode.appendChild(chapter.importNode(childNodes.item(i), true));
-					}
-				} else {
-					Element topicNode = chapter.createElement("xi:include");
-					topicNode.setAttribute("href", "topics/" + topicFileName);
-					topicNode.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
-					parentNode.appendChild(topicNode);
-				}
+				Element topicNode = chapter.createElement("xi:include");
+				topicNode.setAttribute("href", "topics/" + topicFileName);
+				topicNode.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
+				parentNode.appendChild(topicNode);
+				
+				String topicXML = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent");
+				files.put(BOOK_TOPICS_FOLDER + topicFileName, topicXML.getBytes());
 			}
 		}
 	}
 	
-	/**
-	 * Creates the required Topic XML data for a specific topic and then validates it.
-	 * 
-	 * @param topic The topic entity to create the XML data for.
-	 * @returns A Document object that represents the topic XML data.
-	 */
-	protected void createTopicXML(TopicV1 topic, boolean ignoreErrors, final boolean fixedUrlsSuccess) {
-		// Check if the app should be shutdown
-		if (isShuttingDown.get()) {
-			shutdown.set(true);
-			return;
-		}
-		
-		String topicXML = topic.getXml();
-		Document topicDoc = null;
-		String id = "id";
-		
-		// Check that the Topic XML exists and isn't empty
-		if (topicXML == null || topicXML.equals("")) {
-			// Create an empty topic with the topic title from the resource file
-			topicXML = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "EmptyTopic.xml");
-			topicXML = topicXML.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
-			topicXML = topicXML.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topic.getId()));
-			if (!ignoreErrors) {
-				topicXML = topicXML.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"TagErrorXRef" + topic.getId() + "\"/> for more detailed information.</para>");
-			} else {
-				topicXML = topicXML.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
+	private void addImagesToBook(final HashMap<String, byte[]> files) throws InvalidParameterException, InternalProcessingException
+	{
+		/* Load the database constants */
+		final byte[] failpenguinPng = restManager.getRESTClient().getJSONBlobConstant(BuilderConstants.FAILPENGUIN_PNG_ID, "").getValue();
+
+		/* download the image files that were identified in the processing stage */
+		int imageProgress = 0;
+		final int imageTotal = this.imageLocations.size();
+
+		for (final TopicImageData<T> imageLocation : this.imageLocations)
+		{
+			// Check if the app should be shutdown
+			if (isShuttingDown.get()) {
+				return;
 			}
-			topicDoc = XMLUtilities.convertStringToDocument(topicXML);
-			errorDatabase.addWarning(topic, BuilderConstants.EMPTY_TOPIC_XML);
-		} else {
-			// Converts the string into Document and removes the title node
-			topicDoc = XMLUtilities.convertStringToDocument(topicXML);
 			
-			// Checks to ensure that the topic converted properly
-			if (topicDoc == null) {
-				topicXML = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "FailedValidationTopic.xml");
-				topicXML = topicXML.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topic.getId()));
-				if (!ignoreErrors) {
-					topicXML = topicXML.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"TagErrorXRef" + topic.getId() + "\"/> for more detailed information.</para>");
-				} else {
-					topicXML = topicXML.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
-				}
-				topicDoc = XMLUtilities.convertStringToDocument(topicXML);
-				errorDatabase.addError(topic, BuilderConstants.BAD_XML_STRUCTURE);
-			} else {
-				
-				// Create the title node for the topic
-				NodeList nodes = topicDoc.getElementsByTagName("title");
-				if (nodes.getLength() != 0) {
-					for (int i = 0; i < nodes.getLength(); i++) {
-						if (nodes.item(i).getParentNode().equals(topicDoc.getDocumentElement())) {
-							nodes.item(i).getParentNode().removeChild(nodes.item(i));
-						}
+			boolean success = false;
+
+			final int extensionIndex = imageLocation.getImageName().lastIndexOf(".");
+			final int pathIndex = imageLocation.getImageName().lastIndexOf("/");
+
+			if (/* characters were found */
+			extensionIndex != -1 && pathIndex != -1 &&
+			/* the path character was found before the extension */
+			extensionIndex > pathIndex)
+			{
+				try
+				{
+					/*
+					 * The file name minus the extension should be an integer
+					 * that references an ImageFile record ID.
+					 */
+					final String topicID = imageLocation.getImageName().substring(pathIndex + 1, extensionIndex);
+					final ImageV1 imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(topicID), "");
+
+					if (imageFile != null)
+					{
+						success = true;
+						files.put(BOOK_LOCALE_FOLDER + imageLocation.getImageName(), imageFile.getImageData());
+					}
+					else
+					{
+						errorDatabase.addError(imageLocation.getTopic(), "ImageFile ID " + topicID + " from image location " + imageLocation + " was not found!");
+						log.error("ImageFile ID " + topicID + " from image location " + imageLocation + " was not found!");
 					}
 				}
-				Element topicTitleNode = topicDoc.createElement("title");
-				topicTitleNode.setTextContent(topic.getTitle());
-				
-				// Writes the title node to the document with the topic title
-				Node firstNode = topicDoc.getDocumentElement().getFirstChild();
-				if (firstNode != null) {
-					topicDoc.getDocumentElement().insertBefore(topicTitleNode, firstNode);
-				} else {
-					topicDoc.getDocumentElement().appendChild(topicTitleNode);
-				}
-				
-				// Creates a section node for the topic if one doesn't exist
-				if (!topicDoc.getDocumentElement().getNodeName().equals("section")) {
-					DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-					DocumentBuilder dBuilder;
-					Document doc = null;
-					try {
-						dBuilder = dbFactory.newDocumentBuilder();	
-						doc = dBuilder.newDocument();
-					} catch (ParserConfigurationException e) {
-						e.printStackTrace();
-					}
-					Element section = topicDoc.createElement("section");
-					section.appendChild(doc.importNode(topicDoc.getDocumentElement(), true));
-					doc.appendChild(section);
-					topicDoc = doc;
-				}
-				
-				// Check if the app should be shutdown
-				if (isShuttingDown.get()) {
-					shutdown.set(true);
-					return;
-				}
-				
-				// Adds the images to the book that are required for this topic
-				addImagesToBookForNode(topicDoc.getDocumentElement(), topic);
-				
-				// Process the injections if allowed
-				boolean injectionsValid = true;
-				if (injectionOptions.isInjectionAllowed()) {
-					injectionsValid = injector.processTopicInjections(topic, topicDoc, fixedUrlsSuccess);
-				}
-				
-				// Check that the injections were successful
-				if (!injectionsValid) {
-					topicXML = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "FailedInjectionTopic.xml");
-					topicXML = topicXML.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topic.getId()));
-					if (!ignoreErrors) {
-						topicXML = topicXML.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"TagErrorXRef" + topic.getId() + "\"/> for more detailed information.</para>");
-					} else {
-						topicXML = topicXML.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
-					}
-					topicDoc = XMLUtilities.convertStringToDocument(topicXML);
-				} else {
-					
-					// Check if the app should be shutdown
-					if (isShuttingDown.get()) {
-						shutdown.set(true);
-						return;
-					}
-					
-					// Validate the topic
-					topicDoc = validateTopicXMLFirstPass(topic, topicDoc, ignoreErrors);
+				catch (final Exception ex)
+				{
+					success = false;
+					errorDatabase.addError(imageLocation.getTopic(), imageLocation + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123.png, or images/321.jpg");
+					log.error(ExceptionUtilities.getStackTrace(ex));
 				}
 			}
-		}
-		
-		// Check if the app should be shutdown
-		if (isShuttingDown.get()) {
-			shutdown.set(true);
-			return;
-		}
-		
-		// Add/overwrite the topic ID attribute and add relationships to the topic
-		HashMap<Integer, SpecTopic> topicMapping = topicMappings.get(topic.getId());
-		if (topicMapping.size() == 1) {
-			for (Integer key: topicMapping.keySet()) {
-				
-				// Inject the relationships and bugzilla links
-				injector.processRelationshipInjections(topicDoc, topicMapping.get(key), topicMappings, topicIdNames, levelFileNames);
-				if (injectBugzillaLinks && contentSpec.getBugzillaOptions().isBugzillaLinksEnabled()) {
-					injector.addBugzillaLinksToTopic(topicDoc, topic, contentSpec.getBugzillaOptions(), getBookDetails());
-				}
-				
-				// Validate the XML again after the final injections
-				topicDoc = validateTopicXMLSecondPass(topic, topicDoc, ignoreErrors);
-				
-				// There are no duplicates of the topic so there is no need to create duplicate files or alter the filename
-				topicDoc.getDocumentElement().setAttribute(id, topicIdNames.get(topic.getId()));
-				
-				if (topicMapping.get(key).isInlineTopic()) {
-					inlineTopics.put(topic.getId() + ".xml", topicDoc);
-				} else {
-					/* get a formatted copy of the XML Document */
-					String docString = XMLUtilities.convertNodeToString(topicDoc, verbatimElements, inlineElements, contentsInlineElements, true);
-					final String topicString = StringUtilities.cleanTextForXML(DocbookUtils.addXMLBoilerplate(docString, this.escapedTitle + ".ent"));
-					
-					files.put(BOOK_TOPICS_FOLDER + topicFileNames.get(topic.getId()) + ".xml", topicString.getBytes());
-				}
+
+			/* put in a place holder */
+			if (!success)
+			{
+				files.put(BOOK_LOCALE_FOLDER + imageLocation.getImageName(), failpenguinPng);
 			}
-		} else {
-			// There are duplicates of the topic so we need to create duplicate files and alter each filename to be unique
-			for (Integer i: topicMapping.keySet()) {
-				
-				// Create the String that will be appended to the end of the topic xml id
-				String postFix = "";
-				if (i != 0) {
-					postFix = "-" + i;
-				}
-				
-				// Clone the topic and add the relationships
-				SpecTopic t = topicMapping.get(i);
-				try {
-					Document clonedDoc = XMLUtilities.cloneDocument(topicDoc);
-					
-					// Inject the relationships and bugzilla links
-					injector.processRelationshipInjections(clonedDoc, t, topicMappings, topicIdNames, levelFileNames);
-					if (injectBugzillaLinks && contentSpec.getBugzillaOptions().isBugzillaLinksEnabled()) {
-						injector.addBugzillaLinksToTopic(clonedDoc, topic, contentSpec.getBugzillaOptions(), getBookDetails());
-					}
-					
-					// Validate the XML again after the final injections
-					clonedDoc = validateTopicXMLSecondPass(topic, clonedDoc, ignoreErrors);
-					
-					clonedDoc.getDocumentElement().setAttribute(id, topicIdNames.get(topic.getId()) + postFix);
-					
-					// Set other id's in the topic document so that they always stay unique
-					// however leave the first one intact in case it is linked to elsewhere
-					if (i > 1) {
-						NodeList topicNodes = clonedDoc.getDocumentElement().getChildNodes();
-						for (int j = 0; j < topicNodes.getLength(); j++) {
-							if (topicNodes.item(j).getNodeType() == Node.ELEMENT_NODE) {
-								Element ele = (Element) topicNodes.item(j);
-								if (ele.hasAttribute("id")) {
-									ele.setAttribute("id", (ele.getAttribute("id") + postFix));
-								}
-							}
-						}
-					}
-					
-					if (t.isInlineTopic()) {
-						inlineTopics.put(topic.getId() + postFix + ".xml", clonedDoc);
-					} else {
-						// Get a formatted copy of the XML Document
-						String docString = XMLUtilities.convertNodeToString(clonedDoc, verbatimElements, inlineElements, contentsInlineElements, true);
-						final String topicString = StringUtilities.cleanTextForXML(DocbookUtils.addXMLBoilerplate(docString, this.escapedTitle + ".ent"));
-	
-						files.put(BOOK_TOPICS_FOLDER + topicFileNames.get(topic.getId()) + postFix + ".xml", topicString.getBytes());
-					}
-				} catch (Exception e) {
-					log.error(ExceptionUtilities.getStackTrace(e));
-				}
-			}
+
+			final float progress = (float) imageProgress / (float) imageTotal * 100;
+			NotificationUtilities.dumpMessageToStdOut("\tDownloading Images " + Math.round(progress) + "% done");
+
+			++imageProgress;
 		}
-	}
-	
-	/**
-	 * Validates the XML after the first set of injections have been processed.
-	 * 
-	 * @param topic The topic that is being validated.
-	 * @param topicDoc A Document object that holds the Topic's XML
-	 * @param ignoreErrors Whether error output should be ignored.
-	 * @return The validate document or a template if it failed validation.
-	 */
-	private Document validateTopicXMLFirstPass(final TopicV1 topic, final Document topicDoc, boolean ignoreErrors) {
-		// Validate the topic against its DTD/Schema
-		SAXXMLValidator validator = new SAXXMLValidator();
-		if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue())) {
-			String topicXML = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "FailedValidationTopic.xml");
-			topicXML = topicXML.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topic.getId()));
-			if (!ignoreErrors) {
-				topicXML = topicXML.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + BuilderConstants.ERROR_XREF_ID_PREFIX + topic.getId() + "\"/> for more detailed information.</para>");
-			} else {
-				topicXML = topicXML.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
-			}
-			errorDatabase.addError(topic, String.format(BuilderConstants.INVALID_TOPIC_XML, validator.getErrorText()));
-			return XMLUtilities.convertStringToDocument(topicXML);
-		}
-		return topicDoc;
-	}
-	
-	/**
-	 * Validates the XML after the second set of injections have been done (Relationships and Bug Reporting Links).
-	 * 
-	 * @param id The unique id of the topic. Ie if there are two topics with the same id one should be "TopicID" and the other "TopicID-1"
-	 * @param topicDoc A Document object that holds the Topic's XML
-	 * @param ignoreErrors Whether error output should be ignored.
-	 * @return The validate document or a template if it failed validation.
-	 */
-	private Document validateTopicXMLSecondPass(final TopicV1 topic, final Document topicDoc, final boolean ignoreErrors) {
-		// Validate the topic against its DTD/Schema
-		SAXXMLValidator validator = new SAXXMLValidator();
-		if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue())) {
-			String topicXML = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "FailedInjectionTopic.xml");
-			topicXML = topicXML.replaceAll(BuilderConstants.TOPIC_ID_REGEX, topic.getId().toString());
-			if (!ignoreErrors) {
-				topicXML = topicXML.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + BuilderConstants.ERROR_XREF_ID_PREFIX + topic.getId() + "\"/> for more detailed information.</para>");
-			} else {
-				topicXML = topicXML.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
-			}
-			errorDatabase.addError(topic, String.format(BuilderConstants.FAILED_TOPIC_XML, validator.getErrorText()));
-			return XMLUtilities.convertStringToDocument(topicXML);
-		}
-		return topicDoc;
-	}
-	
-	/**
-	 * Builds the basics of a Docbook from the resource files for a specific content specification.
-	 * 
-	 * @param cs The content specification object to be built.
-	 * @param vairables A mapping of variables that are used as override parameters
-	 * @param requester The User who requested the book be built
-	 * @return A Document object to be used in generating the book.xml
-	 */
-	private String buildBookBase(ContentSpec cs, UserV1 requester) {
-		Map<String, String> variables = builderOptions.getOverrides();
-		
-		String brand = cs.getBrand();
-		if (brand == null) brand = "common";
-		
-		// Setup publican.cfg
-		String publicanCfg = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "publican.cfg");
-		publicanCfg = publicanCfg.replaceAll(BuilderConstants.BRAND_REGEX, brand);
-		publicanCfg = publicanCfg.replaceAll(BuilderConstants.DATE_FORMAT_REGEX, getDateString());
-		publicanCfg = publicanCfg.replaceAll(BuilderConstants.BUILDER_VERSION_REGEX, BuilderConstants.BUILDER_VERSION);
-		if (cs.getPublicanCfg() != null) {
-			publicanCfg += cs.getPublicanCfg();
-		}
-		files.put(BOOK_FOLDER + "publican.cfg", publicanCfg.getBytes());
-		
-		// Setup Book_Info.xml
-		String pubsNumber = (variables.containsKey("pubsnumber") && variables.containsKey("pubsnumber")) ? variables.get("pubsnumber") : (cs.getPubsNumber() == null ? BuilderConstants.PUBSNUMBER_DEFAULT : cs.getPubsNumber().toString());
-		String bookInfo = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "Book_Info.xml");
-		bookInfo = bookInfo.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
-		bookInfo = bookInfo.replaceAll(BuilderConstants.TITLE_REGEX, cs.getTitle());
-		bookInfo = bookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX, cs.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : cs.getSubtitle());
-		bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX, cs.getProduct());
-		bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, cs.getVersion());
-		bookInfo = bookInfo.replaceAll(BuilderConstants.EDITION_REGEX, cs.getEdition() == null ? BuilderConstants.EDITION_DEFAULT : cs.getEdition());
-		bookInfo = bookInfo.replaceAll(BuilderConstants.PUBSNUMBER_REGEX, pubsNumber);
-		bookInfo = bookInfo.replaceAll(BuilderConstants.CONTENT_SPEC_DECRIPTION_REGEX, cs.getAbstract() == null ? BuilderConstants.DEFAULT_CS_DECRIPTION : cs.getAbstract());
-		files.put(BOOK_EN_US_FOLDER + "Book_Info.xml", bookInfo.getBytes());
-		
-		// Setup Author_Group.xml
-		buildAuthorGroup();
-		
-		// Setup Preface.xml
-		String preface = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "Preface.xml");
-		preface = preface.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
-		files.put(BOOK_EN_US_FOLDER + "Preface.xml", preface.getBytes());
-		
-		// Setup Revision_History.xml
-		buildRevisionHistory(requester);
-		
-		// Setup the <<contentSpec.title>>.ent file
-		entFile = BuilderConstants.CS_NAME_ENT_FILE.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
-		entFile = entFile.replaceAll(BuilderConstants.PRODUCT_REGEX, cs.getProduct());
-		entFile = entFile.replaceAll(BuilderConstants.TITLE_REGEX, cs.getTitle());
-		entFile = entFile.replaceAll(BuilderConstants.YEAR_FORMAT_REGEX, Integer.toString(Calendar.getInstance().get(Calendar.YEAR)));
-		entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_COPYRIGHT_REGEX, cs.getCopyrightHolder());
-		entFile = entFile.replaceAll(BuilderConstants.BZPRODUCT_REGEX, cs.getBugzillaProduct() == null ? cs.getProduct() : cs.getBugzillaProduct());
-		entFile = entFile.replaceAll(BuilderConstants.BZCOMPONENT_REGEX, cs.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : cs.getBugzillaComponent());
-		entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, "https://bugzilla.redhat.com/");
-		files.put(BOOK_EN_US_FOLDER + escapedTitle + ".ent", entFile.getBytes());
-		
-		// Setup the icon.svg
-		files.put(BOOK_IMAGES_FOLDER + "icon.svg", ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "icon.svg").getBytes());
-		
-		// Setup the basic book.xml
-		String basicBook = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "Book.xml").replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
-		basicBook = basicBook.replaceAll(BuilderConstants.PRODUCT_REGEX, cs.getProduct());
-		basicBook = basicBook.replaceAll(BuilderConstants.VERSION_REGEX, cs.getVersion());
-		return basicBook;
 	}
 	
 	/**
 	 * Builds the Author_Group.xml using the assigned writers for topics inside of the content specification.
 	 */
-	private void buildAuthorGroup() {
+	@SuppressWarnings("unchecked")
+	private void buildAuthorGroup(final ContentSpec contentSpec, final Map<String, byte[]> files) {
 		// Setup Author_Group.xml
 		String authorGroup = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "Author_Group.xml");
 		Document authorDoc = XMLUtilities.convertStringToDocument(authorGroup);
@@ -847,13 +1374,13 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		
 		// Check if the app should be shutdown
 		if (isShuttingDown.get()) {
-			shutdown.set(true);
 			return;
 		}
 		
 		// Get the mapping of authors using the topics inside the content spec
-		for (Integer bookTopicId: bookTopics.keySet()) {
-			List<TagV1> authorTags = bookTopics.get(bookTopicId).getTagsInCategoriesByID(CollectionUtilities.toArrayList(CSConstants.WRITER_CATEGORY_ID));
+		for (Integer topicId: specDatabase.getTopicIds()) {
+			final T topic = (T) specDatabase.getSpecTopicsForTopicID(topicId).get(0).getTopic();
+			final List<TagV1> authorTags = topic.getTagsInCategoriesByID(CollectionUtilities.toArrayList(CSConstants.WRITER_CATEGORY_ID));
 			if (authorTags.size() > 0) {
 				for (TagV1 author: authorTags) {
 					if (!authors.containsKey(author.getId())) {
@@ -865,7 +1392,6 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		
 		// Check if the app should be shutdown
 		if (isShuttingDown.get()) {
-			shutdown.set(true);
 			return;
 		}
 		
@@ -934,7 +1460,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		
 		// Add the Author_Group.xml to the book
 		authorGroup = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(authorDoc, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent");
-		files.put(BOOK_EN_US_FOLDER + "Author_Group.xml", authorGroup.getBytes());
+		files.put(BOOK_LOCALE_FOLDER + "Author_Group.xml", authorGroup.getBytes());
 	}
 	
 	/**
@@ -942,17 +1468,19 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	 * 
 	 * @param requester The user who requested the build action
 	 */
-	private void buildRevisionHistory(UserV1 requester) {
+	private void buildRevisionHistory(final ContentSpec contentSpec, final UserV1 requester, final Map<String, byte[]> files) {
+		final DateFormat dateFormatter = new SimpleDateFormat(BuilderConstants.REV_DATE_STRING_FORMAT);
+		
 		// Replace the basic injection data inside the revision history
 		String revHistory = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "Revision_History.xml");
 		revHistory = revHistory.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
-		revHistory = revHistory.replaceAll(BuilderConstants.REV_DATE_FORMAT_REGEX, getRevDateString());
-		List<TagV1> authorList = reader.getTagsByName(requester.getName());
-		Document revHistoryDoc;
+		revHistory = revHistory.replaceAll(BuilderConstants.REV_DATE_FORMAT_REGEX, dateFormatter.format(buildDate));
+		
+		final List<TagV1> authorList = reader.getTagsByName(requester.getName());
+		final Document revHistoryDoc;
 		
 		// Check if the app should be shutdown
 		if (isShuttingDown.get()) {
-			shutdown.set(true);
 			return;
 		}
 		
@@ -960,21 +1488,21 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		if (authorList.size() == 1) {
 			AuthorInformation authorInfo = reader.getAuthorInformation(authorList.get(0).getId());
 			if (authorInfo != null) {
-				revHistoryDoc = generateRevision(revHistory, authorInfo, requester);
+				revHistoryDoc = generateRevision(contentSpec, revHistory, authorInfo, requester);
 			} else {
 				// No AuthorInformation so Use the default value
 				authorInfo = new AuthorInformation(-1, BuilderConstants.DEFAULT_AUTHOR_FIRSTNAME, BuilderConstants.DEFAULT_AUTHOR_LASTNAME, BuilderConstants.DEFAULT_EMAIL);
-				revHistoryDoc = generateRevision(revHistory, authorInfo, requester);
+				revHistoryDoc = generateRevision(contentSpec, revHistory, authorInfo, requester);
 			}
 		// No assigned writer exists for the uploader so use default values
 		} else {
 			AuthorInformation authorInfo = new AuthorInformation(-1, BuilderConstants.DEFAULT_AUTHOR_FIRSTNAME, BuilderConstants.DEFAULT_AUTHOR_LASTNAME, BuilderConstants.DEFAULT_EMAIL);
-			revHistoryDoc = generateRevision(revHistory, authorInfo, requester);
+			revHistoryDoc = generateRevision(contentSpec, revHistory, authorInfo, requester);
 		}
 		
 		// Add the revision history to the book
 		revHistory = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(revHistoryDoc, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent");
-		files.put(BOOK_EN_US_FOLDER + "Revision_History.xml", revHistory.getBytes());
+		files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", revHistory.getBytes());
 	}
 	
 	/**
@@ -984,18 +1512,20 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	 * @param authorInfo An AuthorInformation entity object containing the details for who requested the build
 	 * @param requester The user object for the build request.
 	 */
-	private Document generateRevision(String xmlDocString, AuthorInformation authorInfo, UserV1 requester) {
+	private Document generateRevision(final ContentSpec contentSpec, String xmlDocString, final AuthorInformation authorInfo, final UserV1 requester) {
 		if (authorInfo == null) return null;
+		
 		// Replace all of the regex inside the xml document
 		xmlDocString = xmlDocString.replaceAll(BuilderConstants.AUTHOR_FIRST_NAME_REGEX, authorInfo.getFirstName());
 		xmlDocString = xmlDocString.replaceAll(BuilderConstants.AUTHOR_SURNAME_REGEX, authorInfo.getLastName());
 		xmlDocString = xmlDocString.replaceAll(BuilderConstants.AUTHOR_EMAIL_REGEX, authorInfo.getEmail() == null ? BuilderConstants.DEFAULT_EMAIL : authorInfo.getEmail());
 		
 		// No regex should exist so now convert it to a Document object
-		Document doc = XMLUtilities.convertStringToDocument(xmlDocString);
+		final Document doc = XMLUtilities.convertStringToDocument(xmlDocString);
 		doc.getDocumentElement().setAttribute("id", "appe-" + escapedTitle + "-Revision_History");
-		NodeList simplelistList = doc.getDocumentElement().getElementsByTagName("simplelist");
-		Element simplelist;
+		
+		final NodeList simplelistList = doc.getDocumentElement().getElementsByTagName("simplelist");
+		final Element simplelist;
 		
 		// Find the first simplelist
 		if (simplelistList.getLength() >= 1) {
@@ -1008,95 +1538,208 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		}
 		
 		// Add the revision information
-		Element listMemberEle = doc.createElement("member");
-		listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(), reader.getLatestCSRevById(CSId)) + (authorInfo.getAuthorId() > 0 ? " by " + requester.getName() : ""));
+		final Element listMemberEle = doc.createElement("member");
+		listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(), reader.getLatestCSRevById(contentSpec.getId())) + (authorInfo.getAuthorId() > 0 ? " by " + requester.getName() : ""));
 		simplelist.appendChild(listMemberEle);
 		return doc;
 	}
 	
-	/**
-	 * Gets a string in the format of the current date. The format is: Day Month DD HH:MM:SS YYYY.
-	 * 
-	 * @return The formatted date string.
-	 */
-	private String getDateString() {
-		Calendar cal = Calendar.getInstance();
-		String output = String.format(BuilderConstants.DATE_STRING_FORMAT, cal, cal, cal, cal, cal);
-		return output;
+	private String buildErrorChapter(final String locale)
+	{
+		String errorItemizedLists = "";
+
+		if (errorDatabase.hasItems(locale))
+		{
+			for (final TopicErrorData<T> topicErrorData : errorDatabase.getErrors(locale))
+			{
+				// Check if the app should be shutdown
+				if (isShuttingDown.get()) {
+					return null;
+				}
+				
+				final T topic = topicErrorData.getTopic();
+
+				final List<String> topicErrorItems = new ArrayList<String>();
+
+				final String tags = topic.getCommaSeparatedTagList();
+				final String url = topic.getSkynetURL();
+
+				topicErrorItems.add(DocbookUtils.buildListItem("INFO: " + tags));
+				topicErrorItems.add(DocbookUtils.buildListItem("INFO: <ulink url=\"" + url + "\">Topic URL</ulink>"));
+
+				for (final String error : topicErrorData.getItemsOfType(TopicErrorDatabase.ERROR))
+					topicErrorItems.add(DocbookUtils.buildListItem("ERROR: " + error));
+
+				for (final String warning : topicErrorData.getItemsOfType(TopicErrorDatabase.WARNING))
+					topicErrorItems.add(DocbookUtils.buildListItem("WARNING: " + warning));
+
+				/*
+				 * this should never be false, because a topic will only be
+				 * listed in the errors collection once a error or warning has
+				 * been added. The count of 2 comes from the standard list items
+				 * we added above for the tags and url.
+				 */
+				if (topicErrorItems.size() > 2)
+				{
+					final String title;
+					if (topic instanceof TranslatedTopicV1)
+					{
+						final TranslatedTopicV1 translatedTopic = (TranslatedTopicV1) topic;
+						title = "Topic ID " + translatedTopic.getTopicId() + ", Revision " + translatedTopic.getTopicRevision();
+					}
+					else
+					{
+						title = "Topic ID " + topic.getId();
+					}
+					final String id = topic.getErrorXRefID();
+
+					errorItemizedLists += DocbookUtils.wrapListItems(topicErrorItems, title, id);
+				}
+			}
+		}
+		else
+		{
+			errorItemizedLists = "<para>No Errors Found</para>";
+		}
+
+		return DocbookUtils.buildChapter(errorItemizedLists, "Compiler Output");
 	}
 	
-	/**
-	 * Gets a string in the format of the current date. The format is: Day Month DD HH:MM:SS YYYY.
-	 * 
-	 * @return The formatted date string.
-	 */
-	private String getRevDateString() {
-		Calendar cal = Calendar.getInstance();
-		String output = String.format(BuilderConstants.REV_DATE_STRING_FORMAT, cal, cal, cal, cal);
-		return output;
-	}
-	
-	/**
-	 * Iterates through the node and finds any images and adds them to the books image folder
-	 * 
-	 * @param node The node to iterate through
-	 * @return True if the images were added successfully otherwise false;
-	 */
-	private boolean addImagesToBookForNode(Node node, TopicV1 topic) {
-		NodeList childNodes = node.getChildNodes();
-		boolean valid = true;
-		
-		// Iterate through each child node
-		for (int i = 0; i < childNodes.getLength(); i++) {
-			Node childNode = childNodes.item(i);
+	@SuppressWarnings("unchecked")
+	private void processImageLocations()
+	{
+		for (final Integer topicId : specDatabase.getTopicIds())
+		{
+			final SpecTopic specTopic = specDatabase.getSpecTopicsForTopicID(topicId).get(0);
+			final T topic = (T) specTopic.getTopic();
 			
-			// If the nodes name is image data then add the image
-			if (childNode.getNodeName().equals("imagedata")) {
-				NamedNodeMap attributes = childNode.getAttributes();
-				if (attributes != null) {
+			/*
+			 * Images have to be in the image folder in Publican. Here we loop
+			 * through all the imagedata elements and fix up any reference to an
+			 * image that is not in the images folder.
+			 */
+			final List<Node> images = this.getImages(specTopic.getXmlDocument());
+	
+			for (final Node imageNode : images)
+			{
+				final NamedNodeMap attributes = imageNode.getAttributes();
+				if (attributes != null)
+				{
 					final Node fileRefAttribute = attributes.getNamedItem("fileref");
-					if (fileRefAttribute != null && !fileRefAttribute.getNodeValue().startsWith("images/")) {
+	
+					if (fileRefAttribute != null && !fileRefAttribute.getNodeValue().startsWith("images/"))
+					{
 						fileRefAttribute.setNodeValue("images/" + fileRefAttribute.getNodeValue());
 					}
-					if (!addImageToBook(fileRefAttribute.getNodeValue(), topic)) return false;
+	
+					imageLocations.add(new TopicImageData<T>(topic, fileRefAttribute.getNodeValue()));
 				}
-			} else {
-				if (!addImagesToBookForNode(childNode, topic)) valid = false;
 			}
 		}
-		return valid;
 	}
 	
 	/**
-	 * Adds an Image from the database to the books image folder
-	 * 
-	 * @param imageLocation The name/location of the image
-	 * @return True if the image was added successfully otherwise false.
+	 * @param node
+	 *            The node to search for imagedata elements in
+	 * @return Search any imagedata elements found in the supplied node
 	 */
-	private boolean addImageToBook(String imageLocation, TopicV1 topic) {
-		final int extensionIndex = imageLocation.lastIndexOf(".");
-		final int pathIndex = imageLocation.lastIndexOf("/");
-		
-		// check that the extension and index character was found & the path is before the extension
-		if (extensionIndex != -1 && pathIndex != -1 && extensionIndex > pathIndex) {
-			try {
-				// The file name minus the extension should be an integer
-				// that references an ImageFile record ID.
-				final String imageId = imageLocation.substring(pathIndex + 1, extensionIndex);
-				final ImageV1 imageFile = reader.getImageById(Integer.parseInt(imageId));
+	private List<Node> getImages(final Node node)
+	{
+		final List<Node> images = new ArrayList<Node>();
+		final NodeList children = node.getChildNodes();
+		for (int i = 0; i < children.getLength(); ++i)
+		{
+			final Node child = children.item(i);
 
-				if (imageFile != null) {
-					files.put(BOOK_EN_US_FOLDER + imageLocation, imageFile.getImageData());
-				} else {
-					errorDatabase.addError(topic, "ImageFile ID " + imageId + " from image location " + imageLocation + " was not found!");
-					return false;
-				}
-			} catch (Exception e) {
-				errorDatabase.addError(topic, imageLocation + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123.png, or images/321.jpg");
-				return false;
+			if (child.getNodeName().equals("imagedata"))
+			{
+				images.add(child);
+			}
+			else
+			{
+				images.addAll(getImages(child));
 			}
 		}
+		return images;
+	}
+	
+	/**
+	 * Validates the XML after the first set of injections have been processed.
+	 * 
+	 * @param specTopic The topic that is being validated.
+	 * @param topicDoc A Document object that holds the Topic's XML
+	 * @param ignoreErrors Whether error output should be ignored.
+	 * @return The validate document or a template if it failed validation.
+	 */
+	@SuppressWarnings("unchecked")
+	private boolean validateTopicXML(final SpecTopic specTopic, final Document topicDoc, boolean ignoreErrors, final boolean fixedUrlsSuccess)
+	{
+		final T topic = (T) specTopic.getTopic();
+		
+		// Validate the topic against its DTD/Schema
+		SAXXMLValidator validator = new SAXXMLValidator();
+		if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue()))
+		{
+			String topicXMLErrorTemplate = ResourceUtilities.resourceFileToString(RESOURCE_LOCATION, "FailedValidationTopic.xml");
+			topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(specTopic.getDBId()));
+			
+			
+			if (!ignoreErrors)
+			{
+				topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + topic.getErrorXRefID() + "\"/> for more detailed information.</para>");
+			}
+			else
+			{
+				topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
+			}
+			
+			final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(XMLUtilities.convertNodeToString(topicDoc, verbatimElements, inlineElements, contentsInlineElements, true));
+			errorDatabase.addError(topic, "Topic has invalid Docbook XML. The error is <emphasis>" + validator.getErrorText() + "</emphasis>. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+			setSpecTopicXMLForError(specTopic, topicXMLErrorTemplate, fixedUrlsSuccess);
+			
+			return false;
+		}
+		
 		return true;
+	}
+	
+	/**
+	 * Sets the XML of the topic to the specified error template
+	 */
+	private Document setTopicXMLForError(final T topic, final String template, final boolean fixedUrlsSuccess)
+	{
+		final Document doc = XMLUtilities.convertStringToDocument(template);
+		DocbookUtils.setSectionTitle(topic.getTitle(), doc);
+		processTopicID(topic, doc, fixedUrlsSuccess);
+		return doc;
+	}
+	
+	
+	/**
+	 * Sets the XML of the topic in the content spec
+	 */
+	@SuppressWarnings("unchecked")
+	private void setSpecTopicXMLForError(final SpecTopic topic, final String template, final boolean fixedUrlsSuccess)
+	{
+		final Document doc = XMLUtilities.convertStringToDocument(template);
+		topic.setXmlDocument(doc);
+		DocbookUtils.setSectionTitle(topic.getTitle(), doc);
+		processTopicID((T) topic.getTopic(), doc, fixedUrlsSuccess);
+	}
+
+	/**
+	 * Sets the topic xref id to the topic database id
+	 */
+	private void processTopicID(final T topic, final Document doc, final boolean fixedUrlsSuccess)
+	{
+		if (fixedUrlsSuccess)
+		{
+			doc.getDocumentElement().setAttribute("id", topic.getXrefPropertyOrId(CommonConstants.FIXED_URL_PROP_TAG_ID));
+		}
+		else
+		{
+			doc.getDocumentElement().setAttribute("id", topic.getXRefID());
+		}
 	}
 	
 	/**
@@ -1104,12 +1747,9 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	 * attempts to create unique Fixed URL if one does not already exist.
 	 * 
 	 * @return true if fixed url property tags were able to be created for all
-	 *         topics, and false otherwise
-	 *         
-	 * @author mcasperson
+	 *         topics, and false otherwise   
 	 */
-	// Edited version of mcasperson's function
-	private boolean setFixedURLsPass() {
+	private boolean setFixedURLsPass(final BaseRestCollectionV1<TopicV1> topics) {
 		int tries = 0;
 		boolean success = false;
 
@@ -1124,16 +1764,13 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 				
 				final Set<String> processedFileNames = new HashSet<String>();
 
-				for (Integer topicId: bookTopics.keySet())
+				for (final TopicV1 topic : topics.getItems())
 				{
 					
 					// Check if the app should be shutdown
 					if (isShuttingDown.get()) {
-						shutdown.set(true);
 						return false;
 					}
-					
-					final TopicV1 topic = bookTopics.get(topicId);
 
 					final PropertyTagV1 existingUniqueURL = topic.getProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
 
@@ -1143,10 +1780,6 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 						 * generate the base url
 						 */
 						String baseUrlName = createURLTitle(topic.getTitle());
-						
-						baseUrlName = baseUrlName.replaceAll("-", "_");
-						while (escapedTitle.indexOf("__") != -1)
-							escapedTitle = escapedTitle.replaceAll("__", "_");
 
 						/* generate a unique fixed url */
 						String postFix = "";
@@ -1154,9 +1787,9 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 						for (int uniqueCount = 1; uniqueCount <= BuilderConstants.MAXIMUM_SET_PROP_TAG_NAME_RETRY; ++uniqueCount)
 						{
 							final String query = "query;propertyTag1=" + CommonConstants.FIXED_URL_PROP_TAG_ID + URLEncoder.encode(" " + baseUrlName + postFix, "UTF-8");
-							final BaseRestCollectionV1<TopicV1> topics = restManager.getRESTClient().getJSONTopicsWithQuery(new PathSegmentImpl(query, false), "");
+							final BaseRestCollectionV1<TopicV1> queryTopics = restManager.getRESTClient().getJSONTopicsWithQuery(new PathSegmentImpl(query, false), "");
 
-							if (topics.getSize() != 0 || processedFileNames.contains(baseUrlName + postFix))
+							if (queryTopics.getSize() != 0)
 							{
 								postFix = uniqueCount + "";
 							}
@@ -1164,6 +1797,11 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 							{
 								break;
 							}
+						}
+						
+						// Check if the app should be shutdown
+						if (isShuttingDown.get()) {
+							return false;
 						}
 						
 						/*
@@ -1210,6 +1848,11 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 				{
 					restManager.getRESTClient().updateJSONTopics("", updateTopics);
 				}
+				
+				// Check if the app should be shutdown
+				if (isShuttingDown.get()) {
+					return false;
+				}
 
 				/* If we got here, then the REST update went ok */
 				success = true;
@@ -1219,26 +1862,52 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 				{
 					for (final TopicV1 topicWithFixedUrl : updateTopics.getItems())
 					{
-						final TopicV1 topic = bookTopics.get(topicWithFixedUrl.getId());
-						if (topic != null && topicWithFixedUrl.getId().equals(topic.getId()))
+						for (final TopicV1 topic : topics.getItems())
 						{
-
 							final PropertyTagV1 fixedUrlProp = topicWithFixedUrl.getProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
-
-							BaseRestCollectionV1<PropertyTagV1> properties = topic.getProperties();
-							if (properties == null) {
-								properties = new BaseRestCollectionV1<PropertyTagV1>();
-							} else if (properties.getItems() != null) {
-								// remove any current url's
-								for (PropertyTagV1 prop: properties.getItems()) {
-									if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
-										properties.getItems().remove(prop);
+							
+							if (topic != null && topicWithFixedUrl.getId().equals(topic.getId()))
+							{
+								BaseRestCollectionV1<PropertyTagV1> properties = topic.getProperties();
+								if (properties == null) {
+									properties = new BaseRestCollectionV1<PropertyTagV1>();
+								} else if (properties.getItems() != null) {
+									// remove any current url's
+									for (PropertyTagV1 prop: properties.getItems()) {
+										if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
+											properties.getItems().remove(prop);
+										}
 									}
 								}
+								
+								if (fixedUrlProp != null)
+									properties.addItem(fixedUrlProp);
 							}
 							
-							if (fixedUrlProp != null)
-								properties.addItem(fixedUrlProp);
+							/*
+							 * we also have to copy the fixed urls into the
+							 * related topics
+							 */
+							for (final TopicV1 relatedTopic : topic.getOutgoingRelationships().getItems())
+							{
+								if (topicWithFixedUrl.getId().equals(relatedTopic.getId()))
+								{
+									BaseRestCollectionV1<PropertyTagV1> relatedTopicProperties = relatedTopic.getProperties();
+									if (relatedTopicProperties == null) {
+										relatedTopicProperties = new BaseRestCollectionV1<PropertyTagV1>();
+									} else if (relatedTopicProperties.getItems() != null) {
+										// remove any current url's
+										for (PropertyTagV1 prop: relatedTopicProperties.getItems()) {
+											if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
+												relatedTopicProperties.getItems().remove(prop);
+											}
+										}
+									}
+
+									if (fixedUrlProp != null)
+										relatedTopicProperties.addItem(fixedUrlProp);
+								}
+							}
 						}
 					}
 				}
@@ -1298,115 +1967,10 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		}
 		
 		// Escape the title
-		String escapedTitle = StringUtilities.escapeTitle(baseTitle);
+		String escapedTitle = DocBookUtilities.escapeTitle(baseTitle);
 		while (escapedTitle.indexOf("__") != -1)
 			escapedTitle = escapedTitle.replaceAll("__", "_");
 		
 		return escapedTitle;
-	}
-	
-	/**
-	 * Creates the file names that will be used when building the book
-	 * 
-	 * @param fixedUrlsSuccess Whether or not the topic URLs were successfully fixed.
-	 */
-	private void createFileNames(final boolean fixedUrlsSuccess) {
-		// Create the topic file names
-		for (Integer topicId: bookTopics.keySet()) {
-			TopicV1 topic = bookTopics.get(topicId);
-			
-			/*
-			 * The file names will either be the fixed url property tag, or the
-			 * topic id if we could not generate unique file names
-			 */
-			String fileName = "";
-			String topicIdName = "";
-			if (fixedUrlsSuccess) {
-				final PropertyTagV1 propTag = topic.getProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
-				if (propTag != null) {
-					fileName = propTag.getValue();
-					topicIdName = fileName;
-				} else {
-					errorDatabase.addError(topic, "Topic does not have the fixed url property tag.");
-					fileName = topic.getId().toString();
-					topicIdName = "Topic" + fileName;
-				}
-			} else {
-				fileName = topic.getId().toString();
-				topicIdName = "Topic" + fileName;
-			}
-			topicIdNames.put(topicId, topicIdName);
-			topicFileNames.put(topicId, fileName);
-			bookFileNames.add(fileName);
-		}
-		
-		// Create the level file names
-		HashMap<String, List<Level>> titles = getLevelTitles(contentSpec.getBaseLevel());
-		for (String title: titles.keySet()) {
-			
-			// Check if the app should be shutdown
-			if (isShuttingDown.get()) {
-				shutdown.set(true);
-				return;
-			}
-			
-			// Add the title and level to the mapping of levels to titles
-			if (titles.get(title).size() > 1 || bookFileNames.contains(escapedTitle)) {
-				int counter = 1;
-				for (Level level: titles.get(title)) {
-					String escapedTitle = createURLTitle(level.getTitle());
-					escapedTitle = level.getType().getTitle() + "-" + escapedTitle;
-					levelFileNames.put(level, escapedTitle + "-" + counter);
-					bookFileNames.add(escapedTitle + "-" + counter);
-					counter++;
-				}
-			} else {
-				Level level = titles.get(title).get(0);
-				String escapedTitle = createURLTitle(level.getTitle());
-				escapedTitle = level.getType().getTitle() + "-" + escapedTitle;
-				levelFileNames.put(level, escapedTitle);
-				bookFileNames.add(escapedTitle);
-			}
-		}
-	}
-	
-	/**
-	 * Gets a mapping of titles to levels for the level and all of its children.
-	 * 
-	 * @param level The Level to get the list of titles for.
-	 * @return A Mapping of Titles to Levels.
-	 */
-	private HashMap<String, List<Level>> getLevelTitles(Level level) {
-		HashMap<String, List<Level>> titles = new HashMap<String, List<Level>>();
-		
-		// Add the current title to the list of titles
-		if (!titles.containsKey(level.getTitle().toLowerCase())) {
-			titles.put(level.getTitle().toLowerCase(), new ArrayList<Level>());
-		}
-		titles.get(level.getTitle().toLowerCase()).add(level);
-		
-		// Add all the child levels titles to the list
-		for (Level childLevel: level.getChildLevels()) {
-			
-			// Check if the app should be shutdown
-			if (isShuttingDown.get()) {
-				shutdown.set(true);
-				return new HashMap<String, List<Level>>();
-			}
-			
-			HashMap<String, List<Level>> childTitles = getLevelTitles(childLevel);
-			for (String childTitle: childTitles.keySet()) {
-				if (titles.containsKey(childTitle)) {
-					titles.get(childTitle).addAll(childTitles.get(childTitle));
-				} else {
-					titles.put(childTitle, childTitles.get(childTitle));
-				}
-			}
-		}
-		return titles;
-	}
-	
-	private String getBookDetails() {
-		return "Book: " + contentSpec.getTitle() + "\nEdition: " + (contentSpec.getEdition() == null ? "" : contentSpec.getEdition()) + "\nVersion: " + contentSpec.getVersion();
 	}
 }

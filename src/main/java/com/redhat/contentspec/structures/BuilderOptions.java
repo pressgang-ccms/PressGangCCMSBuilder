@@ -1,4 +1,4 @@
-package com.redhat.contentspec.builder.utils;
+package com.redhat.contentspec.structures;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,6 +13,7 @@ public class BuilderOptions {
 	private boolean permissive = false;
 	private Map<String, String> overrides = new HashMap<String, String>();
 	private boolean injectBugzillaLinks = true;
+	private boolean allowEmptySections = false;
 	
 	public boolean getIgnoreErrors() {
 		return ignoreErrors;
@@ -60,5 +61,13 @@ public class BuilderOptions {
 
 	public void setInjectBugzillaLinks(Boolean injectBugzillaLinks) {
 		this.injectBugzillaLinks = injectBugzillaLinks;
+	}
+
+	public boolean isAllowEmptySections() {
+		return allowEmptySections;
+	}
+
+	public void setAllowEmptySections(boolean allowEmptySections) {
+		this.allowEmptySections = allowEmptySections;
 	}
 }

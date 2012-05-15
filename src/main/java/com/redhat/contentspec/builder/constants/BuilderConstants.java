@@ -7,6 +7,8 @@ public class BuilderConstants {
 	public static final Integer MAXIMUM_SET_PROP_TAG_NAME_RETRY = 50;
 	
 	public static final String BUILDER_VERSION			= "1.3";
+	public static final String BUILD_NAME				= "CSProcessor Builder Version " + BUILDER_VERSION;
+	
 	public static final String RESOURCE_LOCATION		= "/";
 	public static final String DOCBOOK_DTD_LOCATION		= "/docbook-xml-4.5/";
 	public static final String DOCBOOK_45_RESOURCE_LOCATION = "/Docbook4-5/";
@@ -16,6 +18,7 @@ public class BuilderConstants {
 	
 	/** The BlobConstant ID for the Rocbook DTD */
 	public static final Integer ROCBOOK_DTD_BLOB_ID = 9;
+	public static final Integer FAILPENGUIN_PNG_ID = 5;
 	
 	/** A prefix for error xref ids */
 	public static final String ERROR_XREF_ID_PREFIX = "TagErrorXRef";
@@ -33,8 +36,8 @@ public class BuilderConstants {
 	public static final String BUILDER_VERSION_REGEX 	= "<<csBuilder\\.version>>";
 	public static final String DATE_FORMAT_REGEX		= "Day Mon DD HH:MM:SS YYYY";
 	public static final String REV_DATE_FORMAT_REGEX	= "DAY MON DD YYYY";
-	public static final String DATE_STRING_FORMAT		= "%ta %tb %td %tT %tY";
-	public static final String REV_DATE_STRING_FORMAT	= "%ta %tb %td %tY";
+	public static final String DATE_STRING_FORMAT		= "EEE MMM dd HH:mm:ss yyyy";
+	public static final String REV_DATE_STRING_FORMAT	= "EEE MMM dd yyyy";
 	public static final String YEAR_FORMAT_REGEX		= "YYYY";
 	public static final String TOPIC_ID_REGEX			= "<!-- Inject TopicID -->";
 	public static final String TOPIC_TITLE_REGEX		= "<!-- Inject TopicTitle -->";
