@@ -1,7 +1,7 @@
 <section>
-  <title>Injection Error</title>
+  <title><!-- Inject TopicTitle --></title>
   <warning>
-    <title>Topic <!-- Inject TopicID --> failed Injection processing.</title>
+    <title>Error</title>
     <para>Topic <!-- Inject TopicID --> failed Injection processing and is not included in
 this build.</para>
 	<!-- Inject ErrorXREF -->

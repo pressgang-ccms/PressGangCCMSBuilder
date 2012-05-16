@@ -1,5 +1,6 @@
 package com.redhat.contentspec.builder;
 
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.redhat.contentspec.builder.constants.BuilderConstants;
@@ -7,8 +8,9 @@ import com.redhat.contentspec.builder.exception.BuilderCreationException;
 import com.redhat.contentspec.ContentSpec;
 import com.redhat.contentspec.rest.RESTManager;
 import com.redhat.contentspec.rest.RESTReader;
-import com.redhat.contentspec.structures.BuilderOptions;
+import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
 import com.redhat.contentspec.interfaces.ShutdownAbleApp;
+import com.redhat.ecs.commonutils.ZipUtilities;
 import com.redhat.topicindex.rest.entities.*;
 import com.redhat.topicindex.rest.exceptions.InternalProcessingException;
 import com.redhat.topicindex.rest.exceptions.InvalidParameterException;
@@ -29,8 +31,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	private final RESTReader reader;
 	private final BlobConstantV1 rocbookdtd;
 	private final RESTManager restManager;	
-	@SuppressWarnings("rawtypes")
-	private DocbookBuilder docbookBuilder;
+	private DocbookBuilder<?> docbookBuilder;
 
 	public ContentSpecBuilder(final RESTManager restManager) throws InvalidParameterException, InternalProcessingException {
 		this.restManager = restManager;
@@ -65,7 +66,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	 * @return A byte array that is the zip file
 	 * @throws Exception 
 	 */
-	public byte[] buildBook(final ContentSpec contentSpec, final UserV1 requester, final BuilderOptions builderOptions) throws Exception {
+	public byte[] buildBook(final ContentSpec contentSpec, final UserV1 requester, final CSDocbookBuildingOptions builderOptions) throws Exception {
 		if (contentSpec == null) throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
 		if (requester == null) throw new BuilderCreationException("A user must be specified as the user who requested the build.");
 		
@@ -74,6 +75,15 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		else
 			docbookBuilder = new DocbookBuilder<TranslatedTopicV1>(restManager, rocbookdtd, "en-US");
 			
-		return docbookBuilder.buildBook(contentSpec, requester, builderOptions);
+		final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions);
+		
+		// Create the zip file
+		byte[] zipFile = null;
+		try {
+			zipFile = ZipUtilities.createZip(files);
+		} catch (final Exception e) {
+			e.printStackTrace();
+		}
+		return zipFile;
 	}
 }

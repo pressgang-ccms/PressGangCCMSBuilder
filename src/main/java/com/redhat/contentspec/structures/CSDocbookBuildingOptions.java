@@ -5,23 +5,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class BuilderOptions {
+import com.redhat.ecs.services.docbookcompiling.DocbookBuildingOptions;
 
-	private boolean ignoreErrors = false;
+public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
+
 	private List<String> injectionTypes = new ArrayList<String>();
-	private boolean injection = true;
-	private boolean permissive = false;
+	private Boolean injection = true;
+	private Boolean permissive = false;
 	private Map<String, String> overrides = new HashMap<String, String>();
-	private boolean injectBugzillaLinks = true;
-	private boolean allowEmptySections = false;
-	
-	public boolean getIgnoreErrors() {
-		return ignoreErrors;
-	}
-	
-	public void setIgnoreErrors(Boolean ignoreErrors) {
-		this.ignoreErrors = ignoreErrors;
-	}
+	private Boolean allowEmptySections = false;
 	
 	public List<String> getInjectionTypes() {
 		return injectionTypes;
@@ -53,14 +45,6 @@ public class BuilderOptions {
 
 	public void setOverrides(Map<String, String> overrides) {
 		this.overrides = overrides;
-	}
-
-	public boolean getInjectBugzillaLinks() {
-		return injectBugzillaLinks;
-	}
-
-	public void setInjectBugzillaLinks(Boolean injectBugzillaLinks) {
-		this.injectBugzillaLinks = injectBugzillaLinks;
 	}
 
 	public boolean isAllowEmptySections() {
