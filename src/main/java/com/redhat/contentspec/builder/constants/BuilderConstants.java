@@ -16,15 +16,11 @@ public class BuilderConstants {
 	public static final String DOCBOOK_45_DTD = "docbookx.dtd";
 	public static final String ROCBOOK_45_DTD = "rocbookx.dtd";
 	
-	/** The BlobConstant ID for the Rocbook DTD */
-	public static final Integer ROCBOOK_DTD_BLOB_ID = 9;
-	public static final Integer FAILPENGUIN_PNG_ID = 5;
-	
 	/** A prefix for error xref ids */
 	public static final String ERROR_XREF_ID_PREFIX = "TagErrorXRef";
 	
 	public static final String ESCAPED_TITLE_REGEX 		= "<<contentSpec\\.escapedTitle>>";
-	public static final String TITLE_REGEX 				= "<<contentSpec\\.Title>>";
+	public static final String TITLE_REGEX 				= "<<contentSpec\\.title>>";
 	public static final String BRAND_REGEX 				= "<<contentSpec\\.brand>>";
 	public static final String VERSION_REGEX 			= "<<contentSpec\\.version>>";
 	public static final String PRODUCT_REGEX 			= "<<contentSpec\\.product>>";
@@ -42,6 +38,7 @@ public class BuilderConstants {
 	public static final String TOPIC_ID_REGEX			= "<!-- Inject TopicID -->";
 	public static final String TOPIC_TITLE_REGEX		= "<!-- Inject TopicTitle -->";
 	public static final String ERROR_XREF_REGEX			= "<!-- Inject ErrorXREF -->";
+	public static final String PREFACE_REGEX			= "<!-- Inject Preface -->";
 	
 	public static final String XIINCLUDES_INJECTION_STRING = "<!-- Inject XIIncludes -->";
 	

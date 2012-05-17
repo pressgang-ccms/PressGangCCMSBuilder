@@ -3,7 +3,6 @@ package com.redhat.contentspec.builder;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.redhat.contentspec.builder.constants.BuilderConstants;
 import com.redhat.contentspec.builder.exception.BuilderCreationException;
 import com.redhat.contentspec.ContentSpec;
 import com.redhat.contentspec.rest.RESTManager;
@@ -11,6 +10,7 @@ import com.redhat.contentspec.rest.RESTReader;
 import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
 import com.redhat.contentspec.interfaces.ShutdownAbleApp;
 import com.redhat.ecs.commonutils.ZipUtilities;
+import com.redhat.ecs.services.docbookcompiling.DocbookBuilderConstants;
 import com.redhat.topicindex.rest.entities.*;
 import com.redhat.topicindex.rest.exceptions.InternalProcessingException;
 import com.redhat.topicindex.rest.exceptions.InvalidParameterException;
@@ -36,7 +36,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	public ContentSpecBuilder(final RESTManager restManager) throws InvalidParameterException, InternalProcessingException {
 		this.restManager = restManager;
 		reader = restManager.getReader();
-		this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(BuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
+		this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
 	}
 	
 	@Override
@@ -75,7 +75,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		else
 			docbookBuilder = new DocbookBuilder<TranslatedTopicV1>(restManager, rocbookdtd, "en-US");
 			
-		final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions);
+		final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, null);
 		
 		// Create the zip file
 		byte[] zipFile = null;
