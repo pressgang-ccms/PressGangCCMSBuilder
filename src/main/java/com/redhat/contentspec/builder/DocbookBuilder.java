@@ -72,6 +72,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 {
 	private static final Logger log = Logger.getLogger(DocbookBuilder.class);
 	private static final String STARTS_WITH_NUMBER_RE = "^(?<Numbers>\\d+)(?<EverythingElse>.*)$";
+	private static final String STARTS_WITH_INVALID_SEQUENCE_RE = "^(?<InvalidSeq>[^\\w\\d]+)(?<EverythingElse>.*)$";
 	
 	private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
 	private final AtomicBoolean shutdown = new AtomicBoolean(false);
@@ -334,7 +335,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 	private Set<Integer> addLevelAndTopicsToDatabase(final Level level)
 	{
 		/* Add the level to the database */
-		specDatabase.add(level);
+		specDatabase.add(level, createURLTitle(level.getTitle()));
 		
 		/* Add the topics at this level to the database */
 		final Set<Integer> topicIds = new HashSet<Integer>();
@@ -1964,8 +1965,19 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 	 * @param title The title that will be used to create the URL Title
 	 * @return The URL representation of the title;
 	 */
-	private String createURLTitle(String title) {
+	private String createURLTitle(final String title) {
 		String baseTitle = new String(title);
+		
+		/*
+		 * Check if the title starts with an invalid sequence
+		 */
+		final NamedPattern invalidSequencePattern = NamedPattern.compile(STARTS_WITH_INVALID_SEQUENCE_RE);
+		final NamedMatcher invalidSequenceMatcher = invalidSequencePattern.matcher(baseTitle);
+		
+		if (invalidSequenceMatcher.find())
+		{
+			baseTitle = invalidSequenceMatcher.group("EverythingElse");
+		}
 		
 		/*
 		 * start by removing any prefixed numbers (you can't

@@ -11,7 +11,6 @@ import org.w3c.dom.Document;
 import com.redhat.contentspec.Level;
 import com.redhat.contentspec.SpecTopic;
 import com.redhat.ecs.commonutils.CollectionUtilities;
-import com.redhat.ecs.commonutils.DocBookUtilities;
 
 public class SpecDatabase {
 
@@ -38,18 +37,17 @@ public class SpecDatabase {
 		topic.setXmlDocument(doc);
 	}
 	
-	public void add(final Level level)
+	public void add(final Level level, final String escapedTitle)
 	{
 		if (level == null) return;
 		
-		final String levelTitle = DocBookUtilities.escapeTitle(level.getTitle());
-		if (!specLevels.containsKey(levelTitle))
-			specLevels.put(levelTitle, new LinkedList<Level>());
+		if (!specLevels.containsKey(escapedTitle))
+			specLevels.put(escapedTitle, new LinkedList<Level>());
 		
-		if (specLevels.get(levelTitle).size() > 0)
-			level.setDuplicateId(Integer.toString(specLevels.get(levelTitle).size()));
+		if (specLevels.get(escapedTitle).size() > 0)
+			level.setDuplicateId(Integer.toString(specLevels.get(escapedTitle).size()));
 		
-		specLevels.get(levelTitle).add(level);
+		specLevels.get(escapedTitle).add(level);
 	}
 	
 	public List<Integer> getTopicIds()
