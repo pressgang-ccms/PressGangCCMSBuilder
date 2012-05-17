@@ -70,6 +70,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	private static final Logger log = Logger.getLogger(ContentSpecBuilder.class);
 	
 	private static final String STARTS_WITH_NUMBER_RE = "^(?<Numbers>\\d+)(?<EverythingElse>.*)$";
+	private static final String STARTS_WITH_INVALID_SEQUENCE_RE = "^(?<InvalidSequence>[^\\w\\d]+)(?<EverythingElse>.*)$";
 	
 	private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
 	private final AtomicBoolean shutdown = new AtomicBoolean(false);
@@ -583,7 +584,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 					} catch (ParserConfigurationException e) {
 						e.printStackTrace();
 					}
-					Element section = topicDoc.createElement("section");
+					Element section = doc.createElement("section");
 					section.appendChild(doc.importNode(topicDoc.getDocumentElement(), true));
 					doc.appendChild(section);
 					topicDoc = doc;
@@ -1265,6 +1266,17 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	 */
 	private String createURLTitle(String title) {
 		String baseTitle = new String(title);
+		
+		/* 
+		 * remove any invalid characters from the start of the string
+		 */
+		final NamedPattern invalidSequencePattern = NamedPattern.compile(STARTS_WITH_INVALID_SEQUENCE_RE);
+		final NamedMatcher invalidSequenceMatcher = invalidSequencePattern.matcher(baseTitle);
+		
+		if (invalidSequenceMatcher.find())
+		{
+			baseTitle = invalidSequenceMatcher.group("EverythingElse");
+		}
 		
 		/*
 		 * start by removing any prefixed numbers (you can't
