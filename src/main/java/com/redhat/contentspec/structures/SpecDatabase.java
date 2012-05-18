@@ -6,8 +6,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.w3c.dom.Document;
-
 import com.redhat.contentspec.Level;
 import com.redhat.contentspec.SpecTopic;
 import com.redhat.ecs.commonutils.CollectionUtilities;
@@ -15,26 +13,32 @@ import com.redhat.ecs.commonutils.CollectionUtilities;
 public class SpecDatabase {
 
 	private Map<Integer, List<SpecTopic>> specTopics = new HashMap<Integer, List<SpecTopic>>();
+	private Map<String, List<SpecTopic>> specTopicsTitles = new HashMap<String, List<SpecTopic>>();
 	private Map<String, List<Level>> specLevels = new HashMap<String, List<Level>>();
 	
-	public void add(final SpecTopic topic)
-	{
-		add(topic, null);
-	}
-	
-	public void add(final SpecTopic topic, final Document doc)
+	public void add(final SpecTopic topic, final String escapedTitle)
 	{
 		if (topic == null) return;
-		
+				
 		final Integer topicId = topic.getDBId();
 		if (!specTopics.containsKey(topicId))
 			specTopics.put(topicId, new LinkedList<SpecTopic>());
 		
-		if (specTopics.get(topicId).size() > 0)
+		if (!specTopicsTitles.containsKey(escapedTitle))
+			specTopicsTitles.put(escapedTitle, new LinkedList<SpecTopic>());
+		
+		if (specTopics.get(topicId).size() > 0 || specTopicsTitles.get(escapedTitle).size() > 0)
+		{
+			int duplicateId = specTopics.get(topicId).size();
+			
+			if (specTopicsTitles.get(escapedTitle).size() > duplicateId)
+				duplicateId = specTopicsTitles.get(escapedTitle).size();
+			
 			topic.setDuplicateId(Integer.toString(specTopics.get(topicId).size()));
+		}
 		
 		specTopics.get(topicId).add(topic);
-		topic.setXmlDocument(doc);
+		specTopicsTitles.get(escapedTitle).add(topic);
 	}
 	
 	public void add(final Level level, final String escapedTitle)

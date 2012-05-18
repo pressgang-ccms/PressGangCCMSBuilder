@@ -270,8 +270,8 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 	{
 		log.info("Doing " + locale + " Populate Database Pass");
 		
-		/* Add all the levels and topics to the database first */
-		final Set<Integer> topicIds = addLevelAndTopicsToDatabase(contentSpec.getBaseLevel());
+		/* Calculate the ids of all the topics to get */
+		final Set<Integer> topicIds = getTopicIdsFromLevel(contentSpec.getBaseLevel());
 		
 		final BaseRestCollectionV1<T> topics;
 		final boolean fixedUrlsSuccess;
@@ -323,21 +323,51 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 			topics = (BaseRestCollectionV1<T>) translatedTopics;
 		}
 		
+		/* Add all the levels and topics to the database first */
+		addLevelAndTopicsToDatabase(contentSpec.getBaseLevel(), fixedUrlsSuccess);
+		
 		// Check if the app should be shutdown
 		if (isShuttingDown.get()) {
 			return false;
 		}
 		
+		/* Pass the topics to make sure they are valid */
 		doTopicPass(topics, fixedUrlsSuccess, usedIdAttributes);
 		
 		return fixedUrlsSuccess;
 	}
 	
-	private Set<Integer> addLevelAndTopicsToDatabase(final Level level)
+	private void addLevelAndTopicsToDatabase(final Level level, final boolean useFixedUrls)
 	{
 		/* Add the level to the database */
 		specDatabase.add(level, createURLTitle(level.getTitle()));
 		
+		/* Add the topics at this level to the database */
+		for (final SpecTopic specTopic : level.getSpecTopics())
+		{
+			// Check if the app should be shutdown
+			if (isShuttingDown.get()) {
+				return;
+			}
+			
+			specDatabase.add(specTopic, specTopic.getUniqueLinkId(useFixedUrls));
+		}
+		
+		/* Add the child levels to the database */
+		
+		for (final Level childLevel : level.getChildLevels())
+		{
+			// Check if the app should be shutdown
+			if (isShuttingDown.get()) {
+				return;
+			}
+			
+			addLevelAndTopicsToDatabase(childLevel, useFixedUrls);
+		}
+	}
+	
+	private Set<Integer> getTopicIdsFromLevel(final Level level)
+	{
 		/* Add the topics at this level to the database */
 		final Set<Integer> topicIds = new HashSet<Integer>();
 		for (final SpecTopic specTopic : level.getSpecTopics())
@@ -347,8 +377,6 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 				return topicIds;
 			}
 			
-			specDatabase.add(specTopic);
-			
 			if (specTopic.getDBId() != 0)
 				topicIds.add(specTopic.getDBId());
 		}
@@ -357,7 +385,12 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 		
 		for (final Level childLevel : level.getChildLevels())
 		{
-			topicIds.addAll(addLevelAndTopicsToDatabase(childLevel));
+			// Check if the app should be shutdown
+			if (isShuttingDown.get()) {
+				return topicIds;
+			}
+			
+			topicIds.addAll(getTopicIdsFromLevel(childLevel));
 		}
 		
 		return topicIds;
@@ -853,14 +886,18 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 					/* add the standard boilerplate xml */
 					xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, docbookBuildingOptions, searchTagsUrl, buildName, buildDate);
 					
-					setUniqueIds(specTopic, doc, usedIdAttributes);
-					
 					/*
 					 * make sure the XML is valid docbook after the standard
 					 * processing has been done
 					 */
 					validateTopicXML(specTopic, doc, fixedUrlsSuccess);
 				}
+				
+				/* 
+				 * Ensure that all of the id attributes are valid
+				 * by setting any duplicates with a post fixed number.
+				 */
+				setUniqueIds(specTopic, doc, usedIdAttributes);
 			}
 		}
 	}
