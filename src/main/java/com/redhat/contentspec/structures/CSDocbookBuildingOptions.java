@@ -15,6 +15,35 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
 	private Map<String, String> overrides = new HashMap<String, String>();
 	private Boolean allowEmptySections = false;
 	
+	public CSDocbookBuildingOptions()
+	{
+		
+	}
+	
+	public CSDocbookBuildingOptions(final DocbookBuildingOptions docbookBuildingOptions)
+	{
+		this.setBuildName(docbookBuildingOptions.getBuildName());
+		this.setBuildNarrative(docbookBuildingOptions.getBuildNarrative());
+		this.setCvsPkgOption(docbookBuildingOptions.getCvsPkgOption());
+		this.setEmailTo(docbookBuildingOptions.getEmailTo());
+		this.setEnableDynamicTreeToc(docbookBuildingOptions.getEnableDynamicTreeToc());
+		this.setIgnoreMissingCustomInjections(docbookBuildingOptions.getIgnoreMissingCustomInjections());
+		this.setIncludeUntranslatedTopics(docbookBuildingOptions.getIncludeUntranslatedTopics());
+		this.setInsertBugzillaLinks(docbookBuildingOptions.getInsertBugzillaLinks());
+		this.setInsertSurveyLink(docbookBuildingOptions.getInsertSurveyLink());
+		this.setProcessRelatedTopics(docbookBuildingOptions.getProcessRelatedTopics());
+		this.setPublicanShowRemarks(docbookBuildingOptions.getPublicanShowRemarks());
+		this.setSuppressContentSpecPage(docbookBuildingOptions.getSuppressContentSpecPage());
+		this.setSuppressErrorsPage(docbookBuildingOptions.getSuppressErrorsPage());
+		this.setTaskAndOverviewOnly(docbookBuildingOptions.getTaskAndOverviewOnly());
+		
+		this.setBookEdition(docbookBuildingOptions.getBookEdition());
+		this.setBookProduct(docbookBuildingOptions.getBookProduct());
+		this.setBookProductVersion(docbookBuildingOptions.getBookProductVersion());
+		this.setBookTitle(docbookBuildingOptions.getBookTitle());
+		this.setBookPubsnumber(docbookBuildingOptions.getBookPubsnumber());
+	}
+	
 	public List<String> getInjectionTypes() {
 		return injectionTypes;
 	}

@@ -39,6 +39,7 @@ public class BuilderConstants {
 	public static final String TOPIC_TITLE_REGEX		= "<!-- Inject TopicTitle -->";
 	public static final String ERROR_XREF_REGEX			= "<!-- Inject ErrorXREF -->";
 	public static final String PREFACE_REGEX			= "<!-- Inject Preface -->";
+	public static final String LEGAL_NOTICE_REGEX		= "<!-- Inject Legal Notice -->";
 	
 	public static final String XIINCLUDES_INJECTION_STRING = "<!-- Inject XIIncludes -->";
 	
@@ -68,6 +69,7 @@ public class BuilderConstants {
 	public static final String BAD_XML_STRUCTURE 		= "Topic doesn't have well-formed xml";
 	public static final String FAILED_TOPIC_XML			= "Topic failed relationship and bug reporting injection/validation. The error was <emphasis>%s</emphasis>";
 	public static final String BUILT_MSG				= "Built from Content Specification: %d, Revision: %d";
+	public static final String BUILT_FILE_MSG			= "Content Specification built from file";
 	
 	// Defaults
 	public static final String DEFAULT_CS_DECRIPTION	= "A brief paragraph describing this book. This will be used as the description for the rpm package.";
