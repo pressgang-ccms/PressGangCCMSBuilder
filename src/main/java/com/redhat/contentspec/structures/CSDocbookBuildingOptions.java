@@ -42,6 +42,7 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
 		this.setBookProductVersion(docbookBuildingOptions.getBookProductVersion());
 		this.setBookTitle(docbookBuildingOptions.getBookTitle());
 		this.setBookPubsnumber(docbookBuildingOptions.getBookPubsnumber());
+		this.setBookSubtitle(docbookBuildingOptions.getBookSubtitle());
 	}
 	
 	public List<String> getInjectionTypes() {

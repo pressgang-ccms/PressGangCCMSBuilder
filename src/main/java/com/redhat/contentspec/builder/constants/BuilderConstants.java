@@ -40,14 +40,19 @@ public class BuilderConstants {
 	public static final String ERROR_XREF_REGEX			= "<!-- Inject ErrorXREF -->";
 	public static final String PREFACE_REGEX			= "<!-- Inject Preface -->";
 	public static final String LEGAL_NOTICE_REGEX		= "<!-- Inject Legal Notice -->";
+	public static final String ABSTRACT_REGEX			= "<!-- Inject Abstract -->";
 	
 	public static final String XIINCLUDES_INJECTION_STRING = "<!-- Inject XIIncludes -->";
 	
 	public static final String CONTENT_SPEC_ID_REGEX	= "<<contentSpec\\.ID>>"; 
 	public static final String CONTENT_SPEC_REV_REGEX	= "<<contentSpec\\.Rev>>";
 	public static final String CONTENT_SPEC_COPYRIGHT_REGEX 	= "<<contentSpec\\.copyrightHolder>>";
-	public static final String CONTENT_SPEC_DECRIPTION_REGEX	= "<<contentSpec\\.description>>";
 	public static final String CONTENT_SPEC_BUGZILLA_URL_REGEX	= "<<contentSpec\\.bugzillaUrl>>";
+	
+	public static final String DEFAULT_ABSTRACT			= 	"<abstract>\n\t\t<para>\n" +
+			"\t\t\tA brief paragraph describing this book. This will be used as the description for the rpm package.\n" +
+			"\t\t</para>\n" +
+			"\t</abstract>\n";
 	
 	// Revision_History.xml regex constants
 	public static final String AUTHOR_FIRST_NAME_REGEX	= "<!-- Inject authorInformation\\.firstName -->";
