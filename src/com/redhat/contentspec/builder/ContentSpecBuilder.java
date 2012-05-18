@@ -658,7 +658,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 					/* get a formatted copy of the XML Document */
 					String docString = XMLUtilities.convertNodeToString(topicDoc, verbatimElements, inlineElements, contentsInlineElements, true);
 					final String topicString = StringUtilities.cleanTextForXML(DocbookUtils.addXMLBoilerplate(docString, this.escapedTitle + ".ent"));
-					
+										
 					files.put(BOOK_TOPICS_FOLDER + topicFileNames.get(topic.getId()) + ".xml", topicString.getBytes());
 				}
 			}
@@ -708,7 +708,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 						// Get a formatted copy of the XML Document
 						String docString = XMLUtilities.convertNodeToString(clonedDoc, verbatimElements, inlineElements, contentsInlineElements, true);
 						final String topicString = StringUtilities.cleanTextForXML(DocbookUtils.addXMLBoilerplate(docString, this.escapedTitle + ".ent"));
-	
+							
 						files.put(BOOK_TOPICS_FOLDER + topicFileNames.get(topic.getId()) + postFix + ".xml", topicString.getBytes());
 					}
 				} catch (Exception e) {
