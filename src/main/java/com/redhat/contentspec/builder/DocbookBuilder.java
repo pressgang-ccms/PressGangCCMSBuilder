@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.velocity.app.VelocityEngine;
 import org.jboss.resteasy.logging.Logger;
 import org.jboss.resteasy.specimpl.PathSegmentImpl;
 import org.w3c.dom.Document;
@@ -103,9 +102,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 	private String BOOK_TOPICS_FOLDER;
 	private String BOOK_IMAGES_FOLDER;
 	private String BOOK_FILES_FOLDER;
-	
-	private final VelocityEngine engine;
-	
+		
 	/**
 	 * Holds the compiler errors that form the Errors.xml file in the compiled
 	 * docbook
@@ -125,9 +122,6 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 	
 	public DocbookBuilder(final RESTManager restManager, final BlobConstantV1 rocbookDtd, final String defaultLocale) throws InvalidParameterException, InternalProcessingException
 	{
-		engine = new VelocityEngine();
-		engine.init();
-		
 		reader = restManager.getReader();
 		this.restManager = restManager;
 		this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
