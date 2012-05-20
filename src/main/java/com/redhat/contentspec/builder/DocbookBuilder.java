@@ -331,6 +331,14 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 			return false;
 		}
 		
+		/* Set the duplicate id's for each topic */
+		specDatabase.setDatabaseDulicateIds();
+		
+		// Check if the app should be shutdown
+		if (isShuttingDown.get()) {
+			return false;
+		}
+		
 		/* Pass the topics to make sure they are valid */
 		doTopicPass(topics, fixedUrlsSuccess, usedIdAttributes);
 		
@@ -897,7 +905,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 				 * Ensure that all of the id attributes are valid
 				 * by setting any duplicates with a post fixed number.
 				 */
-				setUniqueIds(specTopic, doc, usedIdAttributes);
+				setUniqueIds(specTopic, specTopic.getXmlDocument(), usedIdAttributes);
 			}
 		}
 	}

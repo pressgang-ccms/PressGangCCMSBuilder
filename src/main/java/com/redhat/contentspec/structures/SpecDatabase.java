@@ -54,6 +54,35 @@ public class SpecDatabase {
 		specLevels.get(escapedTitle).add(level);
 	}
 	
+	public void setDatabaseDulicateIds()
+	{
+		/* Topics */
+		for (final String topicTitle: specTopicsTitles.keySet())
+		{
+			final List<SpecTopic> specTopics = specTopicsTitles.get(topicTitle);
+			for (int i = 0; i < specTopics.size(); i++)
+			{
+				if (i != 0)
+					specTopics.get(i).setDuplicateId(Integer.toString(i));
+				else
+					specTopics.get(i).setDuplicateId(null);
+			}
+		}
+		
+		/* Levels */
+		for (final String levelTitle: specLevels.keySet())
+		{
+			final List<Level> levels = specLevels.get(levelTitle);
+			for (int i = 0; i < levels.size(); i++)
+			{
+				if (i != 0)
+					levels.get(i).setDuplicateId(Integer.toString(i));
+				else
+					levels.get(i).setDuplicateId(null);
+			}
+		}
+	}
+	
 	public List<Integer> getTopicIds()
 	{
 		return CollectionUtilities.toArrayList(specTopics.keySet());
