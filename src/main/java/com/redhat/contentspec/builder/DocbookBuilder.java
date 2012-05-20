@@ -884,7 +884,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 				else
 				{
 					/* add the standard boilerplate xml */
-					xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, docbookBuildingOptions, searchTagsUrl, buildName, buildDate);
+					xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, docbookBuildingOptions, buildName, searchTagsUrl, buildDate);
 					
 					/*
 					 * make sure the XML is valid docbook after the standard
