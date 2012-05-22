@@ -1439,7 +1439,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 				catch (final Exception ex)
 				{
 					success = false;
-					errorDatabase.addError(imageLocation.getTopic(), imageLocation + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123.png, or images/321.jpg");
+					errorDatabase.addError(imageLocation.getTopic(), imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123.png, or images/321.jpg");
 					log.error(ExceptionUtilities.getStackTrace(ex));
 				}
 			}

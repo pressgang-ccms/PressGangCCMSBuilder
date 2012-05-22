@@ -1,9 +1,0 @@
-<section>
-  <title><!-- Inject TopicTitle --></title>
-  <warning>
-    <title>Error</title>
-    <para>Topic <!-- Inject TopicID --> failed validation and is not included in
-this build.</para>
-    <!-- Inject ErrorXREF -->
-  </warning>
-</section>
