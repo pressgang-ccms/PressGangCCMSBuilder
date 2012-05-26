@@ -1124,7 +1124,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 		
 		
 		/* add any compiler errors */
-		if (!docbookBuildingOptions.getSuppressErrorsPage())
+		if (!docbookBuildingOptions.getSuppressErrorsPage() && errorDatabase.hasItems(locale))
 		{
 			final String compilerOutput = buildErrorChapter(locale);
 			files.put(BOOK_LOCALE_FOLDER + "Errors.xml", StringUtilities.getStringBytes(StringUtilities.cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
