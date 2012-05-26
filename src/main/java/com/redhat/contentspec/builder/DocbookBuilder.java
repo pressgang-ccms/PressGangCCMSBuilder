@@ -22,6 +22,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 import com.google.code.regexp.NamedMatcher;
 import com.google.code.regexp.NamedPattern;
@@ -614,9 +615,13 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 				/* make sure we have valid XML */
 				if (xmlValid)
 				{
-					topicDoc = XMLUtilities.convertStringToDocument(topic.getXml());
-					if (topicDoc == null)
-					{
+					try {
+						topicDoc = XMLUtilities.convertStringToDocument(topic.getXml());
+						
+						/* Ensure the topic is wrapped in a section and the title matches the topic */
+						DocbookUtils.wrapDocumentInSection(topicDoc);
+						DocbookUtils.setSectionTitle(topic.getTitle(), topicDoc);
+					} catch (SAXException ex) {
 						String topicXMLErrorTemplate = errorInvalidValidationTopic.getValue();
 						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
 						
@@ -640,14 +645,8 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 							topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
 						}
 						
-						errorDatabase.addError(topic, BuilderConstants.BAD_XML_STRUCTURE);
+						errorDatabase.addError(topic, BuilderConstants.BAD_XML_STRUCTURE + " " + ex.getMessage());
 						topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, fixedUrlsSuccess);
-					}
-					else
-					{
-						/* Ensure the topic is wrapped in a section and the title matches the topic */
-						DocbookUtils.wrapDocumentInSection(topicDoc);
-						DocbookUtils.setSectionTitle(topic.getTitle(), topicDoc);
 					}
 				}
 				
@@ -892,7 +891,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 				else
 				{
 					/* add the standard boilerplate xml */
-					xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, docbookBuildingOptions, buildName, searchTagsUrl, buildDate);
+					xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, contentSpec.getBugzillaOptions(), docbookBuildingOptions, buildName, searchTagsUrl, buildDate);
 					
 					/*
 					 * make sure the XML is valid docbook after the standard
@@ -1293,7 +1292,14 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 			return;
 		}
 		
-		Document chapter = XMLUtilities.convertStringToDocument(basicChapter);
+		Document chapter = null;
+		try {
+			chapter = XMLUtilities.convertStringToDocument(basicChapter);
+		} catch (SAXException ex) {
+			/* Exit since we shouldn't fail at converting a basic chapter */
+			log.debug(ExceptionUtilities.getStackTrace(ex));
+			System.exit(-1);
+		}
 		
 		// Create the title
 		String chapterName = level.getUniqueLinkId(fixedUrlsSuccess) + ".xml";
@@ -1470,7 +1476,14 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 		// Setup Author_Group.xml
 		final String authorGroupXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.AUTHOR_GROUP_XML_ID, "").getValue();
 		String fixedAuthorGroupXml = authorGroupXml;
-		Document authorDoc = XMLUtilities.convertStringToDocument(fixedAuthorGroupXml);
+		Document authorDoc = null;
+		try {
+			authorDoc = XMLUtilities.convertStringToDocument(fixedAuthorGroupXml);
+		} catch (SAXException ex) {
+			/* Exit since we shouldn't fail at converting the basic author group */
+			log.debug(ExceptionUtilities.getStackTrace(ex));
+			System.exit(-1);
+		}
 		LinkedHashMap<Integer, TagV1> authors = new LinkedHashMap<Integer, TagV1>();
 		
 		// Check if the app should be shutdown
@@ -1650,7 +1663,14 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 		xmlDocString = xmlDocString.replaceAll(BuilderConstants.AUTHOR_EMAIL_REGEX, authorInfo.getEmail() == null ? BuilderConstants.DEFAULT_EMAIL : authorInfo.getEmail());
 		
 		// No regex should exist so now convert it to a Document object
-		final Document doc = XMLUtilities.convertStringToDocument(xmlDocString);
+		Document doc = null;
+		try {
+			doc = XMLUtilities.convertStringToDocument(xmlDocString);
+		} catch (SAXException ex) {
+			/* Exit since we shouldn't fail at converting the basic revision history */
+			log.debug(ExceptionUtilities.getStackTrace(ex));
+			System.exit(-1);
+		}
 		doc.getDocumentElement().setAttribute("id", "appe-" + escapedTitle + "-Revision_History");
 		
 		final NodeList simplelistList = doc.getDocumentElement().getElementsByTagName("simplelist");
@@ -1852,7 +1872,14 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 	 */
 	private Document setTopicXMLForError(final T topic, final String template, final boolean fixedUrlsSuccess)
 	{
-		final Document doc = XMLUtilities.convertStringToDocument(template);
+		Document doc = null;
+		try {
+			doc = XMLUtilities.convertStringToDocument(template);
+		} catch (SAXException ex) {
+			/* Exit since we shouldn't fail at converting a basic template */
+			log.debug(ExceptionUtilities.getStackTrace(ex));
+			System.exit(-1);
+		}
 		DocbookUtils.setSectionTitle(topic.getTitle(), doc);
 		processTopicID(topic, doc, fixedUrlsSuccess);
 		return doc;
@@ -1865,7 +1892,14 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 	@SuppressWarnings("unchecked")
 	private void setSpecTopicXMLForError(final SpecTopic topic, final String template, final boolean fixedUrlsSuccess)
 	{
-		final Document doc = XMLUtilities.convertStringToDocument(template);
+		Document doc = null;
+		try {
+			doc = XMLUtilities.convertStringToDocument(template);
+		} catch (SAXException ex) {
+			/* Exit since we shouldn't fail at converting a basic template */
+			log.debug(ExceptionUtilities.getStackTrace(ex));
+			System.exit(-1);
+		}
 		topic.setXmlDocument(doc);
 		DocbookUtils.setSectionTitle(topic.getTitle(), doc);
 		processTopicID((T) topic.getTopic(), doc, fixedUrlsSuccess);

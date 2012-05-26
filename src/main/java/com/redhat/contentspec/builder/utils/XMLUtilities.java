@@ -26,6 +26,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.ls.DOMImplementationLS;
 import org.w3c.dom.ls.LSSerializer;
+import org.xml.sax.SAXException;
 
 import com.google.code.regexp.NamedMatcher;
 import com.google.code.regexp.NamedPattern;
@@ -338,8 +339,9 @@ public class XMLUtilities {
 	 *            The XML to be converted
 	 * @return A Document converted from the supplied XML, or null if the
 	 *         supplied XML was invalid
+	 * @throws Exception 
 	 */
-	public static Document convertStringToDocument(final String xml)
+	public static Document convertStringToDocument(final String xml) throws SAXException
 	{
 		if (xml == null)
 			return null;
@@ -386,11 +388,15 @@ public class XMLUtilities {
 
 			return document;
 		}
+		catch (SAXException ex)
+		{
+			throw ex;
+		}
 		catch (Exception ex)
 		{
 			log.debug(ExceptionUtilities.getStackTrace(ex));
 		}
-
+		
 		return null;
 	}
 
@@ -1010,7 +1016,12 @@ public class XMLUtilities {
 					final String wrappedTranslation = "<tempRoot>" + translation + "</tempRoot>";
 
 					/* convert the wrapped translation into an XML document */
-					final Document translationDocument = convertStringToDocument(wrappedTranslation);
+					Document translationDocument = null;
+					try {
+						translationDocument = convertStringToDocument(wrappedTranslation);
+					} catch (SAXException ex) {
+						log.debug(ExceptionUtilities.getStackTrace(ex));
+					}
 
 					/* was the conversion successful */
 					if (translationDocument != null)

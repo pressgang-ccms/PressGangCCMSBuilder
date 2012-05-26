@@ -22,6 +22,7 @@ import com.google.code.regexp.NamedPattern;
 import com.redhat.contentspec.Level;
 import com.redhat.contentspec.SpecTopic;
 import com.redhat.contentspec.builder.utils.XMLUtilities;
+import com.redhat.contentspec.entities.BugzillaOptions;
 import com.redhat.contentspec.entities.TargetRelationship;
 import com.redhat.contentspec.entities.TopicRelationship;
 import com.redhat.ecs.commonstructures.Pair;
@@ -170,7 +171,7 @@ public class XMLPreProcessor<T extends BaseTopicV1<T>>
 	 */
 	protected static final String NO_INJECT_ROLE = "noinject";
 
-	public void processTopicBugzillaLink(final SpecTopic specTopic, final Document document, final DocbookBuildingOptions docbookBuildingOptions, final String buildName, final String searchTagsUrl, final Date buildDate)
+	public void processTopicBugzillaLink(final SpecTopic specTopic, final Document document, final BugzillaOptions bzOptions, final DocbookBuildingOptions docbookBuildingOptions, final String buildName, final String searchTagsUrl, final Date buildDate)
 	{		
 		/* SIMPLESECT TO HOLD OTHER LINKS */
 		final Element bugzillaSection = document.createElement("simplesect");
@@ -241,8 +242,38 @@ public class XMLPreProcessor<T extends BaseTopicV1<T>>
 			/* build the bugzilla url options */
 			String bugzillaURLComponents = "";
 			
+			/* check the content spec options first */
+			if (bzOptions != null && bzOptions.getProduct() != null)
+			{
+				bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
+				bugzillaURLComponents += "product=" + URLEncoder.encode(bzOptions.getProduct(), "UTF-8");
+
+				if (bzOptions.getComponent() != null)
+				{
+					bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
+					bugzillaURLComponents += "component=" + URLEncoder.encode(bzOptions.getComponent(), "UTF-8");
+				}
+
+				if (bzOptions.getVersion() != null)
+				{
+					bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
+					bugzillaURLComponents += "version=" + URLEncoder.encode(bzOptions.getVersion(), "UTF-8");
+				}
+
+				if (bugzillaAssignedTo != null)
+				{
+					bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
+					bugzillaURLComponents += "assigned_to=" + bugzillaAssignedTo;
+				}
+
+				bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
+				bugzillaURLComponents += "cf_environment=" + bugzillaEnvironment;
+
+				bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
+				bugzillaURLComponents += "cf_build_id=" + bugzillaBuildID;
+			}
 			/* we need at least a product*/
-			if (bugzillaProduct != null)
+			else if (bugzillaProduct != null)
 			{
 				bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
 				bugzillaURLComponents += "product=" + bugzillaProduct;
@@ -299,7 +330,7 @@ public class XMLPreProcessor<T extends BaseTopicV1<T>>
 	/**
 	 * Adds some debug information and links to the end of the topic
 	 */
-	public void processTopicAdditionalInfo(final SpecTopic specTopic, final Document document, final DocbookBuildingOptions docbookBuildingOptions, final String buildName, final String searchTagsUrl, final Date buildDate)
+	public void processTopicAdditionalInfo(final SpecTopic specTopic, final Document document, final BugzillaOptions bzOptions, final DocbookBuildingOptions docbookBuildingOptions, final String buildName, final String searchTagsUrl, final Date buildDate)
 	{		
 		if ((docbookBuildingOptions != null && docbookBuildingOptions.getInsertSurveyLink()) || searchTagsUrl != null)
 		{
@@ -359,7 +390,7 @@ public class XMLPreProcessor<T extends BaseTopicV1<T>>
 		
 		// BUGZILLA LINK
 		if (docbookBuildingOptions != null && docbookBuildingOptions.getInsertBugzillaLinks()) {
-			processTopicBugzillaLink(specTopic, document, docbookBuildingOptions, buildName, searchTagsUrl, buildDate);
+			processTopicBugzillaLink(specTopic, document, bzOptions, docbookBuildingOptions, buildName, searchTagsUrl, buildDate);
 		}
 	}
 

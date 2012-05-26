@@ -145,24 +145,33 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
 	 */
 	private String setXmlDtd(final String xml, final String dtdFileName, final String dtdRootEleName) {
 		String output = null;
-		NamedPattern pattern = NamedPattern.compile("<\\!DOCTYPE[ ]+(?<Name>.*)[ ]+((PUBLIC[ ]+\".*\"[ ]+\"(?<SystemId>.*)\")|(SYSTEM[ ]+\"(?<SystemId>.*)\"))[ ]*((?<Entities>\\[(.|\n)*\\][ ]*))?>");
-		NamedMatcher matcher = pattern.matcher(xml);
+		
+		/* Check if the XML already has a DOCTYPE. If it does then replace the values and remove entities for processing */
+		final NamedPattern pattern = NamedPattern.compile("<\\!DOCTYPE[ ]+(?<Name>.*?)[ ]+((PUBLIC[ ]+\".*?\"|SYSTEM)[ ]+\"(?<SystemId>.*?)\")[ ]*((?<Entities>\\[(.|\n)*\\][ ]*))?>");
+		final NamedMatcher matcher = pattern.matcher(xml);
 		while (matcher.find()) {
 			String name = matcher.group("Name");
 			String systemId = matcher.group("SystemId");
 			String entities = matcher.group("Entities");
 			String doctype = matcher.group();
-			String newDoctype = doctype.replace(name, dtdRootEleName).replace(systemId, dtdFileName).replace(entities, "");
+			String newDoctype = doctype.replace(name, dtdRootEleName).replace(systemId, dtdFileName);
+			if (entities != null)
+			{
+				newDoctype = newDoctype.replace(entities, "");
+			}
 			output = xml.replace(doctype, newDoctype);
 			return output;
 		}
-		String preamble = XMLUtilities.findPreamble(xml);
+		
+		/* The XML doesn't have any doctype so add it */
+		final String preamble = XMLUtilities.findPreamble(xml);
 		if (preamble != null) {
 			output = xml.replace(preamble, preamble + "\n" + "<!DOCTYPE " + dtdRootEleName + " SYSTEM \"" + dtdFileName + "\">");
 		} else {
 			output = "<?xml version='1.0' encoding='UTF-8' ?>\n" +
-					"<!DOCTYPE " + dtdRootEleName + " SYSTEM \"" + dtdFileName + "\">" + xml;
+					"<!DOCTYPE " + dtdRootEleName + " SYSTEM \"" + dtdFileName + "\">\n" + xml;
 		}
+		
 		return output;
 	}
 }
