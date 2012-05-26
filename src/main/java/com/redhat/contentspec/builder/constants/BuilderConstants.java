@@ -83,7 +83,7 @@ public class BuilderConstants {
 	public static final boolean DEFAULT_BUGZILLA_INJECTION_MODE	= true;
 	
 	public static final String VERBATIM_XML_ELEMENTS	= "screen,programlisting";
-	public static final String INLINE_XML_ELEMENTS	= "code,prompt,command,firstterm,ulink,guilabel,filename,replaceable,parameter,literal,classname,sgmltag,guibutton,guimenuitem,guimenu,menuchoice,citetitle,revnumber,application,systemitem,acronym";
+	public static final String INLINE_XML_ELEMENTS	= "code,prompt,command,firstterm,ulink,guilabel,filename,replaceable,parameter,literal,classname,sgmltag,guibutton,guimenuitem,guimenu,menuchoice,citetitle,revnumber,application,systemitem,acronym,keycap";
 	public static final String CONTENTS_INLINE_XML_ELEMENTS = "title,term";
 	
 	public static final String CS_NAME_ENT_FILE = "<!ENTITY PRODUCT \"<<contentSpec.product>>\">\n" +
