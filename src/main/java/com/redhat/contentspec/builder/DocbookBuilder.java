@@ -631,9 +631,40 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 					try {
 						topicDoc = XMLUtilities.convertStringToDocument(topic.getXml());
 						
-						/* Ensure the topic is wrapped in a section and the title matches the topic */
-						DocbookUtils.wrapDocumentInSection(topicDoc);
-						DocbookUtils.setSectionTitle(topic.getTitle(), topicDoc);
+						if (topicDoc != null)
+						{
+							/* Ensure the topic is wrapped in a section and the title matches the topic */
+							DocbookUtils.wrapDocumentInSection(topicDoc);
+							DocbookUtils.setSectionTitle(topic.getTitle(), topicDoc);
+						}
+						else
+						{
+							String topicXMLErrorTemplate = errorInvalidValidationTopic.getValue();
+							topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
+							
+							// Set the topic id in the error
+							if (topic instanceof TranslatedTopicV1)
+							{
+								topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, topicId + ", Revision " + ((TranslatedTopicV1) topic).getTopicRevision());
+							}
+							else
+							{
+								topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topicId));
+							}
+							
+							// Add the link to the errors page. If the errors page is suppressed then remove the injection point.
+							if (!docbookBuildingOptions.getSuppressErrorsPage())
+							{
+								topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + topic.getErrorXRefID() + "\"/> for more detailed information.</para>");
+							}
+							else
+							{
+								topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
+							}
+							
+							errorDatabase.addError(topic, BuilderConstants.INVALID_XML_CONTENT);
+							topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, fixedUrlsSuccess);
+						}
 					} catch (SAXException ex) {
 						String topicXMLErrorTemplate = errorInvalidValidationTopic.getValue();
 						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
@@ -1196,7 +1227,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 		files.put(BOOK_FOLDER + "publican.cfg", fixedPublicanCfg.getBytes());
 		
 		// Setup Book_Info.xml
-		String pubsNumber = (variables.containsKey("pubsnumber") && variables.containsKey("pubsnumber")) ? variables.get("pubsnumber") : (contentSpec.getPubsNumber() == null ? BuilderConstants.PUBSNUMBER_DEFAULT : contentSpec.getPubsNumber().toString());
+		final String pubsNumber = (variables.containsKey("pubsnumber") && variables.containsKey("pubsnumber")) ? variables.get("pubsnumber") : (contentSpec.getPubsNumber() == null ? BuilderConstants.PUBSNUMBER_DEFAULT : contentSpec.getPubsNumber().toString());
 		String fixedBookInfo = bookInfo.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.TITLE_REGEX, contentSpec.getTitle());
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX, contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : contentSpec.getSubtitle());

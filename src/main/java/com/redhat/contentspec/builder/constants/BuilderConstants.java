@@ -72,6 +72,7 @@ public class BuilderConstants {
 	public static final String EMPTY_TOPIC_XML			= "Topic has no XML data";
 	public static final String INVALID_UTF8_CHARACTER 	= "Invalid UTF-8 character found! You may have issues building the content specification if not fixed";
 	public static final String BAD_XML_STRUCTURE 		= "Topic doesn't have well-formed xml";
+	public static final String INVALID_XML_CONTENT 		= "Topic contains an invalid element that can't be converted into a DOM Element.";
 	public static final String FAILED_TOPIC_XML			= "Topic failed relationship and bug reporting injection/validation. The error was <emphasis>%s</emphasis>";
 	public static final String BUILT_MSG				= "Built from Content Specification: %d, Revision: %d";
 	public static final String BUILT_FILE_MSG			= "Content Specification built from file";
