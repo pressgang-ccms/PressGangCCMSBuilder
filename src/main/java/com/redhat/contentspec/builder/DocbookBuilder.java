@@ -28,8 +28,6 @@ import com.google.code.regexp.NamedMatcher;
 import com.google.code.regexp.NamedPattern;
 import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
-import com.redhat.contentspec.Appendix;
-import com.redhat.contentspec.Chapter;
 import com.redhat.contentspec.ContentSpec;
 import com.redhat.contentspec.Level;
 import com.redhat.contentspec.SpecTopic;
@@ -41,6 +39,7 @@ import com.redhat.contentspec.builder.utils.XMLUtilities;
 import com.redhat.contentspec.constants.CSConstants;
 import com.redhat.contentspec.entities.AuthorInformation;
 import com.redhat.contentspec.entities.InjectionOptions;
+import com.redhat.contentspec.enums.LevelType;
 import com.redhat.contentspec.interfaces.ShutdownAbleApp;
 import com.redhat.contentspec.rest.RESTManager;
 import com.redhat.contentspec.rest.RESTReader;
@@ -1278,7 +1277,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 		}
 		
 		/* Get the name of the element based on the type */
-		final String elementName = level.getType().getTitle().toLowerCase();
+		final String elementName = level.getType() == LevelType.PROCESS ? "chapter" : level.getType().getTitle().toLowerCase();
 		
 		Document chapter = null;
 		try {
@@ -1313,7 +1312,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 	 * @param bookXIncludes The string based list of XIncludes to be used in the book.xml
 	 * @param level The level to build the chapter from.
 	 */
-	protected void createSubRootElementXML(final Map<String, byte[]> files, final Document doc, final Level level, final boolean fixedUrlsSuccess) {
+	protected void createSubRootElementXML(final Map<String, byte[]> files, final Document doc, final Node parentNode, final Level level, final boolean fixedUrlsSuccess) {
 			
 		// Check if the app should be shutdown
 		if (isShuttingDown.get()) {
@@ -1321,7 +1320,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 		}
 		
 		/* Get the name of the element based on the type */
-		final String elementName = level.getType().getTitle().toLowerCase();
+		final String elementName = level.getType() == LevelType.PROCESS ? "chapter" : level.getType().getTitle().toLowerCase();
 		
 		Document chapter = null;
 		try {
@@ -1338,8 +1337,8 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 		// Add to the list of XIncludes that will get set in the book.xml
 		Element xiInclude = doc.createElement("xi:include");
 		xiInclude.setAttribute("href", chapterName);
-		xiInclude.setAttribute("xmlns", "http://www.w3.org/2001/XInclude");
-		doc.appendChild(xiInclude);
+		xiInclude.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
+		parentNode.appendChild(xiInclude);
 		
 		//Create the chapter.xml
 		Element titleNode = chapter.createElement("title");
@@ -1360,22 +1359,24 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 	 * @param chapter The chapter document object that this section is to be added to.
 	 * @param parentNode The parent XML node of this section.
 	 */
-	protected void createSectionXML(final Map<String, byte[]> files, final Level level, final Document chapter, final Element parentNode, final boolean fixedUrlsSuccess, final String rootElementName) {
+	protected void createSectionXML(final Map<String, byte[]> files, final Level level, final Document chapter, final Element parentNode, final boolean fixedUrlsSuccess, final String rootElementName)
+	{
 		LinkedList<com.redhat.contentspec.Node> levelData = level.getChildNodes();
 		
 		// Add the section and topics for this level to the chapter.xml
-		for (com.redhat.contentspec.Node node: levelData) {
+		for (com.redhat.contentspec.Node node: levelData)
+		{
 			
 			// Check if the app should be shutdown
 			if (isShuttingDown.get()) {
 				return;
 			}
 			
-			if (node instanceof Chapter || node instanceof Appendix) {
+			if (node instanceof Level && node.getParent() != null && (((Level)node).getParent().getType() == LevelType.BASE || ((Level)node).getParent().getType() == LevelType.PART)) {
 				Level childLevel = (Level)node;
 				
 				// Create a new file for the Chapter/Appendix
-				createSubRootElementXML(files, chapter, childLevel, fixedUrlsSuccess);
+				createSubRootElementXML(files, chapter, parentNode, childLevel, fixedUrlsSuccess);
 			}
 			else if (node instanceof Level)
 			{
