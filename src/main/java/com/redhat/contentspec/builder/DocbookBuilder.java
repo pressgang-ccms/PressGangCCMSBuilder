@@ -1482,17 +1482,31 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 					 * that references an ImageFile record ID.
 					 */
 					final String topicID = imageLocation.getImageName().substring(pathIndex + 1, extensionIndex);
-					final ImageV1 imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(topicID), "");
-
-					if (imageFile != null)
+					
+					/* 
+					 * If the image is the failpenguin the that means that an error has
+					 * already occured most likely from not specifying an image file at
+					 * all. 
+					 */
+					if (topicID.equals("failpenguinPng"))
 					{
-						success = true;
-						files.put(BOOK_LOCALE_FOLDER + imageLocation.getImageName(), imageFile.getImageData());
+						success = false;
+						errorDatabase.addError(imageLocation.getTopic(), "No image filename specified. Must be in the format [ImageFileID].extension e.g. 123.png, or images/321.jpg");
 					}
 					else
 					{
-						errorDatabase.addError(imageLocation.getTopic(), "ImageFile ID " + topicID + " from image location " + imageLocation + " was not found!");
-						log.error("ImageFile ID " + topicID + " from image location " + imageLocation + " was not found!");
+						final ImageV1 imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(topicID), "");
+	
+						if (imageFile != null)
+						{
+							success = true;
+							files.put(BOOK_LOCALE_FOLDER + imageLocation.getImageName(), imageFile.getImageData());
+						}
+						else
+						{
+							errorDatabase.addError(imageLocation.getTopic(), "ImageFile ID " + topicID + " from image location " + imageLocation + " was not found!");
+							log.error("ImageFile ID " + topicID + " from image location " + imageLocation + " was not found!");
+						}
 					}
 				}
 				catch (final Exception ex)
@@ -1835,12 +1849,20 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 				{
 					final Node fileRefAttribute = attributes.getNamedItem("fileref");
 	
-					if (fileRefAttribute != null && !fileRefAttribute.getNodeValue().startsWith("images/"))
+					if (fileRefAttribute != null && (fileRefAttribute.getNodeValue() == null || fileRefAttribute.getNodeValue().isEmpty()))
 					{
-						fileRefAttribute.setNodeValue("images/" + fileRefAttribute.getNodeValue());
+						fileRefAttribute.setNodeValue("images/failpenguinPng.jpg");
+						imageLocations.add(new TopicImageData<T>(topic, fileRefAttribute.getNodeValue()));
 					}
-	
-					imageLocations.add(new TopicImageData<T>(topic, fileRefAttribute.getNodeValue()));
+					else if (fileRefAttribute != null)
+					{
+						if (fileRefAttribute != null && !fileRefAttribute.getNodeValue().startsWith("images/"))
+						{
+							fileRefAttribute.setNodeValue("images/" + fileRefAttribute.getNodeValue());
+						}
+		
+						imageLocations.add(new TopicImageData<T>(topic, fileRefAttribute.getNodeValue()));
+					}
 				}
 			}
 		}
