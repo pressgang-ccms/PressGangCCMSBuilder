@@ -195,6 +195,20 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 		
 		this.docbookBuildingOptions = buildingOptions;
 		
+		/* 
+		 * Apply the build options from the content spec only if the build
+		 * options are true. We do this so that if the options are turned off
+		 * earlier then we don't re-enable them.
+		 */
+		if (docbookBuildingOptions.getInsertSurveyLink())
+		{
+			docbookBuildingOptions.setInsertSurveyLink(contentSpec.isInjectSurveyLinks());
+		}
+		if (docbookBuildingOptions.getInsertBugzillaLinks())
+		{
+			docbookBuildingOptions.setInsertBugzillaLinks(contentSpec.isInjectBugLinks());
+		}
+		
 		// Add the options that were passed to the builder
 		injectionOptions = new InjectionOptions();
 		
