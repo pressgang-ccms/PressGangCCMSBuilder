@@ -28,9 +28,10 @@ import com.google.code.regexp.NamedMatcher;
 import com.google.code.regexp.NamedPattern;
 import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
+import com.redhat.contentspec.Appendix;
+import com.redhat.contentspec.Chapter;
 import com.redhat.contentspec.ContentSpec;
 import com.redhat.contentspec.Level;
-import com.redhat.contentspec.Part;
 import com.redhat.contentspec.SpecTopic;
 import com.redhat.contentspec.builder.constants.BuilderConstants;
 import com.redhat.contentspec.builder.exception.BuilderCreationException;
@@ -40,7 +41,6 @@ import com.redhat.contentspec.builder.utils.XMLUtilities;
 import com.redhat.contentspec.constants.CSConstants;
 import com.redhat.contentspec.entities.AuthorInformation;
 import com.redhat.contentspec.entities.InjectionOptions;
-import com.redhat.contentspec.enums.LevelType;
 import com.redhat.contentspec.interfaces.ShutdownAbleApp;
 import com.redhat.contentspec.rest.RESTManager;
 import com.redhat.contentspec.rest.RESTReader;
@@ -1084,9 +1084,6 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 		addImagesToBook(files);
 		
 		LinkedList<com.redhat.contentspec.Node> levelData = contentSpec.getBaseLevel().getChildNodes();
-		
-		// Setup the basic chapter.xml
-		String basicChapter = "<chapter></chapter>";
 
 		// Loop through and create each chapter and the topics inside those chapters
 		for (com.redhat.contentspec.Node node: levelData) {
@@ -1096,23 +1093,12 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 				return null;
 			}
 			
-			if (node instanceof Part) {
-				Part part = (Part)node;
-				
-				bookXIncludes.append("\t<part>\n");
-				bookXIncludes.append("\t<title>" + part.getTitle() + "</title>\n");
-				
-				for (Level childLevel: part.getChildLevels()) {
-					createChapterXML(files, bookXIncludes, childLevel, basicChapter, fixedUrlsSuccess);
-				}
-				
-				bookXIncludes.append("\t</part>\n");
-			} else if (node instanceof Level) {
+			if (node instanceof Level) {
 				final Level level = (Level) node;
 				
 				if (level.hasSpecTopics())
 				{
-					createChapterXML(files, bookXIncludes, level, basicChapter, fixedUrlsSuccess);
+					createRootElementXML(files, bookXIncludes, level, fixedUrlsSuccess);
 				}
 				else if (docbookBuildingOptions.isAllowEmptySections())
 				{
@@ -1283,18 +1269,20 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 	 * 
 	 * @param bookXIncludes The string based list of XIncludes to be used in the book.xml
 	 * @param level The level to build the chapter from.
-	 * @param basicChapter A string representation of a basic chapter.
 	 */
-	protected void createChapterXML(final Map<String, byte[]> files, final StringBuffer bookXIncludes, final Level level, final String basicChapter, final boolean fixedUrlsSuccess) {
+	protected void createRootElementXML(final Map<String, byte[]> files, final StringBuffer bookXIncludes, final Level level, final boolean fixedUrlsSuccess) {
 			
 		// Check if the app should be shutdown
 		if (isShuttingDown.get()) {
 			return;
 		}
 		
+		/* Get the name of the element based on the type */
+		final String elementName = level.getType().getTitle().toLowerCase();
+		
 		Document chapter = null;
 		try {
-			chapter = XMLUtilities.convertStringToDocument(basicChapter);
+			chapter = XMLUtilities.convertStringToDocument("<" + elementName + "></" + elementName + ">");
 		} catch (SAXException ex) {
 			/* Exit since we shouldn't fail at converting a basic chapter */
 			log.debug(ExceptionUtilities.getStackTrace(ex));
@@ -1303,9 +1291,6 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 		
 		// Create the title
 		String chapterName = level.getUniqueLinkId(fixedUrlsSuccess) + ".xml";
-		if (level.getType() == LevelType.APPENDIX) {
-			chapter.renameNode(chapter.getDocumentElement(), null, "appendix");
-		}
 		
 		// Add to the list of XIncludes that will get set in the book.xml
 		bookXIncludes.append("\t<xi:include href=\"" + chapterName + "\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
@@ -1315,10 +1300,56 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 		titleNode.setTextContent(level.getTitle());
 		chapter.getDocumentElement().appendChild(titleNode);
 		chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(fixedUrlsSuccess));
-		createSectionXML(files, level, chapter, chapter.getDocumentElement(), fixedUrlsSuccess);
+		createSectionXML(files, level, chapter, chapter.getDocumentElement(), fixedUrlsSuccess, elementName);
 		
 		// Add the boiler plate text and add the chapter to the book
-		String chapterString = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent");
+		String chapterString = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", elementName);
+		files.put(BOOK_LOCALE_FOLDER + chapterName, chapterString.getBytes());
+	}
+	
+	/**
+	 * Creates all the chapters/appendixes for a book that are contained within another part/chapter/appendix and generates the section/topic data inside of each chapter.
+	 * 
+	 * @param bookXIncludes The string based list of XIncludes to be used in the book.xml
+	 * @param level The level to build the chapter from.
+	 */
+	protected void createSubRootElementXML(final Map<String, byte[]> files, final Document doc, final Level level, final boolean fixedUrlsSuccess) {
+			
+		// Check if the app should be shutdown
+		if (isShuttingDown.get()) {
+			return;
+		}
+		
+		/* Get the name of the element based on the type */
+		final String elementName = level.getType().getTitle().toLowerCase();
+		
+		Document chapter = null;
+		try {
+			chapter = XMLUtilities.convertStringToDocument("<" + elementName + "></" + elementName + ">");
+		} catch (SAXException ex) {
+			/* Exit since we shouldn't fail at converting a basic chapter */
+			log.debug(ExceptionUtilities.getStackTrace(ex));
+			System.exit(-1);
+		}
+		
+		// Create the title
+		String chapterName = level.getUniqueLinkId(fixedUrlsSuccess) + ".xml";
+		
+		// Add to the list of XIncludes that will get set in the book.xml
+		Element xiInclude = doc.createElement("xi:include");
+		xiInclude.setAttribute("href", chapterName);
+		xiInclude.setAttribute("xmlns", "http://www.w3.org/2001/XInclude");
+		doc.appendChild(xiInclude);
+		
+		//Create the chapter.xml
+		Element titleNode = chapter.createElement("title");
+		titleNode.setTextContent(level.getTitle());
+		chapter.getDocumentElement().appendChild(titleNode);
+		chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(fixedUrlsSuccess));
+		createSectionXML(files, level, chapter, chapter.getDocumentElement(), fixedUrlsSuccess, elementName);
+		
+		// Add the boiler plate text and add the chapter to the book
+		String chapterString = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", elementName);
 		files.put(BOOK_LOCALE_FOLDER + chapterName, chapterString.getBytes());
 	}
 	
@@ -1329,7 +1360,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 	 * @param chapter The chapter document object that this section is to be added to.
 	 * @param parentNode The parent XML node of this section.
 	 */
-	protected void createSectionXML(final Map<String, byte[]> files, final Level level, final Document chapter, final Element parentNode, final boolean fixedUrlsSuccess) {
+	protected void createSectionXML(final Map<String, byte[]> files, final Level level, final Document chapter, final Element parentNode, final boolean fixedUrlsSuccess, final String rootElementName) {
 		LinkedList<com.redhat.contentspec.Node> levelData = level.getChildNodes();
 		
 		// Add the section and topics for this level to the chapter.xml
@@ -1340,7 +1371,14 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 				return;
 			}
 			
-			if (node instanceof Level) {
+			if (node instanceof Chapter || node instanceof Appendix) {
+				Level childLevel = (Level)node;
+				
+				// Create a new file for the Chapter/Appendix
+				createSubRootElementXML(files, chapter, childLevel, fixedUrlsSuccess);
+			}
+			else if (node instanceof Level)
+			{
 				Level childLevel = (Level)node;
 				
 				// Create the section and its title
@@ -1367,7 +1405,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 				else
 				{
 					// Add this sections child sections/topics
-					createSectionXML(files, childLevel, chapter, sectionNode, fixedUrlsSuccess);
+					createSectionXML(files, childLevel, chapter, sectionNode, fixedUrlsSuccess, rootElementName);
 				}
 				
 				parentNode.appendChild(sectionNode);
@@ -1390,7 +1428,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 				topicNode.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
 				parentNode.appendChild(topicNode);
 				
-				String topicXML = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent");
+				String topicXML = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", rootElementName);
 				files.put(BOOK_TOPICS_FOLDER + topicFileName, topicXML.getBytes());
 			}
 		}
@@ -1596,7 +1634,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 		}
 		
 		// Add the Author_Group.xml to the book
-		fixedAuthorGroupXml = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(authorDoc, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent");
+		fixedAuthorGroupXml = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(authorDoc, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", "authorgroup");
 		files.put(BOOK_LOCALE_FOLDER + "Author_Group.xml", fixedAuthorGroupXml.getBytes());
 	}
 	
@@ -1643,7 +1681,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 		}
 		
 		// Add the revision history to the book
-		fixedRevisionHistoryXml = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(revHistoryDoc, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent");
+		fixedRevisionHistoryXml = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(revHistoryDoc, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", "appendix");
 		files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", fixedRevisionHistoryXml.getBytes());
 	}
 	
