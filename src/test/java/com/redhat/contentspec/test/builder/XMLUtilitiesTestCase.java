@@ -12,6 +12,9 @@ import org.junit.Test;
 import org.w3c.dom.CDATASection;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
 
 import com.redhat.contentspec.builder.constants.BuilderConstants;
@@ -22,7 +25,7 @@ public class XMLUtilitiesTestCase {
 	@Test
 	public void testConvertStringToDocument()
 	{
-		final String testXml = "<section>\n\t<title>Test Entity</title>\n\t<screen>\n\t\t# grep -E &apos;svm|vmx&apos; /proc/cpuinfo <literal>test</literal>&apos;s\n\t</screen>\n</section>";
+		final String testXml = "<section>\n\t<title>Test Entity</title>\n\t<para>\n\t\tTest Message.\n\t</para>\n\t<screen>\n\t\t# grep -E &apos;svm|vmx&apos; /proc/cpuinfo <literal>test</literal>&apos;s\n\t</screen>\n</section>";
 		
 		try {
 			/* Test with entities to ensure a document is created */
@@ -164,5 +167,50 @@ public class XMLUtilitiesTestCase {
 				Arrays.asList(BuilderConstants.CONTENTS_INLINE_XML_ELEMENTS.split(",")), true);
 		
 		assertEquals(testXml, convertedXml);
+		
+		/* Test that spaces aren't removed between inline elements */
+		
+		/* Clone the document and create the text */
+		final Document clonedDoc = (Document) doc.cloneNode(true);
+		Element literal1 = clonedDoc.createElement("literal");
+		literal1.setTextContent("Test Literal");
+		
+		Element literal2 = clonedDoc.createElement("literal");
+		literal2.setTextContent("Test Literal2");
+		
+		Text paraText = clonedDoc.createTextNode("This is a test paragraph to test node conversion with a space between joining elements. ");
+		Text space = clonedDoc.createTextNode(" ");
+		
+		/* Remove the text from the paragraph and add the new literals */
+		final Node paraNode = clonedDoc.getDocumentElement().getFirstChild().getNextSibling();
+		final NodeList childParaNodes = paraNode.getChildNodes();
+		for (int i = 0; i < childParaNodes.getLength(); i++)
+		{
+			paraNode.removeChild(childParaNodes.item(i));
+		}
+		
+		/* Add the elements to the para node */
+		paraNode.appendChild(paraText);
+		paraNode.appendChild(literal1);
+		paraNode.appendChild(space);
+		paraNode.appendChild(literal2);
+		
+		/* The xml that should be output from the conversion */
+		final String testXml2 = 
+				"<section>\n" +
+				"\t<title>Test Title</title>\n" +
+				"\t<para>\n" +
+				"\t\tThis is a test paragraph to test node conversion with a space between joining elements. <literal>Test Literal</literal> <literal>Test Literal2</literal>\n" +
+				"\t</para>\n" +
+				"\t<programlisting><![CDATA[This & that.\n" +
+				"We are testing the nodeToString conversion here.\n" +
+				"]]></programlisting>\n" +
+				"</section>";
+		
+		/* Convert the document to a String */
+		final String convertedXml2 = XMLUtilities.convertNodeToString(clonedDoc, Arrays.asList(BuilderConstants.VERBATIM_XML_ELEMENTS.split(",")), Arrays.asList(BuilderConstants.INLINE_XML_ELEMENTS.split(",")),
+				Arrays.asList(BuilderConstants.CONTENTS_INLINE_XML_ELEMENTS.split(",")), true);
+		
+		assertEquals(testXml2, convertedXml2);
 	}
 }

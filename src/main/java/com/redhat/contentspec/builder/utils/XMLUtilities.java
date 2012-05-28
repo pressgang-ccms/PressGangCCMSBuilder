@@ -621,7 +621,7 @@ public class XMLUtilities {
 					final StringBuffer retValue = new StringBuffer();
 
 					/*
-					 * if this is the first text node, remove all preceeding
+					 * if this is the first text node, remove all preceding
 					 * whitespace, and then add the indent
 					 */
 					final boolean firstNotInlinedTextNode = !inline && firstNode;
@@ -631,7 +631,7 @@ public class XMLUtilities {
 					}
 
 					/*
-					 * Remove any white space at the begining and end of the
+					 * Remove any white space at the beginning and end of the
 					 * text, save for one space
 					 */
 					final boolean startedWithWhiteSpace = StringUtilities.startsWithWhitespace(trimmedNodeValue);
@@ -650,12 +650,17 @@ public class XMLUtilities {
 					if (startedWithWhiteSpace && !firstNotInlinedTextNode)
 						trimmedNodeValue = " " + trimmedNodeValue;
 
-					if (endedWithWhitespace)
+					/* Only add whitespace if the node isn't the last node */
+					if (endedWithWhitespace && node.getNextSibling() != null)
 						trimmedNodeValue += " ";
 
 					retValue.append(trimmedNodeValue);
 
 					return retValue.toString();
+				}
+				else if (node.getNodeValue().matches("^[ ]*$") && node.getNextSibling() != null)
+				{
+					return new String(" ");
 				}
 
 				return new String();
