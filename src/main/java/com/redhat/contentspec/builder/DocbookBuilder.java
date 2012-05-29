@@ -689,7 +689,7 @@ public class DocbookBuilder<T extends BaseTopicV1<T>> implements ShutdownAbleApp
 							topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
 						}
 						
-						errorDatabase.addError(topic, BuilderConstants.BAD_XML_STRUCTURE + " " + ex.getMessage());
+						errorDatabase.addError(topic, BuilderConstants.BAD_XML_STRUCTURE + " " + StringUtilities.escapeForXML(ex.getMessage()));
 						topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, fixedUrlsSuccess);
 					}
 				}
