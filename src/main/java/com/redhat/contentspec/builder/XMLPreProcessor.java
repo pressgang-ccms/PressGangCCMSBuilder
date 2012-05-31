@@ -39,10 +39,10 @@ import com.redhat.ecs.services.docbookcompiling.xmlprocessing.structures.Injecti
 import com.redhat.ecs.services.docbookcompiling.xmlprocessing.structures.TocTopicDatabase;
 import com.redhat.ecs.sort.ExternalListSort;
 
-import com.redhat.topicindex.rest.entities.BaseTopicV1;
-import com.redhat.topicindex.rest.entities.PropertyTagV1;
-import com.redhat.topicindex.rest.entities.TagV1;
 import com.redhat.topicindex.rest.entities.TranslatedTopicV1;
+import com.redhat.topicindex.rest.entities.interfaces.IBaseTopicV1;
+import com.redhat.topicindex.rest.entities.interfaces.IPropertyTagV1;
+import com.redhat.topicindex.rest.entities.interfaces.ITagV1;
 import com.redhat.topicindex.rest.sort.TopicTitleSorter;
 import com.redhat.topicindex.rest.sort.BaseTopicV1TitleComparator;
 
@@ -50,7 +50,7 @@ import com.redhat.topicindex.rest.sort.BaseTopicV1TitleComparator;
  * This class takes the XML from a topic and modifies it to include and injected
  * content.
  */
-public class XMLPreProcessor<T extends BaseTopicV1<T>>
+public class XMLPreProcessor<T extends IBaseTopicV1<T>>
 {
 	/**
 	 * Used to identify that an <orderedlist> should be generated for the
@@ -207,18 +207,18 @@ public class XMLPreProcessor<T extends BaseTopicV1<T>>
 			String bugzillaKeywords = null;
 			String bugzillaAssignedTo = null;
 			final String bugzillaEnvironment = URLEncoder.encode("Instance Name: " + fixedInstanceNameProperty + "\nBuild: " + buildName + "\nBuild Filter: " + searchTagsUrl +"\nBuild Name: " + specifiedBuildName + "\nBuild Date: " + formatter.format(buildDate), "UTF-8");
-			final String bugzillaBuildID = URLEncoder.encode(specTopic.getTopic().getBugzillaBuildId(), "UTF-8");
+			final String bugzillaBuildID = URLEncoder.encode(specTopic.getTopic().returnBugzillaBuildId(), "UTF-8");
 
 			/* look for the bugzilla options */
 			if (specTopic.getTopic().getTags() != null && specTopic.getTopic().getTags().getItems() != null)
 			{
-				for (final TagV1 tag : specTopic.getTopic().getTags().getItems())
+				for (final ITagV1 tag : specTopic.getTopic().getTags().getItems())
 				{
-					final PropertyTagV1 bugzillaProductTag = tag.getProperty(CommonConstants.BUGZILLA_PRODUCT_PROP_TAG_ID);
-					final PropertyTagV1 bugzillaComponentTag = tag.getProperty(CommonConstants.BUGZILLA_COMPONENT_PROP_TAG_ID);
-					final PropertyTagV1 bugzillaKeywordsTag = tag.getProperty(CommonConstants.BUGZILLA_KEYWORDS_PROP_TAG_ID);
-					final PropertyTagV1 bugzillaVersionTag = tag.getProperty(CommonConstants.BUGZILLA_VERSION_PROP_TAG_ID);
-					final PropertyTagV1 bugzillaAssignedToTag = tag.getProperty(CommonConstants.BUGZILLA_PROFILE_PROPERTY);
+					final IPropertyTagV1 bugzillaProductTag = tag.returnProperty(CommonConstants.BUGZILLA_PRODUCT_PROP_TAG_ID);
+					final IPropertyTagV1 bugzillaComponentTag = tag.returnProperty(CommonConstants.BUGZILLA_COMPONENT_PROP_TAG_ID);
+					final IPropertyTagV1 bugzillaKeywordsTag = tag.returnProperty(CommonConstants.BUGZILLA_KEYWORDS_PROP_TAG_ID);
+					final IPropertyTagV1 bugzillaVersionTag = tag.returnProperty(CommonConstants.BUGZILLA_VERSION_PROP_TAG_ID);
+					final IPropertyTagV1 bugzillaAssignedToTag = tag.returnProperty(CommonConstants.BUGZILLA_PROFILE_PROPERTY);
 
 					if (bugzillaProduct == null && bugzillaProductTag != null)
 						bugzillaProduct = URLEncoder.encode(bugzillaProductTag.getValue(), "UTF-8");
@@ -373,7 +373,7 @@ public class XMLPreProcessor<T extends BaseTopicV1<T>>
 				final Element skynetLinkULink = document.createElement("ulink");
 				skynetElement.appendChild(skynetLinkULink);
 				skynetLinkULink.setTextContent("View in Skynet");
-				skynetLinkULink.setAttribute("url", specTopic.getTopic().getSkynetURL());
+				skynetLinkULink.setAttribute("url", specTopic.getTopic().returnSkynetURL());
 	
 				// SKYNET VERSION
 	
@@ -600,7 +600,7 @@ public class XMLPreProcessor<T extends BaseTopicV1<T>>
 							/* if the toc is null, we are building an internal page */
 							if (level == null)
 							{
-								final String url = relatedTopic.getInternalURL();
+								final String url = relatedTopic.returnInternalURL();
 								if (sequenceID.optional)
 								{
 									list.add(DocbookUtils.buildEmphasisPrefixedULink(xmlDocument, OPTIONAL_LIST_PREFIX, url, relatedTopic.getTitle()));
@@ -651,7 +651,7 @@ public class XMLPreProcessor<T extends BaseTopicV1<T>>
 		return retValue;
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public List<Integer> processGenericInjections(final Level level, final SpecTopic topic, final Document xmlDocument, final ArrayList<Integer> customInjectionIds, final List<Pair<Integer, String>> topicTypeTagIDs, final DocbookBuildingOptions docbookBuildingOptions,
 			final boolean usedFixedUrls)
 	{
@@ -668,7 +668,7 @@ public class XMLPreProcessor<T extends BaseTopicV1<T>>
 		/* wrap each related topic in a listitem tag */
 		if (topic.getTopic().getOutgoingRelationships() != null && topic.getTopic().getOutgoingRelationships().getItems()!= null)
 		{
-			for (final BaseTopicV1<?> relatedTopic : topic.getTopic().getOutgoingRelationships().getItems())
+			for (final IBaseTopicV1 relatedTopic : topic.getTopic().getOutgoingRelationships().getItems())
 			{
 				
 				final Integer topicId;
@@ -703,7 +703,7 @@ public class XMLPreProcessor<T extends BaseTopicV1<T>>
 							 * of the topic type tags this may never be true if
 							 * not processing all related topics
 							 */
-							if (relatedTopic.isTaggedWith(primaryTopicTypeTag.getFirst()))
+							if (relatedTopic.hasTag(primaryTopicTypeTag.getFirst()))
 							{
 								relatedLists.addInjectionTopic(primaryTopicTypeTag, (T) relatedTopic);
 
@@ -764,7 +764,7 @@ public class XMLPreProcessor<T extends BaseTopicV1<T>>
 						{
 							if (level == null)
 							{
-								DocbookUtils.createRelatedTopicULink(xmlDoc, relatedTopic.getInternalURL(), relatedTopic.getTitle(), itemizedlist);
+								DocbookUtils.createRelatedTopicULink(xmlDoc, relatedTopic.returnInternalURL(), relatedTopic.getTitle(), itemizedlist);
 							}
 							else
 							{
@@ -866,9 +866,9 @@ public class XMLPreProcessor<T extends BaseTopicV1<T>>
 						 * make sure the topic we are trying to inject has been
 						 * related
 						 */
-						if (specTopic.getTopic().isRelatedTo(topicID))
+						if (specTopic.getTopic().hasRelationshipTo(topicID))
 						{
-							final T relatedTopic = (T) specTopic.getTopic().getRelatedTopicByID(topicID);
+							final T relatedTopic = (T) specTopic.getTopic().returnRelatedTopicByID(topicID);
 							final Document relatedTopicXML = XMLUtilities.convertStringToDocument(relatedTopic.getXml());
 							if (relatedTopicXML != null)
 							{
@@ -1017,9 +1017,9 @@ public class XMLPreProcessor<T extends BaseTopicV1<T>>
 						 * make sure the topic we are trying to inject has been
 						 * related
 						 */
-						if (specTopic.getTopic().isRelatedTo(topicID))
+						if (specTopic.getTopic().hasRelationshipTo(topicID))
 						{
-							final T relatedTopic = (T) specTopic.getTopic().getRelatedTopicByID(topicID);
+							final T relatedTopic = (T) specTopic.getTopic().returnRelatedTopicByID(topicID);
 							final Element titleNode = xmlDocument.createElement("title");
 							titleNode.setTextContent(relatedTopic.getTitle());
 							replacements.put(comment, titleNode);
