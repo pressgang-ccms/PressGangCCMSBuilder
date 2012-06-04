@@ -22,23 +22,21 @@ import com.redhat.contentspec.entities.BugzillaOptions;
 import com.redhat.ecs.constants.CommonConstants;
 import com.redhat.ecs.services.docbookcompiling.DocbookBuildingOptions;
 import com.redhat.topicindex.rest.collections.BaseRestCollectionV1;
-import com.redhat.topicindex.rest.entities.PropertyTagV1;
-import com.redhat.topicindex.rest.entities.TagV1;
-import com.redhat.topicindex.rest.entities.TopicV1;
-import com.redhat.topicindex.rest.entities.TranslatedTopicV1;
-import com.redhat.topicindex.rest.entities.interfaces.IPropertyTagV1;
-import com.redhat.topicindex.rest.entities.interfaces.ITagV1;
-import com.redhat.topicindex.rest.entities.interfaces.ITopicV1;
-import com.redhat.topicindex.rest.entities.interfaces.ITranslatedTopicV1;
+import com.redhat.topicindex.rest.entities.ComponentTopicV1;
+import com.redhat.topicindex.rest.entities.ComponentTranslatedTopicV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTPropertyTagV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTTagV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTTopicV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTTranslatedTopicV1;
 
 public class XMLPreProcessorTestCase
 {
-	private static final XMLPreProcessor<ITopicV1> topicPreProcessor = new XMLPreProcessor<ITopicV1>();
-	private static final XMLPreProcessor<ITranslatedTopicV1> translatedTopicPreProcessor = new XMLPreProcessor<ITranslatedTopicV1>();
+	private static final XMLPreProcessor<RESTTopicV1> topicPreProcessor = new XMLPreProcessor<RESTTopicV1>();
+	private static final XMLPreProcessor<RESTTranslatedTopicV1> translatedTopicPreProcessor = new XMLPreProcessor<RESTTranslatedTopicV1>();
 	private static SpecTopic specTopic;
 	private static SpecTopic specTranslatedTopic;
-	private static TopicV1 topic;
-	private static TranslatedTopicV1 translatedTopic;
+	private static RESTTopicV1 topic;
+	private static RESTTranslatedTopicV1 translatedTopic;
 	private static Document baseDocument;
 	
 	@BeforeClass
@@ -48,14 +46,14 @@ public class XMLPreProcessorTestCase
 		specTranslatedTopic = new SpecTopic(100, "Test Translated Title");
 		
 		/* Create the basic topic data */
-		topic = new TopicV1();
+		topic = new RESTTopicV1();
 		topic.setId(100);
 		topic.setRevision(50);
 		topic.setLastModified(new Date());
 		topic.setLocale("en-US");
 		topic.setTitle("Test Title");
 		
-		translatedTopic = new TranslatedTopicV1();
+		translatedTopic = new RESTTranslatedTopicV1();
 		translatedTopic.setId(101);
 		translatedTopic.setTopicId(100);
 		translatedTopic.setTopicRevision(50);
@@ -67,45 +65,45 @@ public class XMLPreProcessorTestCase
 		specTranslatedTopic.setTopic(translatedTopic);
 		
 		/* Setup the property tags that will be used */
-		final IPropertyTagV1 bugzillaProduct = new PropertyTagV1();
+		final RESTPropertyTagV1 bugzillaProduct = new RESTPropertyTagV1();
 		bugzillaProduct.setId(CommonConstants.BUGZILLA_PRODUCT_PROP_TAG_ID);
 		bugzillaProduct.setValue("JBoss Enterprise Application Platform");
 		
-		final IPropertyTagV1 bugzillaVersion = new PropertyTagV1();
+		final RESTPropertyTagV1 bugzillaVersion = new RESTPropertyTagV1();
 		bugzillaVersion.setId(CommonConstants.BUGZILLA_VERSION_PROP_TAG_ID);
 		bugzillaVersion.setValue("6.0");
 		
-		final IPropertyTagV1 bugzillaComponent = new PropertyTagV1();
+		final RESTPropertyTagV1 bugzillaComponent = new RESTPropertyTagV1();
 		bugzillaComponent.setId(CommonConstants.BUGZILLA_COMPONENT_PROP_TAG_ID);
 		bugzillaComponent.setValue("documentation");
 		
-		final IPropertyTagV1 bugzillaKeywords = new PropertyTagV1();
+		final RESTPropertyTagV1 bugzillaKeywords = new RESTPropertyTagV1();
 		bugzillaKeywords.setId(CommonConstants.BUGZILLA_KEYWORDS_PROP_TAG_ID);
 		bugzillaKeywords.setValue("Documentation");
 		
-		final IPropertyTagV1 bugzillaWriter = new PropertyTagV1();
+		final RESTPropertyTagV1 bugzillaWriter = new RESTPropertyTagV1();
 		bugzillaWriter.setId(CommonConstants.BUGZILLA_PROFILE_PROPERTY);
 		bugzillaWriter.setValue("lnewson@redhat.com");
 		
 		/* Create the REST collections */
-		final BaseRestCollectionV1<IPropertyTagV1> writerTags = new BaseRestCollectionV1<IPropertyTagV1>();
+		final BaseRestCollectionV1<RESTPropertyTagV1> writerTags = new BaseRestCollectionV1<RESTPropertyTagV1>();
 		writerTags.addItem(bugzillaWriter);
 		
-		final BaseRestCollectionV1<IPropertyTagV1> releaseTags = new BaseRestCollectionV1<IPropertyTagV1>();
+		final BaseRestCollectionV1<RESTPropertyTagV1> releaseTags = new BaseRestCollectionV1<RESTPropertyTagV1>();
 		releaseTags.addItem(bugzillaProduct);
 		releaseTags.addItem(bugzillaKeywords);
 		releaseTags.addItem(bugzillaComponent);
 		releaseTags.addItem(bugzillaVersion);
 		
 		/* Create the Tags */
-		final TagV1 assignedWriter = new TagV1();
+		final RESTTagV1 assignedWriter = new RESTTagV1();
 		assignedWriter.setProperties(writerTags);
 		
-		final TagV1 releaseTag = new TagV1();
+		final RESTTagV1 releaseTag = new RESTTagV1();
 		releaseTag.setProperties(releaseTags);
 		
 		/* Add the tags to the topics */
-		final BaseRestCollectionV1<ITagV1> topicTags = new BaseRestCollectionV1<ITagV1>();
+		final BaseRestCollectionV1<RESTTagV1> topicTags = new BaseRestCollectionV1<RESTTagV1>();
 		topicTags.addItem(assignedWriter);
 		topicTags.addItem(releaseTag);
 		
@@ -139,8 +137,8 @@ public class XMLPreProcessorTestCase
 		final String buildNameString = URLEncoder.encode(buildName, "UTF-8");
 		final String searchTagsUrl = "CSProcessor Builder Version 1.3";
 		
-		final String bugzillaBuildID = URLEncoder.encode(topic.returnBugzillaBuildId(), "UTF-8");
-		final String translatedBugzillaBuildID = URLEncoder.encode(translatedTopic.returnBugzillaBuildId(), "UTF-8");
+		final String bugzillaBuildID = URLEncoder.encode(ComponentTopicV1.returnBugzillaBuildId(topic), "UTF-8");
+		final String translatedBugzillaBuildID = URLEncoder.encode(ComponentTranslatedTopicV1.returnBugzillaBuildId(translatedTopic), "UTF-8");
 		
 		/* Create the XML Documents to modify */
 		final Document topicDoc = (Document) baseDocument.cloneNode(true);
@@ -192,8 +190,8 @@ public class XMLPreProcessorTestCase
 		final String buildNameString = URLEncoder.encode(buildName, "UTF-8");
 		final String searchTagsUrl = "CSProcessor Builder Version 1.3";
 		
-		final String bugzillaBuildID = URLEncoder.encode(topic.returnBugzillaBuildId(), "UTF-8");
-		final String translatedBugzillaBuildID = URLEncoder.encode(translatedTopic.returnBugzillaBuildId(), "UTF-8");
+		final String bugzillaBuildID = URLEncoder.encode(ComponentTopicV1.returnBugzillaBuildId(topic), "UTF-8");
+		final String translatedBugzillaBuildID = URLEncoder.encode(ComponentTranslatedTopicV1.returnBugzillaBuildId(translatedTopic), "UTF-8");
 		
 		final Document topicDoc = (Document) baseDocument.cloneNode(true);
 		final Document translatedTopicDoc = (Document) baseDocument.cloneNode(true);

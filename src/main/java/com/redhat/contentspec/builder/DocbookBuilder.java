@@ -56,23 +56,21 @@ import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorData
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorDatabase;
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicImageData;
 import com.redhat.topicindex.rest.collections.BaseRestCollectionV1;
-import com.redhat.topicindex.rest.entities.BaseTopicV1;
 import com.redhat.topicindex.rest.entities.BlobConstantV1;
+import com.redhat.topicindex.rest.entities.ComponentTopicV1;
+import com.redhat.topicindex.rest.entities.ComponentTranslatedTopicV1;
 import com.redhat.topicindex.rest.entities.ImageV1;
-import com.redhat.topicindex.rest.entities.PropertyTagV1;
 import com.redhat.topicindex.rest.entities.StringConstantV1;
-import com.redhat.topicindex.rest.entities.TopicV1;
-import com.redhat.topicindex.rest.entities.TranslatedTopicV1;
 import com.redhat.topicindex.rest.entities.UserV1;
-import com.redhat.topicindex.rest.entities.interfaces.IBaseTopicV1;
-import com.redhat.topicindex.rest.entities.interfaces.IPropertyTagV1;
-import com.redhat.topicindex.rest.entities.interfaces.ITagV1;
-import com.redhat.topicindex.rest.entities.interfaces.ITopicV1;
-import com.redhat.topicindex.rest.entities.interfaces.ITranslatedTopicV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTPropertyTagV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTTagV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTTopicV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTBaseTopicV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTTranslatedTopicV1;
 import com.redhat.topicindex.rest.exceptions.InternalProcessingException;
 import com.redhat.topicindex.rest.exceptions.InvalidParameterException;
 
-public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleApp
+public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbleApp
 {
 	private static final Logger log = Logger.getLogger(DocbookBuilder.class);
 	private static final String STARTS_WITH_NUMBER_RE = "^(?<Numbers>\\d+)(?<EverythingElse>.*)$";
@@ -295,7 +293,7 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 		final boolean fixedUrlsSuccess;
 		if (contentSpec.getLocale() == null || contentSpec.getLocale().equals(defaultLocale))
 		{
-			final BaseRestCollectionV1<ITopicV1> normalTopics = reader.getTopicsByIds(CollectionUtilities.toArrayList(topicIds));
+			final BaseRestCollectionV1<RESTTopicV1> normalTopics = reader.getTopicsByIds(CollectionUtilities.toArrayList(topicIds));
 			
 			/*
 			 * assign fixed urls property tags to the topics. If
@@ -311,13 +309,13 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 		}
 		else
 		{
-			final BaseRestCollectionV1<ITranslatedTopicV1> translatedTopics = reader.getTranslatedTopicsByTopicIds(CollectionUtilities.toArrayList(topicIds), contentSpec.getLocale());
+			final BaseRestCollectionV1<RESTTranslatedTopicV1> translatedTopics = reader.getTranslatedTopicsByTopicIds(CollectionUtilities.toArrayList(topicIds), contentSpec.getLocale());
 			List<Integer> dummyTopicIds = new ArrayList<Integer>(topicIds);
 			
 			/* Remove any topic ids for translated topics that were found */
 			if (translatedTopics != null && translatedTopics.getItems() != null)
 			{
-				for (final ITranslatedTopicV1 topic : translatedTopics.getItems())
+				for (final RESTTranslatedTopicV1 topic : translatedTopics.getItems())
 				{
 					// Check if the app should be shutdown
 					if (isShuttingDown.get()) {
@@ -428,21 +426,21 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 	 * @param topics The set of topics to add the dummy translated topics to.
 	 * @param dummyTopicIds The list of topics to be added as dummy translated topics.
 	 */
-	private void populateDummyTranslatedTopicsPass(final BaseRestCollectionV1<ITranslatedTopicV1> topics, final List<Integer> dummyTopicIds) 
+	private void populateDummyTranslatedTopicsPass(final BaseRestCollectionV1<RESTTranslatedTopicV1> topics, final List<Integer> dummyTopicIds) 
 	{
 		log.info("\tDoing dummy Translated Topic pass");
 		
-		final BaseRestCollectionV1<ITopicV1> dummyTopics = reader.getTopicsByIds(dummyTopicIds);
+		final BaseRestCollectionV1<RESTTopicV1> dummyTopics = reader.getTopicsByIds(dummyTopicIds);
 		
 		/* Only continue if we found dummy topics */
 		if (dummyTopics == null || dummyTopics.getItems() == null || dummyTopics.getItems().isEmpty()) return;
 		
 		/* Split the topics up into their different locales */
-		final Map<String, Map<Integer, ITranslatedTopicV1>> groupedLocaleTopics = new HashMap<String, Map<Integer, ITranslatedTopicV1>>();
+		final Map<String, Map<Integer, RESTTranslatedTopicV1>> groupedLocaleTopics = new HashMap<String, Map<Integer, RESTTranslatedTopicV1>>();
 		
 		if (topics != null && topics.getItems() != null)
 		{
-			for (final ITranslatedTopicV1 topic: topics.getItems())
+			for (final RESTTranslatedTopicV1 topic: topics.getItems())
 			{
 				// Check if the app should be shutdown
 				if (isShuttingDown.get()) {
@@ -450,7 +448,7 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 				}
 				
 				if (!groupedLocaleTopics.containsKey(topic.getLocale()))
-					groupedLocaleTopics.put(topic.getLocale(), new HashMap<Integer, ITranslatedTopicV1>());
+					groupedLocaleTopics.put(topic.getLocale(), new HashMap<Integer, RESTTranslatedTopicV1>());
 				groupedLocaleTopics.get(topic.getLocale()).put(topic.getTopicId(), topic);
 			}
 		}
@@ -458,8 +456,8 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 		/* create and add the dummy topics per locale */
 		for (final String locale : groupedLocaleTopics.keySet())
 		{
-			final Map<Integer, ITranslatedTopicV1> translatedTopicsMap = groupedLocaleTopics.get(locale);
-			for (final ITopicV1 topic: dummyTopics.getItems())
+			final Map<Integer, RESTTranslatedTopicV1> translatedTopicsMap = groupedLocaleTopics.get(locale);
+			for (final RESTTopicV1 topic: dummyTopics.getItems())
 			{
 				// Check if the app should be shutdown
 				if (isShuttingDown.get()) {
@@ -468,7 +466,7 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 				
 				if (!translatedTopicsMap.containsKey(topic.getId()))
 				{
-					final ITranslatedTopicV1 dummyTopic = createDummyTranslatedTopic(translatedTopicsMap, topic, true, locale);
+					final RESTTranslatedTopicV1 dummyTopic = createDummyTranslatedTopic(translatedTopicsMap, topic, true, locale);
 					
 					topics.addItem(dummyTopic);
 				}
@@ -486,9 +484,9 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 	 * @param expandRelationships Whether the relationships should be expanded for the dummy topic
 	 * @return The dummy translated topic
 	 */
-	private ITranslatedTopicV1 createDummyTranslatedTopic(final Map<Integer, ITranslatedTopicV1> translatedTopicsMap, final ITopicV1 topic, final boolean expandRelationships, final String locale)
+	private RESTTranslatedTopicV1 createDummyTranslatedTopic(final Map<Integer, RESTTranslatedTopicV1> translatedTopicsMap, final RESTTopicV1 topic, final boolean expandRelationships, final String locale)
 	{	
-		final ITranslatedTopicV1 translatedTopic = new TranslatedTopicV1();
+		final RESTTranslatedTopicV1 translatedTopic = new RESTTranslatedTopicV1();
 		
 		translatedTopic.setId(topic.getId() * -1);
 		translatedTopic.setTopicId(topic.getId());
@@ -508,8 +506,8 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 		/* Add the dummy outgoing relationships */
 		if (topic.getOutgoingRelationships() != null && topic.getOutgoingRelationships().getItems() != null)
 		{
-			final BaseRestCollectionV1<ITranslatedTopicV1> outgoingRelationships = new BaseRestCollectionV1<ITranslatedTopicV1>();
-			for (final ITopicV1 relatedTopic : topic.getOutgoingRelationships().getItems())
+			final BaseRestCollectionV1<RESTTranslatedTopicV1> outgoingRelationships = new BaseRestCollectionV1<RESTTranslatedTopicV1>();
+			for (final RESTTopicV1 relatedTopic : topic.getOutgoingRelationships().getItems())
 			{
 				// Check if the app should be shutdown
 				if (isShuttingDown.get()) {
@@ -532,8 +530,8 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 		/* Add the dummy incoming relationships */
 		if (topic.getIncomingRelationships() != null && topic.getIncomingRelationships().getItems() != null)
 		{
-			final BaseRestCollectionV1<ITranslatedTopicV1> incomingRelationships = new BaseRestCollectionV1<ITranslatedTopicV1>();
-			for (final ITopicV1 relatedTopic : topic.getIncomingRelationships().getItems())
+			final BaseRestCollectionV1<RESTTranslatedTopicV1> incomingRelationships = new BaseRestCollectionV1<RESTTranslatedTopicV1>();
+			for (final RESTTopicV1 relatedTopic : topic.getIncomingRelationships().getItems())
 			{
 				// Check if the app should be shutdown
 				if (isShuttingDown.get()) {
@@ -583,9 +581,9 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 				
 				/* Find the Topic ID */
 				final Integer topicId;
-				if (topic instanceof TranslatedTopicV1)
+				if (topic instanceof RESTTranslatedTopicV1)
 				{
-					topicId = ((TranslatedTopicV1) topic).getTopicId();
+					topicId = ((RESTTranslatedTopicV1) topic).getTopicId();
 				}
 				else
 				{
@@ -610,9 +608,9 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 					topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
 					
 					// Set the topic id in the error
-					if (topic instanceof TranslatedTopicV1)
+					if (topic instanceof RESTTranslatedTopicV1)
 					{
-						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, topicId + ", Revision " + ((TranslatedTopicV1) topic).getTopicRevision());
+						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, topicId + ", Revision " + ((RESTTranslatedTopicV1) topic).getTopicRevision());
 					}
 					else
 					{
@@ -647,19 +645,22 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 							topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
 							
 							// Set the topic id in the error
-							if (topic instanceof TranslatedTopicV1)
+							final String errorXRefID;
+							if (topic instanceof RESTTranslatedTopicV1)
 							{
-								topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, topicId + ", Revision " + ((TranslatedTopicV1) topic).getTopicRevision());
+								topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, topicId + ", Revision " + ((RESTTranslatedTopicV1) topic).getTopicRevision());
+								errorXRefID = ComponentTranslatedTopicV1.returnErrorXRefID((RESTTranslatedTopicV1) topic);
 							}
 							else
 							{
 								topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topicId));
+								errorXRefID = ComponentTopicV1.returnErrorXRefID((RESTTopicV1) topic);
 							}
 							
 							// Add the link to the errors page. If the errors page is suppressed then remove the injection point.
 							if (!docbookBuildingOptions.getSuppressErrorsPage())
 							{
-								topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + topic.returnErrorXRefID() + "\"/> for more detailed information.</para>");
+								topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + errorXRefID + "\"/> for more detailed information.</para>");
 							}
 							else
 							{
@@ -674,19 +675,22 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
 						
 						// Set the topic id in the error
-						if (topic instanceof TranslatedTopicV1)
+						final String errorXRefID;
+						if (topic instanceof RESTTranslatedTopicV1)
 						{
-							topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, topicId + ", Revision " + ((TranslatedTopicV1) topic).getTopicRevision());
+							topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, topicId + ", Revision " + ((RESTTranslatedTopicV1) topic).getTopicRevision());
+							errorXRefID = ComponentTranslatedTopicV1.returnErrorXRefID((RESTTranslatedTopicV1) topic);
 						}
 						else
 						{
 							topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topicId));
+							errorXRefID = ComponentTopicV1.returnErrorXRefID((RESTTopicV1) topic);
 						}
 						
 						// Add the link to the errors page. If the errors page is suppressed then remove the injection point.
 						if (!docbookBuildingOptions.getSuppressErrorsPage())
 						{
-							topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + topic.returnErrorXRefID() + "\"/> for more detailed information.</para>");
+							topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + errorXRefID + "\"/> for more detailed information.</para>");
 						}
 						else
 						{
@@ -865,7 +869,7 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 					}
 					
 					/* check for dummy topics */
-					if (topic instanceof TranslatedTopicV1)
+					if (topic instanceof RESTTranslatedTopicV1)
 					{
 						/* Add the warning for the topics relationships that haven't been translated */
 						if (topic.getOutgoingRelationships() != null && topic.getOutgoingRelationships().getItems() != null)
@@ -877,16 +881,16 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 									return;
 								}
 								
-								final TranslatedTopicV1 relatedTranslatedTopic = (TranslatedTopicV1) relatedTopic;
+								final RESTTranslatedTopicV1 relatedTranslatedTopic = (RESTTranslatedTopicV1) relatedTopic;
 								
 								/* Only show errors for topics that weren't included in the injections */
 								if (!customInjectionErrors.contains(relatedTranslatedTopic.getTopicId()) && !genericInjectionErrors.contains(relatedTopic.getId()))
 								{
 									if ((!baseLevel.isSpecTopicInLevelByTopicID(relatedTranslatedTopic.getTopicId()) && !docbookBuildingOptions.getIgnoreMissingCustomInjections()) || baseLevel.isSpecTopicInLevelByTopicID(relatedTranslatedTopic.getTopicId()))
 									{
-										if (relatedTopic.isDummyTopic() && relatedTranslatedTopic.hasBeenPushedForTranslation())
+										if (ComponentTranslatedTopicV1.returnIsDummyTopic(relatedTopic) && ComponentTranslatedTopicV1.hasBeenPushedForTranslation(relatedTranslatedTopic))
 											errorDatabase.addWarning(topic, "Topic ID " + relatedTranslatedTopic.getTopicId() + ", Revision " + relatedTranslatedTopic.getTopicRevision() + ", Title \"" + relatedTopic.getTitle() + "\" is an untranslated topic.");
-										else if (relatedTopic.isDummyTopic())
+										else if (ComponentTranslatedTopicV1.returnIsDummyTopic(relatedTopic))
 											errorDatabase.addWarning(topic, "Topic ID " + relatedTranslatedTopic.getTopicId() + ", Revision " + relatedTranslatedTopic.getTopicRevision() + ", Title \"" + relatedTopic.getTitle() + "\" hasn't been pushed for translation.");
 									}
 								}
@@ -894,9 +898,9 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 						}
 						
 						/* Check the topic itself isn't a dummy topic */
-						if (topic.isDummyTopic() && ((TranslatedTopicV1) topic).hasBeenPushedForTranslation())
+						if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic) && ComponentTranslatedTopicV1.hasBeenPushedForTranslation((RESTTranslatedTopicV1) topic))
 							errorDatabase.addWarning(topic, "This topic is an untranslated topic.");
-						else if (topic.isDummyTopic())
+						else if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic))
 							errorDatabase.addWarning(topic, "This topic hasn't been pushed for translation.");
 					}
 				}
@@ -912,9 +916,9 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 					topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
 					
 					// Set the topic id in the error
-					if (topic instanceof TranslatedTopicV1)
+					if (topic instanceof RESTTranslatedTopicV1)
 					{
-						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, ((TranslatedTopicV1) topic).getTopicId() + ", Revision " + ((TranslatedTopicV1) topic).getTopicRevision());
+						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, ((RESTTranslatedTopicV1) topic).getTopicId() + ", Revision " + ((RESTTranslatedTopicV1) topic).getTopicRevision());
 					}
 					else
 					{
@@ -1214,7 +1218,15 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 		// Setup publican.cfg
 		String fixedPublicanCfg = publicanCfg.replaceAll(BuilderConstants.BRAND_REGEX, brand);
 		fixedPublicanCfg = fixedPublicanCfg.replaceFirst("xml_lang\\: .*(\\r\\n|\\n)", "xml_lang: " + locale + "\n");
-		if (contentSpec.getPublicanCfg() != null) {
+		
+		// Remove the image width for CSP output
+		if (contentSpec.getOutputStyle().equals(CSConstants.CSP_OUTOUT_FORMAT))
+		{
+			fixedPublicanCfg = fixedPublicanCfg.replaceFirst("max_image_width: \\d(\\r)?\\n", "");
+		}
+		
+		if (contentSpec.getPublicanCfg() != null)
+		{
 			fixedPublicanCfg += contentSpec.getPublicanCfg();
 		}
 		
@@ -1408,6 +1420,7 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 	 * @param chapter The chapter document object that this section is to be added to.
 	 * @param parentNode The parent XML node of this section.
 	 */
+	@SuppressWarnings("unchecked")
 	protected void createSectionXML(final Map<String, byte[]> files, final Level level, final Document chapter, final Element parentNode, final boolean fixedUrlsSuccess, final String rootElementName)
 	{
 		LinkedList<com.redhat.contentspec.Node> levelData = level.getChildNodes();
@@ -1463,10 +1476,25 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 				SpecTopic specTopic = (SpecTopic)node;
 				String topicFileName;
 				
-				if (fixedUrlsSuccess)
-					topicFileName = specTopic.getTopic().returnXrefPropertyOrId(CommonConstants.FIXED_URL_PROP_TAG_ID);
+				final T topic = (T) specTopic.getTopic();
+				if (topic instanceof RESTTranslatedTopicV1)
+				{
+					if (fixedUrlsSuccess)
+						topicFileName = ComponentTranslatedTopicV1.returnXrefPropertyOrId((RESTTranslatedTopicV1) topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
+					else
+					{
+						topicFileName = ComponentTranslatedTopicV1.returnXRefID((RESTTranslatedTopicV1) topic);
+					}
+				}
 				else
-					topicFileName = specTopic.getTopic().returnXRefID();
+				{
+					if (fixedUrlsSuccess)
+						topicFileName = ComponentTopicV1.returnXrefPropertyOrId((RESTTopicV1) topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
+					else
+					{
+						topicFileName = ComponentTopicV1.returnXRefID((RESTTopicV1) topic);
+					}
+				}
 				
 				if (specTopic.getDuplicateId() != null)
 					topicFileName += "-" + specTopic.getDuplicateId();			
@@ -1586,7 +1614,7 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 			log.debug(ExceptionUtilities.getStackTrace(ex));
 			System.exit(-1);
 		}
-		LinkedHashMap<Integer, ITagV1> authors = new LinkedHashMap<Integer, ITagV1>();
+		LinkedHashMap<Integer, RESTTagV1> authors = new LinkedHashMap<Integer, RESTTagV1>();
 		
 		// Check if the app should be shutdown
 		if (isShuttingDown.get()) {
@@ -1596,9 +1624,9 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 		// Get the mapping of authors using the topics inside the content spec
 		for (Integer topicId: specDatabase.getTopicIds()) {
 			final T topic = (T) specDatabase.getSpecTopicsForTopicID(topicId).get(0).getTopic();
-			final List<ITagV1> authorTags = topic.returnTagsInCategoriesByID(CollectionUtilities.toArrayList(CSConstants.WRITER_CATEGORY_ID));
+			final List<RESTTagV1> authorTags = topic instanceof RESTTranslatedTopicV1 ? ComponentTranslatedTopicV1.returnTagsInCategoriesByID(topic, CollectionUtilities.toArrayList(CSConstants.WRITER_CATEGORY_ID)) : ComponentTopicV1.returnTagsInCategoriesByID(topic, CollectionUtilities.toArrayList(CSConstants.WRITER_CATEGORY_ID));
 			if (authorTags.size() > 0) {
-				for (ITagV1 author: authorTags) {
+				for (RESTTagV1 author: authorTags) {
 					if (!authors.containsKey(author.getId())) {
 						authors.put(author.getId(), author);
 					}
@@ -1720,7 +1748,7 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 		String fixedRevisionHistoryXml = revisionHistoryXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
 		fixedRevisionHistoryXml = fixedRevisionHistoryXml.replaceAll(BuilderConstants.REV_DATE_FORMAT_REGEX, dateFormatter.format(buildDate));
 		
-		final List<ITagV1> authorList = requester == null ? new ArrayList<ITagV1>() : reader.getTagsByName(requester.getName());
+		final List<RESTTagV1> authorList = requester == null ? new ArrayList<RESTTagV1>() : reader.getTagsByName(requester.getName());
 		final Document revHistoryDoc;
 		
 		// Check if the app should be shutdown
@@ -1818,8 +1846,18 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 
 				final List<String> topicErrorItems = new ArrayList<String>();
 
-				final String tags = ((BaseTopicV1<T>) topic).getCommaSeparatedTagList();
-				final String url = topic.returnSkynetURL();
+				final String tags;
+				final String url;
+				if (topic instanceof RESTTranslatedTopicV1)
+				{
+					tags = ComponentTranslatedTopicV1.getCommaSeparatedTagList(topic);
+					url = ComponentTranslatedTopicV1.returnSkynetURL((RESTTranslatedTopicV1) topic);
+				}
+				else
+				{
+					tags = ComponentTopicV1.getCommaSeparatedTagList(topic);
+					url = ComponentTopicV1.returnSkynetURL((RESTTopicV1) topic);
+				}
 
 				topicErrorItems.add(DocbookUtils.buildListItem("INFO: " + tags));
 				topicErrorItems.add(DocbookUtils.buildListItem("INFO: <ulink url=\"" + url + "\">Topic URL</ulink>"));
@@ -1839,16 +1877,16 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 				if (topicErrorItems.size() > 2)
 				{
 					final String title;
-					if (topic instanceof TranslatedTopicV1)
+					if (topic instanceof RESTTranslatedTopicV1)
 					{
-						final TranslatedTopicV1 translatedTopic = (TranslatedTopicV1) topic;
+						final RESTTranslatedTopicV1 translatedTopic = (RESTTranslatedTopicV1) topic;
 						title = "Topic ID " + translatedTopic.getTopicId() + ", Revision " + translatedTopic.getTopicRevision();
 					}
 					else
 					{
 						title = "Topic ID " + topic.getId();
 					}
-					final String id = topic.returnErrorXRefID();
+					final String id = topic instanceof RESTTranslatedTopicV1 ? ComponentTranslatedTopicV1.returnErrorXRefID((RESTTranslatedTopicV1) topic) : ComponentTopicV1.returnErrorXRefID((RESTTopicV1) topic);
 
 					errorItemizedLists += DocbookUtils.wrapListItems(topicErrorItems, title, id);
 				}
@@ -1948,19 +1986,22 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 			topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
 			
 			// Set the topic id in the error
-			if (topic instanceof TranslatedTopicV1)
+			final String errorXRefID;
+			if (topic instanceof RESTTranslatedTopicV1)
 			{
-				topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, ((TranslatedTopicV1) topic).getTopicId() + ", Revision " + ((TranslatedTopicV1) topic).getTopicRevision());
+				topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, ((RESTTranslatedTopicV1) topic).getTopicId() + ", Revision " + ((RESTTranslatedTopicV1) topic).getTopicRevision());
+				errorXRefID = ComponentTranslatedTopicV1.returnErrorXRefID((RESTTranslatedTopicV1) topic);
 			}
 			else
 			{
 				topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topic.getId()));
+				errorXRefID = ComponentTopicV1.returnErrorXRefID((RESTTopicV1) topic);
 			}
 			
 			// Add the link to the errors page. If the errors page is suppressed then remove the injection point.
 			if (!docbookBuildingOptions.getSuppressErrorsPage())
 			{
-				topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + topic.returnErrorXRefID() + "\"/> for more detailed information.</para>");
+				topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + errorXRefID + "\"/> for more detailed information.</para>");
 			}
 			else
 			{
@@ -2022,11 +2063,13 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 	{
 		if (fixedUrlsSuccess)
 		{
-			doc.getDocumentElement().setAttribute("id", topic.returnXrefPropertyOrId(CommonConstants.FIXED_URL_PROP_TAG_ID));
+			final String errorXRefID = topic instanceof RESTTranslatedTopicV1 ? ComponentTranslatedTopicV1.returnXrefPropertyOrId((RESTTranslatedTopicV1) topic, CommonConstants.FIXED_URL_PROP_TAG_ID) : ComponentTopicV1.returnXrefPropertyOrId((RESTTopicV1) topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
+			doc.getDocumentElement().setAttribute("id", errorXRefID);
 		}
 		else
 		{
-			doc.getDocumentElement().setAttribute("id", topic.returnXRefID());
+			final String errorXRefID = topic instanceof RESTTranslatedTopicV1 ? ComponentTranslatedTopicV1.returnXRefID((RESTTranslatedTopicV1) topic) : ComponentTopicV1.returnXRefID((RESTTopicV1) topic);
+			doc.getDocumentElement().setAttribute("id", errorXRefID);
 		}
 	}
 	
@@ -2037,7 +2080,7 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 	 * @return true if fixed url property tags were able to be created for all
 	 *         topics, and false otherwise   
 	 */
-	private boolean setFixedURLsPass(final BaseRestCollectionV1<ITopicV1> topics)
+	private boolean setFixedURLsPass(final BaseRestCollectionV1<RESTTopicV1> topics)
 	{
 		log.info("Doing Fixed URL Pass");
 		
@@ -2051,11 +2094,11 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 
 			try
 			{
-				final BaseRestCollectionV1<ITopicV1> updateTopics = new BaseRestCollectionV1<ITopicV1>();
+				final BaseRestCollectionV1<RESTTopicV1> updateTopics = new BaseRestCollectionV1<RESTTopicV1>();
 				
 				final Set<String> processedFileNames = new HashSet<String>();
 
-				for (final ITopicV1 topic : topics.getItems())
+				for (final RESTTopicV1 topic : topics.getItems())
 				{
 					
 					// Check if the app should be shutdown
@@ -2063,7 +2106,7 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 						return false;
 					}
 
-					final IPropertyTagV1 existingUniqueURL = topic.returnProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
+					final RESTPropertyTagV1 existingUniqueURL = ComponentTopicV1.returnProperty(topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
 
 					if (existingUniqueURL == null || !existingUniqueURL.getValid())
 					{
@@ -2078,7 +2121,7 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 						for (int uniqueCount = 1; uniqueCount <= BuilderConstants.MAXIMUM_SET_PROP_TAG_NAME_RETRY; ++uniqueCount)
 						{
 							final String query = "query;propertyTag1=" + CommonConstants.FIXED_URL_PROP_TAG_ID + URLEncoder.encode(" " + baseUrlName + postFix, "UTF-8");
-							final BaseRestCollectionV1<ITopicV1> queryTopics = restManager.getRESTClient().getJSONTopicsWithQuery(new PathSegmentImpl(query, false), "");
+							final BaseRestCollectionV1<RESTTopicV1> queryTopics = restManager.getRESTClient().getJSONTopicsWithQuery(new PathSegmentImpl(query, false), "");
 
 							if (queryTopics.getSize() != 0)
 							{
@@ -2101,22 +2144,22 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 						 */
 						if (topic.getId() >= 0)
 						{
-							final IPropertyTagV1 propertyTag = new PropertyTagV1();
+							final RESTPropertyTagV1 propertyTag = new RESTPropertyTagV1();
 							propertyTag.setId(CommonConstants.FIXED_URL_PROP_TAG_ID);
 							propertyTag.setValue(baseUrlName + postFix);
 							propertyTag.setAddItem(true);
 
-							final BaseRestCollectionV1<IPropertyTagV1> updatePropertyTags = new BaseRestCollectionV1<IPropertyTagV1>();
+							final BaseRestCollectionV1<RESTPropertyTagV1> updatePropertyTags = new BaseRestCollectionV1<RESTPropertyTagV1>();
 							updatePropertyTags.addItem(propertyTag);
 
 							/* remove any old fixed url property tags */
 							if (topic.getProperties() != null && topic.getProperties().getItems() != null)
 							{
-								for (final IPropertyTagV1 existing : topic.getProperties().getItems())
+								for (final RESTPropertyTagV1 existing : topic.getProperties().getItems())
 								{
 									if (existing.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID))
 									{
-										final PropertyTagV1 removePropertyTag = new PropertyTagV1();
+										final RESTPropertyTagV1 removePropertyTag = new RESTPropertyTagV1();
 										removePropertyTag.setId(CommonConstants.FIXED_URL_PROP_TAG_ID);
 										removePropertyTag.setValue(existing.getValue());
 										removePropertyTag.setRemoveItem(true);
@@ -2125,7 +2168,7 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 								}
 							}
 
-							final TopicV1 updateTopic = new TopicV1();
+							final RESTTopicV1 updateTopic = new RESTTopicV1();
 							updateTopic.setId(topic.getId());
 							updateTopic.explicitSetProperties(updatePropertyTags);
 
@@ -2151,20 +2194,20 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 				/* copy the topics fixed url properties to our local collection */
 				if (updateTopics.getItems() != null && updateTopics.getItems().size() != 0)
 				{
-					for (final ITopicV1 topicWithFixedUrl : updateTopics.getItems())
+					for (final RESTTopicV1 topicWithFixedUrl : updateTopics.getItems())
 					{
-						for (final ITopicV1 topic : topics.getItems())
+						for (final RESTTopicV1 topic : topics.getItems())
 						{
-							final IPropertyTagV1 fixedUrlProp = topicWithFixedUrl.returnProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
+							final RESTPropertyTagV1 fixedUrlProp = ComponentTopicV1.returnProperty(topicWithFixedUrl, CommonConstants.FIXED_URL_PROP_TAG_ID);
 							
 							if (topic != null && topicWithFixedUrl.getId().equals(topic.getId()))
 							{
-								BaseRestCollectionV1<IPropertyTagV1> properties = topic.getProperties();
+								BaseRestCollectionV1<RESTPropertyTagV1> properties = topic.getProperties();
 								if (properties == null) {
-									properties = new BaseRestCollectionV1<IPropertyTagV1>();
+									properties = new BaseRestCollectionV1<RESTPropertyTagV1>();
 								} else if (properties.getItems() != null) {
 									// remove any current url's
-									for (final IPropertyTagV1 prop: properties.getItems()) {
+									for (final RESTPropertyTagV1 prop: properties.getItems()) {
 										if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
 											properties.getItems().remove(prop);
 										}
@@ -2179,16 +2222,16 @@ public class DocbookBuilder<T extends IBaseTopicV1<T>> implements ShutdownAbleAp
 							 * we also have to copy the fixed urls into the
 							 * related topics
 							 */
-							for (final ITopicV1 relatedTopic : topic.getOutgoingRelationships().getItems())
+							for (final RESTTopicV1 relatedTopic : topic.getOutgoingRelationships().getItems())
 							{
 								if (topicWithFixedUrl.getId().equals(relatedTopic.getId()))
 								{
-									BaseRestCollectionV1<IPropertyTagV1> relatedTopicProperties = relatedTopic.getProperties();
+									BaseRestCollectionV1<RESTPropertyTagV1> relatedTopicProperties = relatedTopic.getProperties();
 									if (relatedTopicProperties == null) {
-										relatedTopicProperties = new BaseRestCollectionV1<IPropertyTagV1>();
+										relatedTopicProperties = new BaseRestCollectionV1<RESTPropertyTagV1>();
 									} else if (relatedTopicProperties.getItems() != null) {
 										// remove any current url's
-										for (final IPropertyTagV1 prop: relatedTopicProperties.getItems()) {
+										for (final RESTPropertyTagV1 prop: relatedTopicProperties.getItems()) {
 											if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
 												relatedTopicProperties.getItems().remove(prop);
 											}

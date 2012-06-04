@@ -39,10 +39,15 @@ import com.redhat.ecs.services.docbookcompiling.xmlprocessing.structures.Injecti
 import com.redhat.ecs.services.docbookcompiling.xmlprocessing.structures.TocTopicDatabase;
 import com.redhat.ecs.sort.ExternalListSort;
 
-import com.redhat.topicindex.rest.entities.TranslatedTopicV1;
-import com.redhat.topicindex.rest.entities.interfaces.IBaseTopicV1;
-import com.redhat.topicindex.rest.entities.interfaces.IPropertyTagV1;
-import com.redhat.topicindex.rest.entities.interfaces.ITagV1;
+import com.redhat.topicindex.rest.entities.ComponentBaseTopicV1;
+import com.redhat.topicindex.rest.entities.ComponentTagV1;
+import com.redhat.topicindex.rest.entities.ComponentTopicV1;
+import com.redhat.topicindex.rest.entities.ComponentTranslatedTopicV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTBaseTopicV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTPropertyTagV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTTagV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTTopicV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTTranslatedTopicV1;
 import com.redhat.topicindex.rest.sort.TopicTitleSorter;
 import com.redhat.topicindex.rest.sort.BaseTopicV1TitleComparator;
 
@@ -50,7 +55,7 @@ import com.redhat.topicindex.rest.sort.BaseTopicV1TitleComparator;
  * This class takes the XML from a topic and modifies it to include and injected
  * content.
  */
-public class XMLPreProcessor<T extends IBaseTopicV1<T>>
+public class XMLPreProcessor<T extends RESTBaseTopicV1<T>>
 {
 	/**
 	 * Used to identify that an <orderedlist> should be generated for the
@@ -171,8 +176,11 @@ public class XMLPreProcessor<T extends IBaseTopicV1<T>>
 	 */
 	protected static final String NO_INJECT_ROLE = "noinject";
 
+	@SuppressWarnings("unchecked")
 	public void processTopicBugzillaLink(final SpecTopic specTopic, final Document document, final BugzillaOptions bzOptions, final DocbookBuildingOptions docbookBuildingOptions, final String buildName, final String searchTagsUrl, final Date buildDate)
-	{		
+	{
+		final T topic = (T) specTopic.getTopic();
+		
 		/* SIMPLESECT TO HOLD OTHER LINKS */
 		final Element bugzillaSection = document.createElement("simplesect");
 		document.getDocumentElement().appendChild(bugzillaSection);
@@ -207,18 +215,18 @@ public class XMLPreProcessor<T extends IBaseTopicV1<T>>
 			String bugzillaKeywords = null;
 			String bugzillaAssignedTo = null;
 			final String bugzillaEnvironment = URLEncoder.encode("Instance Name: " + fixedInstanceNameProperty + "\nBuild: " + buildName + "\nBuild Filter: " + searchTagsUrl +"\nBuild Name: " + specifiedBuildName + "\nBuild Date: " + formatter.format(buildDate), "UTF-8");
-			final String bugzillaBuildID = URLEncoder.encode(specTopic.getTopic().returnBugzillaBuildId(), "UTF-8");
+			final String bugzillaBuildID =  topic instanceof RESTTranslatedTopicV1 ? URLEncoder.encode(ComponentTranslatedTopicV1.returnBugzillaBuildId((RESTTranslatedTopicV1) topic), "UTF-8") : URLEncoder.encode(ComponentTopicV1.returnBugzillaBuildId((RESTTopicV1) topic), "UTF-8");
 
 			/* look for the bugzilla options */
 			if (specTopic.getTopic().getTags() != null && specTopic.getTopic().getTags().getItems() != null)
 			{
-				for (final ITagV1 tag : specTopic.getTopic().getTags().getItems())
+				for (final RESTTagV1 tag : specTopic.getTopic().getTags().getItems())
 				{
-					final IPropertyTagV1 bugzillaProductTag = tag.returnProperty(CommonConstants.BUGZILLA_PRODUCT_PROP_TAG_ID);
-					final IPropertyTagV1 bugzillaComponentTag = tag.returnProperty(CommonConstants.BUGZILLA_COMPONENT_PROP_TAG_ID);
-					final IPropertyTagV1 bugzillaKeywordsTag = tag.returnProperty(CommonConstants.BUGZILLA_KEYWORDS_PROP_TAG_ID);
-					final IPropertyTagV1 bugzillaVersionTag = tag.returnProperty(CommonConstants.BUGZILLA_VERSION_PROP_TAG_ID);
-					final IPropertyTagV1 bugzillaAssignedToTag = tag.returnProperty(CommonConstants.BUGZILLA_PROFILE_PROPERTY);
+					final RESTPropertyTagV1 bugzillaProductTag = ComponentTagV1.returnProperty(tag, CommonConstants.BUGZILLA_PRODUCT_PROP_TAG_ID);
+					final RESTPropertyTagV1 bugzillaComponentTag = ComponentTagV1.returnProperty(tag, CommonConstants.BUGZILLA_COMPONENT_PROP_TAG_ID);
+					final RESTPropertyTagV1 bugzillaKeywordsTag = ComponentTagV1.returnProperty(tag, CommonConstants.BUGZILLA_KEYWORDS_PROP_TAG_ID);
+					final RESTPropertyTagV1 bugzillaVersionTag = ComponentTagV1.returnProperty(tag, CommonConstants.BUGZILLA_VERSION_PROP_TAG_ID);
+					final RESTPropertyTagV1 bugzillaAssignedToTag = ComponentTagV1.returnProperty(tag, CommonConstants.BUGZILLA_PROFILE_PROPERTY);
 
 					if (bugzillaProduct == null && bugzillaProductTag != null)
 						bugzillaProduct = URLEncoder.encode(bugzillaProductTag.getValue(), "UTF-8");
@@ -330,8 +338,11 @@ public class XMLPreProcessor<T extends IBaseTopicV1<T>>
 	/**
 	 * Adds some debug information and links to the end of the topic
 	 */
+	@SuppressWarnings("unchecked")
 	public void processTopicAdditionalInfo(final SpecTopic specTopic, final Document document, final BugzillaOptions bzOptions, final DocbookBuildingOptions docbookBuildingOptions, final String buildName, final String searchTagsUrl, final Date buildDate)
-	{		
+	{	
+		final T topic = (T) specTopic.getTopic();
+		
 		if ((docbookBuildingOptions != null && docbookBuildingOptions.getInsertSurveyLink()) || searchTagsUrl != null)
 		{
 			/* SIMPLESECT TO HOLD OTHER LINKS */
@@ -373,7 +384,7 @@ public class XMLPreProcessor<T extends IBaseTopicV1<T>>
 				final Element skynetLinkULink = document.createElement("ulink");
 				skynetElement.appendChild(skynetLinkULink);
 				skynetLinkULink.setTextContent("View in Skynet");
-				skynetLinkULink.setAttribute("url", specTopic.getTopic().returnSkynetURL());
+				skynetLinkULink.setAttribute("url", topic instanceof RESTTranslatedTopicV1 ? ComponentTranslatedTopicV1.returnSkynetURL((RESTTranslatedTopicV1) topic) : ComponentTopicV1.returnSkynetURL((RESTTopicV1) topic));
 	
 				// SKYNET VERSION
 	
@@ -600,7 +611,7 @@ public class XMLPreProcessor<T extends IBaseTopicV1<T>>
 							/* if the toc is null, we are building an internal page */
 							if (level == null)
 							{
-								final String url = relatedTopic.returnInternalURL();
+								final String url = relatedTopic instanceof RESTTranslatedTopicV1 ? ComponentTranslatedTopicV1.returnInternalURL((RESTTranslatedTopicV1) relatedTopic) : ComponentTopicV1.returnInternalURL((RESTTopicV1) relatedTopic);
 								if (sequenceID.optional)
 								{
 									list.add(DocbookUtils.buildEmphasisPrefixedULink(xmlDocument, OPTIONAL_LIST_PREFIX, url, relatedTopic.getTitle()));
@@ -613,9 +624,9 @@ public class XMLPreProcessor<T extends IBaseTopicV1<T>>
 							else
 							{
 								final Integer topicId;
-								if (relatedTopic instanceof TranslatedTopicV1)
+								if (relatedTopic instanceof RESTTranslatedTopicV1)
 								{
-									topicId = ((TranslatedTopicV1) relatedTopic).getTopicId();
+									topicId = ((RESTTranslatedTopicV1) relatedTopic).getTopicId();
 								}
 								else
 								{
@@ -668,13 +679,13 @@ public class XMLPreProcessor<T extends IBaseTopicV1<T>>
 		/* wrap each related topic in a listitem tag */
 		if (topic.getTopic().getOutgoingRelationships() != null && topic.getTopic().getOutgoingRelationships().getItems()!= null)
 		{
-			for (final IBaseTopicV1 relatedTopic : topic.getTopic().getOutgoingRelationships().getItems())
+			for (final RESTBaseTopicV1 relatedTopic : topic.getTopic().getOutgoingRelationships().getItems())
 			{
 				
 				final Integer topicId;
-				if (relatedTopic instanceof TranslatedTopicV1)
+				if (relatedTopic instanceof RESTTranslatedTopicV1)
 				{
-					topicId = ((TranslatedTopicV1) relatedTopic).getTopicId();
+					topicId = ((RESTTranslatedTopicV1) relatedTopic).getTopicId();
 				}
 				else
 				{
@@ -703,7 +714,7 @@ public class XMLPreProcessor<T extends IBaseTopicV1<T>>
 							 * of the topic type tags this may never be true if
 							 * not processing all related topics
 							 */
-							if (relatedTopic.hasTag(primaryTopicTypeTag.getFirst()))
+							if (ComponentBaseTopicV1.hasTag(relatedTopic, primaryTopicTypeTag.getFirst()))
 							{
 								relatedLists.addInjectionTopic(primaryTopicTypeTag, (T) relatedTopic);
 
@@ -764,14 +775,15 @@ public class XMLPreProcessor<T extends IBaseTopicV1<T>>
 						{
 							if (level == null)
 							{
-								DocbookUtils.createRelatedTopicULink(xmlDoc, relatedTopic.returnInternalURL(), relatedTopic.getTitle(), itemizedlist);
+								final String internalURL = relatedTopic instanceof RESTTranslatedTopicV1 ? ComponentTranslatedTopicV1.returnInternalURL((RESTTranslatedTopicV1) relatedTopic) : ComponentTopicV1.returnInternalURL((RESTTopicV1) relatedTopic);
+								DocbookUtils.createRelatedTopicULink(xmlDoc, internalURL, relatedTopic.getTitle(), itemizedlist);
 							}
 							else
 							{
 								final Integer topicId;
-								if (relatedTopic instanceof TranslatedTopicV1)
+								if (relatedTopic instanceof RESTTranslatedTopicV1)
 								{
-									topicId = ((TranslatedTopicV1) relatedTopic).getTopicId();
+									topicId = ((RESTTranslatedTopicV1) relatedTopic).getTopicId();
 								}
 								else
 								{
@@ -826,6 +838,8 @@ public class XMLPreProcessor<T extends IBaseTopicV1<T>>
 	@SuppressWarnings("unchecked")
 	public List<Integer> processTopicContentFragments(final SpecTopic specTopic, final Document xmlDocument, final DocbookBuildingOptions docbookBuildingOptions)
 	{
+		final T topic = (T) specTopic.getTopic();
+		
 		final List<Integer> retValue = new ArrayList<Integer>();
 
 		if (xmlDocument == null)
@@ -866,9 +880,9 @@ public class XMLPreProcessor<T extends IBaseTopicV1<T>>
 						 * make sure the topic we are trying to inject has been
 						 * related
 						 */
-						if (specTopic.getTopic().hasRelationshipTo(topicID))
+						if (topic instanceof RESTTranslatedTopicV1 ? ComponentTranslatedTopicV1.hasRelationshipTo((RESTTranslatedTopicV1) topic, topicID) : ComponentTopicV1.hasRelationshipTo((RESTTopicV1) topic, topicID))
 						{
-							final T relatedTopic = (T) specTopic.getTopic().returnRelatedTopicByID(topicID);
+							final T relatedTopic = (T) (topic instanceof RESTTranslatedTopicV1 ? ComponentTranslatedTopicV1.returnRelatedTopicByID((RESTTranslatedTopicV1) topic, topicID) : ComponentTopicV1.returnRelatedTopicByID((RESTTopicV1) topic, topicID));
 							final Document relatedTopicXML = XMLUtilities.convertStringToDocument(relatedTopic.getXml());
 							if (relatedTopicXML != null)
 							{
@@ -977,6 +991,8 @@ public class XMLPreProcessor<T extends IBaseTopicV1<T>>
 	@SuppressWarnings("unchecked")
 	public List<Integer> processTopicTitleFragments(final SpecTopic specTopic, final Document xmlDocument, final DocbookBuildingOptions docbookBuildingOptions)
 	{
+		final T topic = (T) specTopic.getTopic();
+		
 		final List<Integer> retValue = new ArrayList<Integer>();
 
 		if (xmlDocument == null)
@@ -1017,9 +1033,9 @@ public class XMLPreProcessor<T extends IBaseTopicV1<T>>
 						 * make sure the topic we are trying to inject has been
 						 * related
 						 */
-						if (specTopic.getTopic().hasRelationshipTo(topicID))
+						if (topic instanceof RESTTranslatedTopicV1 ? ComponentTranslatedTopicV1.hasRelationshipTo((RESTTranslatedTopicV1) topic, topicID) : ComponentTopicV1.hasRelationshipTo((RESTTopicV1) topic, topicID))
 						{
-							final T relatedTopic = (T) specTopic.getTopic().returnRelatedTopicByID(topicID);
+							final T relatedTopic = (T) (topic instanceof RESTTranslatedTopicV1 ? ComponentTranslatedTopicV1.returnRelatedTopicByID((RESTTranslatedTopicV1) topic, topicID) : ComponentTopicV1.returnRelatedTopicByID((RESTTopicV1) topic, topicID));
 							final Element titleNode = xmlDocument.createElement("title");
 							titleNode.setTextContent(relatedTopic.getTitle());
 							replacements.put(comment, titleNode);
