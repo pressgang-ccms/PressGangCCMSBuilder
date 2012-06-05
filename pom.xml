@@ -11,6 +11,14 @@
   <version>0.1.4-SNAPSHOT</version>
   <name>Content Specification Builder</name>
   
+  <distributionManagement>
+    <repository>
+      <id>ecsmaven-nexus</id>
+      <name>ECS Maven Repo</name>
+      <url>http://ecsmaven.usersys.redhat.com/nexus/content/repositories/snapshots/</url>
+    </repository>
+  </distributionManagement>
+  
   <dependencies>
   
     <dependency>
