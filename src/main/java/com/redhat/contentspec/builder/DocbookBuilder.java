@@ -1220,9 +1220,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		fixedPublicanCfg = fixedPublicanCfg.replaceFirst("xml_lang\\: .*(\\r\\n|\\n)", "xml_lang: " + locale + "\n");
 		
 		// Remove the image width for CSP output
-		if (contentSpec.getOutputStyle().equals(CSConstants.CSP_OUTOUT_FORMAT))
+		if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT))
 		{
-			fixedPublicanCfg = fixedPublicanCfg.replaceFirst("max_image_width: \\d(\\r)?\\n", "");
+			fixedPublicanCfg = fixedPublicanCfg.replaceFirst("max_image_width: \\d+(\\r)?\\n", "");
 		}
 		
 		if (contentSpec.getPublicanCfg() != null)
