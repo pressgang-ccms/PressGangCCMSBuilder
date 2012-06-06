@@ -11,8 +11,8 @@ import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
 import com.redhat.contentspec.interfaces.ShutdownAbleApp;
 import com.redhat.ecs.commonutils.ZipUtilities;
 import com.redhat.ecs.services.docbookcompiling.DocbookBuilderConstants;
-import com.redhat.topicindex.rest.entities.BlobConstantV1;
-import com.redhat.topicindex.rest.entities.UserV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTBlobConstantV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTUserV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTTopicV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTTranslatedTopicV1;
 import com.redhat.topicindex.rest.exceptions.InternalProcessingException;
@@ -32,7 +32,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	
 	@SuppressWarnings("unused")
 	private final RESTReader reader;
-	private final BlobConstantV1 rocbookdtd;
+	private final RESTBlobConstantV1 rocbookdtd;
 	private final RESTManager restManager;	
 	private DocbookBuilder<?> docbookBuilder;
 
@@ -69,7 +69,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	 * @return A byte array that is the zip file
 	 * @throws Exception 
 	 */
-	public byte[] buildBook(final ContentSpec contentSpec, final UserV1 requester, final CSDocbookBuildingOptions builderOptions) throws Exception {
+	public byte[] buildBook(final ContentSpec contentSpec, final RESTUserV1 requester, final CSDocbookBuildingOptions builderOptions) throws Exception {
 		if (contentSpec == null) throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
 		if (requester == null) throw new BuilderCreationException("A user must be specified as the user who requested the build.");
 		

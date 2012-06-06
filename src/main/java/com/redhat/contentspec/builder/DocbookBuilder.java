@@ -56,12 +56,12 @@ import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorData
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorDatabase;
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicImageData;
 import com.redhat.topicindex.rest.collections.BaseRestCollectionV1;
-import com.redhat.topicindex.rest.entities.BlobConstantV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTBlobConstantV1;
 import com.redhat.topicindex.rest.entities.ComponentTopicV1;
 import com.redhat.topicindex.rest.entities.ComponentTranslatedTopicV1;
-import com.redhat.topicindex.rest.entities.ImageV1;
-import com.redhat.topicindex.rest.entities.StringConstantV1;
-import com.redhat.topicindex.rest.entities.UserV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTImageV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTStringConstantV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTUserV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTPropertyTagV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTTagV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTTopicV1;
@@ -85,12 +85,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 	
 	private final RESTReader reader;
 	private final RESTManager restManager;
-	private final BlobConstantV1 rocbookdtd;
+	private final RESTBlobConstantV1 rocbookdtd;
 	private final String defaultLocale;
 	
-	private final StringConstantV1 errorEmptyTopic;
-	private final StringConstantV1 errorInvalidInjectionTopic;
-	private final StringConstantV1 errorInvalidValidationTopic;
+	private final RESTStringConstantV1 errorEmptyTopic;
+	private final RESTStringConstantV1 errorInvalidInjectionTopic;
+	private final RESTStringConstantV1 errorInvalidValidationTopic;
 	
 	private CSDocbookBuildingOptions docbookBuildingOptions;
 	private InjectionOptions injectionOptions;
@@ -122,7 +122,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 	 */
 	private final ArrayList<TopicImageData<T>> imageLocations = new ArrayList<TopicImageData<T>>();
 	
-	public DocbookBuilder(final RESTManager restManager, final BlobConstantV1 rocbookDtd, final String defaultLocale) throws InvalidParameterException, InternalProcessingException
+	public DocbookBuilder(final RESTManager restManager, final RESTBlobConstantV1 rocbookDtd, final String defaultLocale) throws InvalidParameterException, InternalProcessingException
 	{
 		reader = restManager.getReader();
 		this.restManager = restManager;
@@ -178,7 +178,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		return numErrors;
 	}
 	
-	public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final UserV1 requester, final CSDocbookBuildingOptions buildingOptions, final String searchTagsUrl) throws Exception
+	public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final RESTUserV1 requester, final CSDocbookBuildingOptions buildingOptions, final String searchTagsUrl) throws Exception
 	{
 		if (contentSpec == null) throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
 		
@@ -1122,7 +1122,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 			collectIdAttributes(topicId, elements.item(i), usedIdAttributes);
 	}
 	
-	private HashMap<String, byte[]> doBuildZipPass(final ContentSpec contentSpec, final UserV1 requester, final boolean fixedUrlsSuccess) throws InvalidParameterException, InternalProcessingException
+	private HashMap<String, byte[]> doBuildZipPass(final ContentSpec contentSpec, final RESTUserV1 requester, final boolean fixedUrlsSuccess) throws InvalidParameterException, InternalProcessingException
 	{
 		log.info("Building the ZIP file");
 		
@@ -1196,7 +1196,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 	 * @throws InternalProcessingException 
 	 * @throws InvalidParameterException 
 	 */
-	private String buildBookBase(final ContentSpec contentSpec, final UserV1 requester, final Map<String, byte[]> files) throws InvalidParameterException, InternalProcessingException
+	private String buildBookBase(final ContentSpec contentSpec, final RESTUserV1 requester, final Map<String, byte[]> files) throws InvalidParameterException, InternalProcessingException
 	{
 		log.info("\tAdding standard files to Publican ZIP file");
 		
@@ -1558,7 +1558,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 					}
 					else
 					{
-						final ImageV1 imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(topicID), "");
+						final RESTImageV1 imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(topicID), "");
 	
 						if (imageFile != null)
 						{
@@ -1737,7 +1737,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 	 * @throws InternalProcessingException 
 	 * @throws InvalidParameterException 
 	 */
-	private void buildRevisionHistory(final ContentSpec contentSpec, final UserV1 requester, final Map<String, byte[]> files) throws InvalidParameterException, InternalProcessingException 
+	private void buildRevisionHistory(final ContentSpec contentSpec, final RESTUserV1 requester, final Map<String, byte[]> files) throws InvalidParameterException, InternalProcessingException 
 	{
 		log.info("\tBuilding Revision_History.xml");
 		
@@ -1784,7 +1784,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 	 * @param authorInfo An AuthorInformation entity object containing the details for who requested the build
 	 * @param requester The user object for the build request.
 	 */
-	private Document generateRevision(final ContentSpec contentSpec, String xmlDocString, final AuthorInformation authorInfo, final UserV1 requester) {
+	private Document generateRevision(final ContentSpec contentSpec, String xmlDocString, final AuthorInformation authorInfo, final RESTUserV1 requester) {
 		if (authorInfo == null) return null;
 		
 		// Replace all of the regex inside the xml document
