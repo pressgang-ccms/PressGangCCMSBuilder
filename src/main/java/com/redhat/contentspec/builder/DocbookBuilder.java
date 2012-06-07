@@ -1227,6 +1227,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		
 		if (contentSpec.getPublicanCfg() != null)
 		{
+			/* Remove the git_branch if the content spec contains a git_branch */
+			if (contentSpec.getPublicanCfg().indexOf("git_branch") != -1)
+			{
+				fixedPublicanCfg = fixedPublicanCfg.replaceFirst("git_branch:[ ]*.*(\\r)?(\\n)?", "");
+			}
 			fixedPublicanCfg += contentSpec.getPublicanCfg();
 		}
 		
