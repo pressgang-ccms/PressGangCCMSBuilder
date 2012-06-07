@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.codehaus.jackson.map.ObjectMapper;
 import org.jboss.resteasy.logging.Logger;
 import org.jboss.resteasy.specimpl.PathSegmentImpl;
 import org.w3c.dom.Document;
@@ -60,6 +61,7 @@ import com.redhat.topicindex.rest.entities.interfaces.RESTBlobConstantV1;
 import com.redhat.topicindex.rest.entities.ComponentTopicV1;
 import com.redhat.topicindex.rest.entities.ComponentTranslatedTopicV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTImageV1;
+import com.redhat.topicindex.rest.entities.interfaces.RESTLanguageImageV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTStringConstantV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTUserV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTPropertyTagV1;
@@ -69,6 +71,8 @@ import com.redhat.topicindex.rest.entities.interfaces.RESTBaseTopicV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTTranslatedTopicV1;
 import com.redhat.topicindex.rest.exceptions.InternalProcessingException;
 import com.redhat.topicindex.rest.exceptions.InvalidParameterException;
+import com.redhat.topicindex.rest.expand.ExpandDataDetails;
+import com.redhat.topicindex.rest.expand.ExpandDataTrunk;
 
 public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbleApp
 {
@@ -104,6 +108,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 	private String BOOK_TOPICS_FOLDER;
 	private String BOOK_IMAGES_FOLDER;
 	private String BOOK_FILES_FOLDER;
+	
+	/** Jackson object mapper */
+	private final ObjectMapper mapper = new ObjectMapper();
 		
 	/**
 	 * Holds the compiler errors that form the Errors.xml file in the compiled
@@ -1053,8 +1060,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 
 		if (usedIdAttributes.containsKey(topicId))
 		{
-			final Set<String> ids1 = usedIdAttributes.get(topicId);
-
 			for (final Integer topicId2 : usedIdAttributes.keySet())
 			{
 				// Check if the app should be shutdown
@@ -1065,22 +1070,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 				if (topicId2.equals(topicId))
 					continue;
 
-				if (usedIdAttributes.containsKey(topicId2))
+				final Set<String> ids2 = usedIdAttributes.get(topicId2);
+					
+				if (ids2.contains(id))
 				{
-					final Set<String> ids2 = usedIdAttributes.get(topicId2);
-
-					for (final String id1 : ids1)
-					{
-						// Check if the app should be shutdown
-						if (isShuttingDown.get()) {
-							return false;
-						}
-						
-						if (ids2.contains(id1))
-						{
-							retValue = false;
-						}
-					}
+					retValue = false;
 				}
 			}
 		}
@@ -1133,7 +1127,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		final String bookBase = buildBookBase(contentSpec, requester, files);
 		
 		/* add the images to the book */
-		addImagesToBook(files);
+		addImagesToBook(files, locale);
 		
 		LinkedList<com.redhat.contentspec.Node> levelData = contentSpec.getBaseLevel().getChildNodes();
 
@@ -1517,7 +1511,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		}
 	}
 	
-	private void addImagesToBook(final HashMap<String, byte[]> files) throws InvalidParameterException, InternalProcessingException
+	private void addImagesToBook(final HashMap<String, byte[]> files, final String locale) throws InvalidParameterException, InternalProcessingException
 	{
 		/* Load the database constants */
 		final byte[] failpenguinPng = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.FAILPENGUIN_PNG_ID, "").getValue();
@@ -1563,12 +1557,31 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 					}
 					else
 					{
-						final RESTImageV1 imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(topicID), "");
+						/* Expand the Langauge Images */
+						final ExpandDataTrunk expand = new ExpandDataTrunk();
+						expand.setBranches(CollectionUtilities.toArrayList(new ExpandDataTrunk(new ExpandDataDetails(RESTImageV1.LANGUAGEIMAGES_NAME))));
+						final String expandString = mapper.writeValueAsString(expand);
+						final String expandEncodedString = URLEncoder.encode(expandString, "UTF-8");
+						
+						final RESTImageV1 imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(topicID), expandEncodedString);
 	
-						if (imageFile != null)
+						/* Find the image that matches this locale. If the locale isn't found then use the default locale */
+						RESTLanguageImageV1 langaugeImageFile = null;
+						if (imageFile.getLanguageImages_OTM() != null && imageFile.getLanguageImages_OTM().getItems() != null)
+						{
+							for (final RESTLanguageImageV1 image : imageFile.getLanguageImages_OTM().getItems())
+							{
+								if (image.getLocale().equals(locale))
+									langaugeImageFile = image;
+								else if (image.getLocale().equals(defaultLocale) && langaugeImageFile == null)
+									langaugeImageFile = image;
+							}
+						}
+						
+						if (langaugeImageFile != null)
 						{
 							success = true;
-							files.put(BOOK_LOCALE_FOLDER + imageLocation.getImageName(), imageFile.getImageData());
+							files.put(BOOK_LOCALE_FOLDER + imageLocation.getImageName(), langaugeImageFile.getImageData());
 						}
 						else
 						{
