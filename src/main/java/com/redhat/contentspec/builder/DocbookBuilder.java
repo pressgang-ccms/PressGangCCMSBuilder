@@ -2225,7 +2225,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 									properties = new BaseRestCollectionV1<RESTPropertyTagV1>();
 								} else if (properties.getItems() != null) {
 									// remove any current url's
-									for (final RESTPropertyTagV1 prop: properties.getItems()) {
+									final List<RESTPropertyTagV1> propertyTags = new ArrayList<RESTPropertyTagV1>(properties.getItems());
+									for (final RESTPropertyTagV1 prop: propertyTags) {
 										if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
 											properties.getItems().remove(prop);
 										}
@@ -2249,7 +2250,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 										relatedTopicProperties = new BaseRestCollectionV1<RESTPropertyTagV1>();
 									} else if (relatedTopicProperties.getItems() != null) {
 										// remove any current url's
-										for (final RESTPropertyTagV1 prop: relatedTopicProperties.getItems()) {
+										final List<RESTPropertyTagV1> relatedTopicPropertyTags = new ArrayList<RESTPropertyTagV1>(relatedTopicProperties.getItems());
+										for (final RESTPropertyTagV1 prop: relatedTopicPropertyTags) {
 											if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
 												relatedTopicProperties.getItems().remove(prop);
 											}
