@@ -41,6 +41,7 @@ public class BuilderConstants {
 	public static final String PREFACE_REGEX			= "<!-- Inject Preface -->";
 	public static final String LEGAL_NOTICE_REGEX		= "<!-- Inject Legal Notice -->";
 	public static final String ABSTRACT_REGEX			= "<!-- Inject Abstract -->";
+	public static final String REV_HISTORY_REGEX			= "<!-- Inject Revision History -->";
 	
 	public static final String XIINCLUDES_INJECTION_STRING = "<!-- Inject XIIncludes -->";
 	

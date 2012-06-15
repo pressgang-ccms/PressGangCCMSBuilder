@@ -1310,6 +1310,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 			
 			// Add the preface to the book.xml
 			basicBook = basicBook.replaceAll(BuilderConstants.PREFACE_REGEX, "<xi:include href=\"Preface.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
+			
+			// Add the revision history to the book.xml
+			basicBook = basicBook.replaceAll(BuilderConstants.REV_HISTORY_REGEX, "<xi:include href=\"Revision_History.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
 		}
 		
 		// Setup Revision_History.xml
