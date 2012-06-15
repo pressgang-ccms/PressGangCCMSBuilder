@@ -9,6 +9,7 @@ import java.util.Map;
 import com.redhat.contentspec.Level;
 import com.redhat.contentspec.SpecTopic;
 import com.redhat.ecs.commonutils.CollectionUtilities;
+import com.redhat.topicindex.rest.entities.interfaces.RESTBaseTopicV1;
 
 public class SpecDatabase {
 
@@ -123,5 +124,17 @@ public class SpecDatabase {
 		}
 		
 		return levels;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public <T extends RESTBaseTopicV1<T>> List<T> getAllTopics()
+	{
+		final List<T> topics = new ArrayList<T>();
+		for (final Integer topicId : specTopics.keySet())
+		{
+			if (!specTopics.get(topicId).isEmpty())
+				topics.add((T) specTopics.get(topicId).get(0).getTopic());
+		}
+		return topics;
 	}
 }

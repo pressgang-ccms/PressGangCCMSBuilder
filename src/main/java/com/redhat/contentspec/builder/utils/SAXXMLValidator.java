@@ -24,8 +24,8 @@ import com.google.code.regexp.NamedPattern;
  * @author lnewson
  *
  */
-public class SAXXMLValidator implements ErrorHandler, EntityResolver {
-
+public class SAXXMLValidator implements ErrorHandler, EntityResolver
+{
 	protected boolean errorsDetected;
 	private String errorText;
 	private String dtdFileName;
@@ -42,7 +42,8 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
 		this.showErrors = false;
 	}
 	
-	public boolean validateXML(final Document doc, final String dtdFileName, final byte[] dtdData) {
+	public boolean validateXML(final Document doc, final String dtdFileName, final byte[] dtdData)
+	{
 		return doc == null || doc.getDocumentElement() == null ? false : validateXML(XMLUtilities.convertDocumentToString(doc), dtdFileName, dtdData, doc.getDocumentElement().getNodeName());
 	}
 	
@@ -55,7 +56,8 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
 	 * @param rootEleName The name of the root XML Element.
 	 * @return
 	 */
-	public boolean validateXML(final String xml, final String dtdFileName, final byte[] dtdData, String rootEleName) {
+	public boolean validateXML(final String xml, final String dtdFileName, final byte[] dtdData, String rootEleName)
+	{
 		if (xml == null || dtdFileName == null || dtdData == null || rootEleName == null) return false;
 		
 		this.dtdData = dtdData;
@@ -65,21 +67,25 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
 		if (encoding == null)
 			encoding = "UTF-8";
 		
-		SAXParserFactory factory = SAXParserFactory.newInstance();
-		SAXParser parser;
-		try {
+		final SAXParserFactory factory = SAXParserFactory.newInstance();
+		try
+		{
 			factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
 			factory.setValidating(true);
 			factory.setNamespaceAware(false);
-			parser = factory.newSAXParser();
-			XMLReader reader = parser.getXMLReader();
+			final SAXParser parser = factory.newSAXParser();
+			final XMLReader reader = parser.getXMLReader();
 			reader.setEntityResolver(this);
 			reader.setErrorHandler(this);
 			reader.parse(new InputSource(new ByteArrayInputStream(setXmlDtd(xml, dtdFileName, rootEleName).getBytes(encoding))));
-		} catch (SAXParseException e) {
+		}
+		catch (SAXParseException e)
+		{
 			handleError(e);
 			return false;
-		} catch (Exception e) {
+		}
+		catch (Exception e)
+		{
 			e.printStackTrace();
 			return false;
 		}
@@ -90,7 +96,8 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
 	 * A function that will resolve the dtd file location to the dtd byte[] data specified.
 	 */
 	@Override
-	public InputSource resolveEntity(String publicId, String systemId) throws SAXException, IOException {
+	public InputSource resolveEntity(String publicId, String systemId) throws SAXException, IOException
+	{
 		final InputSource dtdsource = new InputSource();
 		if (systemId.endsWith(this.dtdFileName))
 		{
@@ -112,7 +119,8 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
 	}
 
 	@Override
-	public void error(SAXParseException ex) throws SAXParseException {
+	public void error(SAXParseException ex) throws SAXParseException
+	{
 		throw ex;
 	}
 

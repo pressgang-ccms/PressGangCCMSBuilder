@@ -53,6 +53,7 @@ import com.redhat.ecs.commonutils.ExceptionUtilities;
 import com.redhat.ecs.commonutils.StringUtilities;
 import com.redhat.ecs.constants.CommonConstants;
 import com.redhat.ecs.services.docbookcompiling.DocbookBuilderConstants;
+import com.redhat.ecs.services.docbookcompiling.xmlprocessing.structures.TocTopicDatabase;
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorData;
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorDatabase;
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicImageData;
@@ -294,13 +295,38 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		log.info("Doing " + locale + " Populate Database Pass");
 		
 		/* Calculate the ids of all the topics to get */
-		final Set<Integer> topicIds = getTopicIdsFromLevel(contentSpec.getBaseLevel());
+		final Set<Pair<Integer, Integer>> topicToRevisions = getTopicIdsFromLevel(contentSpec.getBaseLevel());
+		
+		/* 
+		 * Determine which topics we need to fetch the latest topics
+		 * for and which topics we need to fetch revisions for.
+		 */
+		final Set<Integer> topicIds = new HashSet<Integer>();
+		final Set<Pair<Integer, Integer>> topicRevisions = new HashSet<Pair<Integer, Integer>>();
+		for (final Pair<Integer, Integer> topicToRevision : topicToRevisions)
+		{
+			if (topicToRevision.getSecond() != null)
+				topicRevisions.add(topicToRevision);
+			else
+				topicIds.add(topicToRevision.getFirst());
+		}
 		
 		final BaseRestCollectionV1<T> topics;
 		final boolean fixedUrlsSuccess;
 		if (contentSpec.getLocale() == null || contentSpec.getLocale().equals(defaultLocale))
 		{
-			final BaseRestCollectionV1<RESTTopicV1> normalTopics = reader.getTopicsByIds(CollectionUtilities.toArrayList(topicIds));
+			final BaseRestCollectionV1<RESTTopicV1> normalTopics = reader.getTopicsByIds(CollectionUtilities.toArrayList(topicIds), false);
+			
+			/* 
+			 * Fetch each topic that is a revision separately since this 
+			 * functionality isn't offered by the REST API.
+			 */
+			for (final Pair<Integer, Integer> topicToRevision : topicRevisions)
+			{
+				final RESTTopicV1 topicRevision = reader.getTopicById(topicToRevision.getFirst(), topicToRevision.getSecond());
+				if (topicRevision != null)
+					normalTopics.addItem(topicRevision);
+			}
 			
 			/*
 			 * assign fixed urls property tags to the topics. If
@@ -317,6 +343,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		else
 		{
 			final BaseRestCollectionV1<RESTTranslatedTopicV1> translatedTopics = reader.getTranslatedTopicsByTopicIds(CollectionUtilities.toArrayList(topicIds), contentSpec.getLocale());
+			
+			// TODO handle building translations for topic revisions. (May need to extend the REST interface)
+			
 			List<Integer> dummyTopicIds = new ArrayList<Integer>(topicIds);
 			
 			/* Remove any topic ids for translated topics that were found */
@@ -334,7 +363,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 			}
 			
 			/* Create the dummy translated topics */
-			populateDummyTranslatedTopicsPass(translatedTopics, dummyTopicIds);
+			if (!dummyTopicIds.isEmpty())
+			{
+				populateDummyTranslatedTopicsPass(translatedTopics, dummyTopicIds);
+			}
 			
 			/* 
 			 * Translations should reference an existing historical topic with
@@ -397,10 +429,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		}
 	}
 	
-	private Set<Integer> getTopicIdsFromLevel(final Level level)
+	private Set<Pair<Integer, Integer>> getTopicIdsFromLevel(final Level level)
 	{
 		/* Add the topics at this level to the database */
-		final Set<Integer> topicIds = new HashSet<Integer>();
+		final Set<Pair<Integer, Integer>> topicIds = new HashSet<Pair<Integer, Integer>>();
 		for (final SpecTopic specTopic : level.getSpecTopics())
 		{
 			// Check if the app should be shutdown
@@ -409,7 +441,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 			}
 			
 			if (specTopic.getDBId() != 0)
-				topicIds.add(specTopic.getDBId());
+				topicIds.add(new Pair<Integer, Integer>(specTopic.getDBId(), specTopic.getRevision()));
 		}
 		
 		/* Add the child levels to the database */
@@ -437,7 +469,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 	{
 		log.info("\tDoing dummy Translated Topic pass");
 		
-		final BaseRestCollectionV1<RESTTopicV1> dummyTopics = reader.getTopicsByIds(dummyTopicIds);
+		final BaseRestCollectionV1<RESTTopicV1> dummyTopics = reader.getTopicsByIds(dummyTopicIds, true);
 		
 		/* Only continue if we found dummy topics */
 		if (dummyTopics == null || dummyTopics.getItems() == null || dummyTopics.getItems().isEmpty()) return;
@@ -753,6 +785,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		float current = 0;
 		int lastPercent = 0;
 		
+		/* Create the related topics database to be used for CSP builds */
+		final TocTopicDatabase<T> relatedTopicsDatabase = new TocTopicDatabase<T>();
+		relatedTopicsDatabase.setTopics(specDatabase.<T>getAllTopics());
+		
 		for (final SpecTopic specTopic : specDatabase.getAllSpecTopics())
 		{
 			// Check if the app should be shutdown
@@ -783,8 +819,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 	
 					final ArrayList<Integer> customInjectionIds = new ArrayList<Integer>();
 					final List<Integer> genericInjectionErrors;
-					
-					final List<Integer> customInjectionErrors = xmlPreProcessor.processInjections(baseLevel, specTopic, customInjectionIds, doc, docbookBuildingOptions, fixedUrlsSuccess);
+					final List<Integer> customInjectionErrors;
 					
 					if (contentSpec.getOutputStyle().equalsIgnoreCase(CSConstants.SKYNET_OUTPUT_FORMAT))
 					{
@@ -798,6 +833,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 						topicTypeTagDetails.add(Pair.newPair(DocbookBuilderConstants.CONCEPT_TAG_ID, DocbookBuilderConstants.CONCEPT_TAG_NAME));
 						topicTypeTagDetails.add(Pair.newPair(DocbookBuilderConstants.CONCEPTUALOVERVIEW_TAG_ID, DocbookBuilderConstants.CONCEPTUALOVERVIEW_TAG_NAME));
 						
+						customInjectionErrors = xmlPreProcessor.processInjections(baseLevel, specTopic, customInjectionIds, doc, docbookBuildingOptions, null, fixedUrlsSuccess);
+						
 						genericInjectionErrors = xmlPreProcessor.processGenericInjections(baseLevel, specTopic, doc, customInjectionIds, topicTypeTagDetails, docbookBuildingOptions, fixedUrlsSuccess);
 					}
 					else
@@ -806,6 +843,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 						xmlPreProcessor.processPrevRelationshipInjections(specTopic, doc, fixedUrlsSuccess);
 						xmlPreProcessor.processNextRelationshipInjections(specTopic, doc, fixedUrlsSuccess);
 						xmlPreProcessor.processSeeAlsoInjections(specTopic, doc, fixedUrlsSuccess);
+						
+						customInjectionErrors = xmlPreProcessor.processInjections(baseLevel, specTopic, customInjectionIds, doc, docbookBuildingOptions, relatedTopicsDatabase, fixedUrlsSuccess);
 						
 						genericInjectionErrors = new ArrayList<Integer>();
 					}
@@ -1284,7 +1323,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_COPYRIGHT_REGEX, contentSpec.getCopyrightHolder());
 		entFile = entFile.replaceAll(BuilderConstants.BZPRODUCT_REGEX, contentSpec.getBugzillaProduct() == null ? contentSpec.getProduct() : contentSpec.getBugzillaProduct());
 		entFile = entFile.replaceAll(BuilderConstants.BZCOMPONENT_REGEX, contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec.getBugzillaComponent());
-		entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, "https://bugzilla.redhat.com/");
+		entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, contentSpec.getBugzillaURL() == null ? "https://bugzilla.redhat.com/" : contentSpec.getBugzillaURL());
 		files.put(BOOK_LOCALE_FOLDER + escapedTitle + ".ent", entFile.getBytes());
 		
 		// Setup the images and files folders
@@ -2089,6 +2128,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 			final String errorXRefID = topic instanceof RESTTranslatedTopicV1 ? ComponentTranslatedTopicV1.returnXRefID((RESTTranslatedTopicV1) topic) : ComponentTopicV1.returnXRefID((RESTTopicV1) topic);
 			doc.getDocumentElement().setAttribute("id", errorXRefID);
 		}
+		doc.getDocumentElement().setAttribute("remap", "TID_" + (topic instanceof RESTTranslatedTopicV1 ? ((RESTTranslatedTopicV1) topic).getTopicId() : topic.getId()));
 	}
 	
 	/**

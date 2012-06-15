@@ -441,8 +441,27 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T>>
 		return retValue;
 	}
 
-	public List<Integer> processInjections(final Level level, final SpecTopic topic, final ArrayList<Integer> customInjectionIds, final Document xmlDocument, final DocbookBuildingOptions docbookBuildingOptions, final boolean usedFixedUrls)
+	@SuppressWarnings("unchecked")
+	public List<Integer> processInjections(final Level level, final SpecTopic topic, final ArrayList<Integer> customInjectionIds, final Document xmlDocument, final DocbookBuildingOptions docbookBuildingOptions,
+			final TocTopicDatabase<T> relatedTopicsDatabase, final boolean usedFixedUrls)
 	{
+		TocTopicDatabase<T> relatedTopicDatabase = relatedTopicsDatabase;
+		if (relatedTopicDatabase == null)
+		{
+			/*
+			 * get the outgoing relationships
+			 */
+			final List<T> relatedTopics = (List<T>) topic.getTopic().getOutgoingRelationships().getItems();
+
+			/*
+			 * Create a TocTopicDatabase to hold the related topics. The
+			 * TocTopicDatabase provides a convenient way to access
+			 * these topics
+			 */
+			relatedTopicDatabase = new TocTopicDatabase<T>();
+			relatedTopicDatabase.setTopics(relatedTopics);
+		}
+		
 		/*
 		 * this collection keeps a track of the injection point markers and the
 		 * docbook lists that we will be replacing them with
@@ -451,11 +470,11 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T>>
 
 		final List<Integer> errorTopics = new ArrayList<Integer>();
 
-		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, ORDEREDLIST_INJECTION_POINT, xmlDocument, CUSTOM_INJECTION_SEQUENCE_RE, null, docbookBuildingOptions, usedFixedUrls));
-		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, XREF_INJECTION_POINT, xmlDocument, CUSTOM_INJECTION_SINGLE_RE, null, docbookBuildingOptions, usedFixedUrls));
-		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument, CUSTOM_INJECTION_LIST_RE, null, docbookBuildingOptions, usedFixedUrls));
-		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument, CUSTOM_ALPHA_SORT_INJECTION_LIST_RE, new TopicTitleSorter<T>(), docbookBuildingOptions, usedFixedUrls));
-		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, LIST_INJECTION_POINT, xmlDocument, CUSTOM_INJECTION_LISTITEMS_RE, null, docbookBuildingOptions, usedFixedUrls));
+		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, ORDEREDLIST_INJECTION_POINT, xmlDocument, CUSTOM_INJECTION_SEQUENCE_RE, null, docbookBuildingOptions, relatedTopicDatabase, usedFixedUrls));
+		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, XREF_INJECTION_POINT, xmlDocument, CUSTOM_INJECTION_SINGLE_RE, null, docbookBuildingOptions, relatedTopicDatabase, usedFixedUrls));
+		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument, CUSTOM_INJECTION_LIST_RE, null, docbookBuildingOptions, relatedTopicDatabase, usedFixedUrls));
+		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument, CUSTOM_ALPHA_SORT_INJECTION_LIST_RE, new TopicTitleSorter<T>(), docbookBuildingOptions, relatedTopicDatabase, usedFixedUrls));
+		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, LIST_INJECTION_POINT, xmlDocument, CUSTOM_INJECTION_LISTITEMS_RE, null, docbookBuildingOptions, relatedTopicDatabase, usedFixedUrls));
 
 		/*
 		 * If we are not ignoring errors, return the list of topics that could
@@ -507,9 +526,9 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T>>
 		return errorTopics;
 	}
 
-	@SuppressWarnings("unchecked")
-	public List<Integer> processInjections(final Level level, final SpecTopic topic, final ArrayList<Integer> customInjectionIds, final HashMap<Node, InjectionListData> customInjections, final int injectionPointType, final Document xmlDocument, final String regularExpression,
-			final ExternalListSort<Integer, T, InjectionTopicData> sortComparator, final DocbookBuildingOptions docbookBuildingOptions, final boolean usedFixedUrls)
+	public List<Integer> processInjections(final Level level, final SpecTopic topic, final ArrayList<Integer> customInjectionIds, final HashMap<Node, InjectionListData> customInjections,
+			final int injectionPointType, final Document xmlDocument, final String regularExpression, final ExternalListSort<Integer, T, InjectionTopicData> sortComparator,
+			final DocbookBuildingOptions docbookBuildingOptions, final TocTopicDatabase<T> relatedTopicsDatabase, final boolean usedFixedUrls)
 	{
 		final List<Integer> retValue = new ArrayList<Integer>();
 
@@ -541,23 +560,10 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T>>
 					/* get the sequence of ids */
 					final List<InjectionTopicData> sequenceIDs = processTopicIdList(reMatch);
 
-					/*
-					 * get the outgoing relationships
-					 */
-					final List<T> relatedTopics = (List<T>) topic.getTopic().getOutgoingRelationships().getItems();
-
-					/*
-					 * Create a TocTopicDatabase to hold the related topics. The
-					 * TocTopicDatabase provides a convenient way to access
-					 * these topics
-					 */
-					TocTopicDatabase<T> relatedTopicsDatabase = new TocTopicDatabase<T>();
-					relatedTopicsDatabase.setTopics(relatedTopics);
-
 					/* sort the InjectionTopicData list if required */
 					if (sortComparator != null)
 					{
-						sortComparator.sort(relatedTopics, sequenceIDs);
+						sortComparator.sort(relatedTopicsDatabase.getTopics(), sequenceIDs);
 					}
 
 					/* loop over all the topic ids in the injection point */
