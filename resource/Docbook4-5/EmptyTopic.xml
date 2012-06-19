@@ -1,9 +1,0 @@
-<section>
-  <title><!-- Inject TopicTitle --></title>
-  <note>
-    <title>Topic <!-- Inject TopicID --> has no XML content</title>
-    <para>Topic <!-- Inject TopicID --> has no XML content and is not included in
-this build.</para>
-	<!-- Inject ErrorXREF -->
-  </note>
-</section>

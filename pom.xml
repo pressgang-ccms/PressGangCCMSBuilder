@@ -1,0 +1,42 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+	<artifactId>contentspec</artifactId>
+	<groupId>com.redhat</groupId>
+	<version>0.0.1-SNAPSHOT</version>
+	<relativePath>..</relativePath>
+  </parent>
+  <groupId>com.redhat.contentspec</groupId>
+  <artifactId>csbuilder</artifactId>
+  <version>0.1.5-SNAPSHOT</version>
+  <name>Content Specification Builder</name>
+  
+  <distributionManagement>
+    <repository>
+      <id>ecsmaven-nexus</id>
+      <name>ECS Maven Repo</name>
+      <url>http://ecsmaven.usersys.redhat.com/nexus/content/repositories/snapshots/</url>
+    </repository>
+  </distributionManagement>
+  
+  <dependencies>
+  
+    <dependency>
+      	<groupId>com.ibm.icu</groupId>
+      	<artifactId>icu4j</artifactId>
+      	<version>4.8.1.1</version>
+    </dependency>
+  
+  	<dependency>
+      	<groupId>org.codehaus.jackson</groupId>
+      	<artifactId>jackson-mapper-asl</artifactId>
+      	<version>1.6.3</version>
+    </dependency>
+    
+    <dependency>
+   		<groupId>log4j</groupId>
+     	<artifactId>log4j</artifactId>
+     	<version>1.2.16</version>
+   	</dependency>
+  </dependencies>
+</project>
