@@ -1636,6 +1636,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						}
 					}
 				}
+				catch (final NumberFormatException ex)
+				{
+					success = false;
+					errorDatabase.addError(imageLocation.getTopic(), imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123.png, or images/321.jpg");
+					log.debug(ExceptionUtilities.getStackTrace(ex));
+				}
 				catch (final Exception ex)
 				{
 					success = false;
