@@ -58,6 +58,9 @@ import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorData
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorDatabase;
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicImageData;
 import com.redhat.topicindex.rest.collections.BaseRestCollectionV1;
+import com.redhat.topicindex.rest.collections.RESTPropertyTagCollectionV1;
+import com.redhat.topicindex.rest.collections.RESTTopicCollectionV1;
+import com.redhat.topicindex.rest.collections.RESTTranslatedTopicCollectionV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTBlobConstantV1;
 import com.redhat.topicindex.rest.entities.ComponentTopicV1;
 import com.redhat.topicindex.rest.entities.ComponentTranslatedTopicV1;
@@ -75,7 +78,7 @@ import com.redhat.topicindex.rest.exceptions.InvalidParameterException;
 import com.redhat.topicindex.rest.expand.ExpandDataDetails;
 import com.redhat.topicindex.rest.expand.ExpandDataTrunk;
 
-public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbleApp
+public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestCollectionV1<T, U>> implements ShutdownAbleApp
 {
 	private static final Logger log = Logger.getLogger(DocbookBuilder.class);
 	private static final String STARTS_WITH_NUMBER_RE = "^(?<Numbers>\\d+)(?<EverythingElse>.*)$";
@@ -117,7 +120,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 	 * Holds the compiler errors that form the Errors.xml file in the compiled
 	 * docbook
 	 */
-	private TopicErrorDatabase<T> errorDatabase;;
+	private TopicErrorDatabase<T, U> errorDatabase;;
 	
 	/**
 	 * Holds the SpecTopics and their XML that exist within the content specification
@@ -128,7 +131,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 	 * Holds information on file url locations, which will be downloaded and
 	 * included in the docbook zip file
 	 */
-	private final ArrayList<TopicImageData<T>> imageLocations = new ArrayList<TopicImageData<T>>();
+	private final ArrayList<TopicImageData<T, U>> imageLocations = new ArrayList<TopicImageData<T, U>>();
 	
 	public DocbookBuilder(final RESTManager restManager, final RESTBlobConstantV1 rocbookDtd, final String defaultLocale) throws InvalidParameterException, InternalProcessingException
 	{
@@ -168,7 +171,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		int numWarnings = 0;
 		if (errorDatabase != null && errorDatabase.getErrors(locale) != null) 
 		{
-			for (TopicErrorData<T> errorData: errorDatabase.getErrors(locale)) {
+			for (TopicErrorData<T, U> errorData: errorDatabase.getErrors(locale)) {
 				numWarnings += errorData.getItemsOfType(TopicErrorDatabase.WARNING).size();
 			}
 		}
@@ -179,7 +182,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		int numErrors = 0;
 		if (errorDatabase != null && errorDatabase.getErrors(locale) != null) 
 		{
-			for (TopicErrorData<T> errorData: errorDatabase.getErrors(locale)) {
+			for (TopicErrorData<T, U> errorData: errorDatabase.getErrors(locale)) {
 				numErrors += errorData.getItemsOfType(TopicErrorDatabase.ERROR).size();
 			}
 		}
@@ -190,7 +193,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 	{
 		if (contentSpec == null) throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
 		
-		errorDatabase = new TopicErrorDatabase<T>();
+		errorDatabase = new TopicErrorDatabase<T, U>();
 		specDatabase = new SpecDatabase();
 		
 		// Setup the constants
@@ -311,11 +314,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 				topicIds.add(topicToRevision.getFirst());
 		}
 		
-		final BaseRestCollectionV1<T> topics;
+		final BaseRestCollectionV1<T, U> topics;
 		final boolean fixedUrlsSuccess;
 		if (contentSpec.getLocale() == null || contentSpec.getLocale().equals(defaultLocale))
 		{
-			final BaseRestCollectionV1<RESTTopicV1> normalTopics = reader.getTopicsByIds(CollectionUtilities.toArrayList(topicIds), false);
+			final RESTTopicCollectionV1 normalTopics = reader.getTopicsByIds(CollectionUtilities.toArrayList(topicIds), false);
 			
 			/* 
 			 * Fetch each topic that is a revision separately since this 
@@ -338,11 +341,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 			 */
 			fixedUrlsSuccess = setFixedURLsPass(normalTopics);
 			
-			topics = (BaseRestCollectionV1<T>) normalTopics;
+			topics = (BaseRestCollectionV1<T, U>) normalTopics;
 		}
 		else
 		{
-			final BaseRestCollectionV1<RESTTranslatedTopicV1> translatedTopics = reader.getTranslatedTopicsByTopicIds(CollectionUtilities.toArrayList(topicIds), contentSpec.getLocale());
+			final RESTTranslatedTopicCollectionV1 translatedTopics = reader.getTranslatedTopicsByTopicIds(CollectionUtilities.toArrayList(topicIds), contentSpec.getLocale());
 			
 			// TODO handle building translations for topic revisions. (May need to extend the REST interface)
 			
@@ -375,7 +378,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 			fixedUrlsSuccess = true;
 			
 			/* set the topics variable now all initialisation is done */
-			topics = (BaseRestCollectionV1<T>) translatedTopics;
+			topics = (BaseRestCollectionV1<T, U>) translatedTopics;
 		}
 		
 		/* Add all the levels and topics to the database first */
@@ -465,11 +468,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 	 * @param topics The set of topics to add the dummy translated topics to.
 	 * @param dummyTopicIds The list of topics to be added as dummy translated topics.
 	 */
-	private void populateDummyTranslatedTopicsPass(final BaseRestCollectionV1<RESTTranslatedTopicV1> topics, final List<Integer> dummyTopicIds) 
+	private void populateDummyTranslatedTopicsPass(final RESTTranslatedTopicCollectionV1 topics, final List<Integer> dummyTopicIds) 
 	{
 		log.info("\tDoing dummy Translated Topic pass");
 		
-		final BaseRestCollectionV1<RESTTopicV1> dummyTopics = reader.getTopicsByIds(dummyTopicIds, true);
+		final RESTTopicCollectionV1 dummyTopics = reader.getTopicsByIds(dummyTopicIds, true);
 		
 		/* Only continue if we found dummy topics */
 		if (dummyTopics == null || dummyTopics.getItems() == null || dummyTopics.getItems().isEmpty()) return;
@@ -545,7 +548,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		/* Add the dummy outgoing relationships */
 		if (topic.getOutgoingRelationships() != null && topic.getOutgoingRelationships().getItems() != null)
 		{
-			final BaseRestCollectionV1<RESTTranslatedTopicV1> outgoingRelationships = new BaseRestCollectionV1<RESTTranslatedTopicV1>();
+			final RESTTranslatedTopicCollectionV1 outgoingRelationships = new RESTTranslatedTopicCollectionV1();
 			for (final RESTTopicV1 relatedTopic : topic.getOutgoingRelationships().getItems())
 			{
 				// Check if the app should be shutdown
@@ -569,7 +572,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		/* Add the dummy incoming relationships */
 		if (topic.getIncomingRelationships() != null && topic.getIncomingRelationships().getItems() != null)
 		{
-			final BaseRestCollectionV1<RESTTranslatedTopicV1> incomingRelationships = new BaseRestCollectionV1<RESTTranslatedTopicV1>();
+			final RESTTranslatedTopicCollectionV1 incomingRelationships = new RESTTranslatedTopicCollectionV1();
 			for (final RESTTopicV1 relatedTopic : topic.getIncomingRelationships().getItems())
 			{
 				// Check if the app should be shutdown
@@ -593,7 +596,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		return translatedTopic;
 	}
 	
-	private void doTopicPass(final BaseRestCollectionV1<T> topics, final boolean fixedUrlsSuccess, final Map<Integer, Set<String>> usedIdAttributes)
+	private void doTopicPass(final BaseRestCollectionV1<T, U> topics, final boolean fixedUrlsSuccess, final Map<Integer, Set<String>> usedIdAttributes)
 	{
 		log.info("Doing " + locale + " First topic pass");
 		log.info("\tProcessing " + topics.getItems().size() + " Topics");
@@ -786,8 +789,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		int lastPercent = 0;
 		
 		/* Create the related topics database to be used for CSP builds */
-		final TocTopicDatabase<T> relatedTopicsDatabase = new TocTopicDatabase<T>();
-		relatedTopicsDatabase.setTopics(specDatabase.<T>getAllTopics());
+		final TocTopicDatabase<T, U> relatedTopicsDatabase = new TocTopicDatabase<T, U>();
+		relatedTopicsDatabase.setTopics(specDatabase.<T, U>getAllTopics());
 		
 		for (final SpecTopic specTopic : specDatabase.getAllSpecTopics())
 		{
@@ -808,7 +811,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 			final Document doc = specTopic.getXmlDocument();
 			final Level baseLevel = contentSpec.getBaseLevel();
 			
-			final XMLPreProcessor<T> xmlPreProcessor = new XMLPreProcessor<T>();
+			final XMLPreProcessor<T, U> xmlPreProcessor = new XMLPreProcessor<T, U>();
 			boolean valid = true;
 			
 			if (doc != null)
@@ -1563,7 +1566,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		int imageProgress = 0;
 		final int imageTotal = this.imageLocations.size();
 
-		for (final TopicImageData<T> imageLocation : this.imageLocations)
+		for (final TopicImageData<T, U> imageLocation : this.imageLocations)
 		{
 			// Check if the app should be shutdown
 			if (isShuttingDown.get()) {
@@ -1896,7 +1899,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 
 		if (errorDatabase.hasItems(locale))
 		{
-			for (final TopicErrorData<T> topicErrorData : errorDatabase.getErrors(locale))
+			for (final TopicErrorData<T, U> topicErrorData : errorDatabase.getErrors(locale))
 			{
 				// Check if the app should be shutdown
 				if (isShuttingDown.get()) {
@@ -1986,7 +1989,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 					if (fileRefAttribute != null && (fileRefAttribute.getNodeValue() == null || fileRefAttribute.getNodeValue().isEmpty()))
 					{
 						fileRefAttribute.setNodeValue("images/failpenguinPng.jpg");
-						imageLocations.add(new TopicImageData<T>(topic, fileRefAttribute.getNodeValue()));
+						imageLocations.add(new TopicImageData<T, U>(topic, fileRefAttribute.getNodeValue()));
 					}
 					else if (fileRefAttribute != null)
 					{
@@ -1995,7 +1998,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 							fileRefAttribute.setNodeValue("images/" + fileRefAttribute.getNodeValue());
 						}
 		
-						imageLocations.add(new TopicImageData<T>(topic, fileRefAttribute.getNodeValue()));
+						imageLocations.add(new TopicImageData<T, U>(topic, fileRefAttribute.getNodeValue()));
 					}
 				}
 			}
@@ -2142,7 +2145,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 	 * @return true if fixed url property tags were able to be created for all
 	 *         topics, and false otherwise   
 	 */
-	private boolean setFixedURLsPass(final BaseRestCollectionV1<RESTTopicV1> topics)
+	private boolean setFixedURLsPass(final RESTTopicCollectionV1 topics)
 	{
 		log.info("Doing Fixed URL Pass");
 		
@@ -2156,7 +2159,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 
 			try
 			{
-				final BaseRestCollectionV1<RESTTopicV1> updateTopics = new BaseRestCollectionV1<RESTTopicV1>();
+				final RESTTopicCollectionV1 updateTopics = new RESTTopicCollectionV1();
 				
 				final Set<String> processedFileNames = new HashSet<String>();
 
@@ -2183,7 +2186,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 						for (int uniqueCount = 1; uniqueCount <= BuilderConstants.MAXIMUM_SET_PROP_TAG_NAME_RETRY; ++uniqueCount)
 						{
 							final String query = "query;propertyTag1=" + CommonConstants.FIXED_URL_PROP_TAG_ID + URLEncoder.encode(" " + baseUrlName + postFix, "UTF-8");
-							final BaseRestCollectionV1<RESTTopicV1> queryTopics = restManager.getRESTClient().getJSONTopicsWithQuery(new PathSegmentImpl(query, false), "");
+							final RESTTopicCollectionV1 queryTopics = restManager.getRESTClient().getJSONTopicsWithQuery(new PathSegmentImpl(query, false), "");
 
 							if (queryTopics.getSize() != 0)
 							{
@@ -2211,7 +2214,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 							propertyTag.setValue(baseUrlName + postFix);
 							propertyTag.setAddItem(true);
 
-							final BaseRestCollectionV1<RESTPropertyTagV1> updatePropertyTags = new BaseRestCollectionV1<RESTPropertyTagV1>();
+							final RESTPropertyTagCollectionV1 updatePropertyTags = new RESTPropertyTagCollectionV1();
 							updatePropertyTags.addItem(propertyTag);
 
 							/* remove any old fixed url property tags */
@@ -2264,14 +2267,19 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 							
 							if (topic != null && topicWithFixedUrl.getId().equals(topic.getId()))
 							{
-								BaseRestCollectionV1<RESTPropertyTagV1> properties = topic.getProperties();
-								if (properties == null) {
-									properties = new BaseRestCollectionV1<RESTPropertyTagV1>();
-								} else if (properties.getItems() != null) {
+								RESTPropertyTagCollectionV1 properties = topic.getProperties();
+								if (properties == null)
+								{
+									properties = new RESTPropertyTagCollectionV1();
+								}
+								else if (properties.getItems() != null)
+								{
 									// remove any current url's
 									final List<RESTPropertyTagV1> propertyTags = new ArrayList<RESTPropertyTagV1>(properties.getItems());
-									for (final RESTPropertyTagV1 prop: propertyTags) {
-										if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
+									for (final RESTPropertyTagV1 prop: propertyTags)
+									{
+										if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID))
+										{
 											properties.getItems().remove(prop);
 										}
 									}
@@ -2289,9 +2297,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 							{
 								if (topicWithFixedUrl.getId().equals(relatedTopic.getId()))
 								{
-									BaseRestCollectionV1<RESTPropertyTagV1> relatedTopicProperties = relatedTopic.getProperties();
+									RESTPropertyTagCollectionV1 relatedTopicProperties = relatedTopic.getProperties();
 									if (relatedTopicProperties == null) {
-										relatedTopicProperties = new BaseRestCollectionV1<RESTPropertyTagV1>();
+										relatedTopicProperties = new RESTPropertyTagCollectionV1();
 									} else if (relatedTopicProperties.getItems() != null) {
 										// remove any current url's
 										final List<RESTPropertyTagV1> relatedTopicPropertyTags = new ArrayList<RESTPropertyTagV1>(relatedTopicProperties.getItems());

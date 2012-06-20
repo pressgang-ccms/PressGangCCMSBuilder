@@ -39,6 +39,7 @@ import com.redhat.ecs.services.docbookcompiling.xmlprocessing.structures.Injecti
 import com.redhat.ecs.services.docbookcompiling.xmlprocessing.structures.TocTopicDatabase;
 import com.redhat.ecs.sort.ExternalListSort;
 
+import com.redhat.topicindex.rest.collections.BaseRestCollectionV1;
 import com.redhat.topicindex.rest.entities.ComponentBaseTopicV1;
 import com.redhat.topicindex.rest.entities.ComponentTagV1;
 import com.redhat.topicindex.rest.entities.ComponentTopicV1;
@@ -55,7 +56,7 @@ import com.redhat.topicindex.rest.sort.BaseTopicV1TitleComparator;
  * This class takes the XML from a topic and modifies it to include and injected
  * content.
  */
-public class XMLPreProcessor<T extends RESTBaseTopicV1<T>>
+public class XMLPreProcessor<T extends RESTBaseTopicV1<T, U>, U extends BaseRestCollectionV1<T, U>>
 {
 	/**
 	 * Used to identify that an <orderedlist> should be generated for the
@@ -443,9 +444,9 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T>>
 
 	@SuppressWarnings("unchecked")
 	public List<Integer> processInjections(final Level level, final SpecTopic topic, final ArrayList<Integer> customInjectionIds, final Document xmlDocument, final DocbookBuildingOptions docbookBuildingOptions,
-			final TocTopicDatabase<T> relatedTopicsDatabase, final boolean usedFixedUrls)
+			final TocTopicDatabase<T, U> relatedTopicsDatabase, final boolean usedFixedUrls)
 	{
-		TocTopicDatabase<T> relatedTopicDatabase = relatedTopicsDatabase;
+		TocTopicDatabase<T, U> relatedTopicDatabase = relatedTopicsDatabase;
 		if (relatedTopicDatabase == null)
 		{
 			/*
@@ -458,7 +459,7 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T>>
 			 * TocTopicDatabase provides a convenient way to access
 			 * these topics
 			 */
-			relatedTopicDatabase = new TocTopicDatabase<T>();
+			relatedTopicDatabase = new TocTopicDatabase<T, U>();
 			relatedTopicDatabase.setTopics(relatedTopics);
 		}
 		
@@ -473,7 +474,7 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T>>
 		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, ORDEREDLIST_INJECTION_POINT, xmlDocument, CUSTOM_INJECTION_SEQUENCE_RE, null, docbookBuildingOptions, relatedTopicDatabase, usedFixedUrls));
 		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, XREF_INJECTION_POINT, xmlDocument, CUSTOM_INJECTION_SINGLE_RE, null, docbookBuildingOptions, relatedTopicDatabase, usedFixedUrls));
 		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument, CUSTOM_INJECTION_LIST_RE, null, docbookBuildingOptions, relatedTopicDatabase, usedFixedUrls));
-		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument, CUSTOM_ALPHA_SORT_INJECTION_LIST_RE, new TopicTitleSorter<T>(), docbookBuildingOptions, relatedTopicDatabase, usedFixedUrls));
+		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument, CUSTOM_ALPHA_SORT_INJECTION_LIST_RE, new TopicTitleSorter<T, U>(), docbookBuildingOptions, relatedTopicDatabase, usedFixedUrls));
 		errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, LIST_INJECTION_POINT, xmlDocument, CUSTOM_INJECTION_LISTITEMS_RE, null, docbookBuildingOptions, relatedTopicDatabase, usedFixedUrls));
 
 		/*
@@ -528,7 +529,7 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T>>
 
 	public List<Integer> processInjections(final Level level, final SpecTopic topic, final ArrayList<Integer> customInjectionIds, final HashMap<Node, InjectionListData> customInjections,
 			final int injectionPointType, final Document xmlDocument, final String regularExpression, final ExternalListSort<Integer, T, InjectionTopicData> sortComparator,
-			final DocbookBuildingOptions docbookBuildingOptions, final TocTopicDatabase<T> relatedTopicsDatabase, final boolean usedFixedUrls)
+			final DocbookBuildingOptions docbookBuildingOptions, final TocTopicDatabase<T, U> relatedTopicsDatabase, final boolean usedFixedUrls)
 	{
 		final List<Integer> retValue = new ArrayList<Integer>();
 
@@ -680,7 +681,7 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T>>
 		/*
 		 * this collection will hold the lists of related topics
 		 */
-		final GenericInjectionPointDatabase<T> relatedLists = new GenericInjectionPointDatabase<T>();
+		final GenericInjectionPointDatabase<T, U> relatedLists = new GenericInjectionPointDatabase<T, U>();
 
 		/* wrap each related topic in a listitem tag */
 		if (topic.getTopic().getOutgoingRelationships() != null && topic.getTopic().getOutgoingRelationships().getItems()!= null)
@@ -743,7 +744,7 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T>>
 	 * and the topic type tags that are associated with them and injects them
 	 * into the xml document.
 	 */
-	private void insertGenericInjectionLinks(final Level level, final SpecTopic topic, final Document xmlDoc, final GenericInjectionPointDatabase<T> relatedLists, final DocbookBuildingOptions docbookBuildingOptions, final boolean usedFixedUrls)
+	private void insertGenericInjectionLinks(final Level level, final SpecTopic topic, final Document xmlDoc, final GenericInjectionPointDatabase<T, U> relatedLists, final DocbookBuildingOptions docbookBuildingOptions, final boolean usedFixedUrls)
 	{
 		/* all related topics are placed before the first simplesect */
 		final NodeList nodes = xmlDoc.getDocumentElement().getChildNodes();
@@ -764,7 +765,7 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T>>
 		 */
 		for (final Integer topTag : CollectionUtilities.toArrayList(DocbookBuilderConstants.REFERENCE_TAG_ID, DocbookBuilderConstants.TASK_TAG_ID, DocbookBuilderConstants.CONCEPT_TAG_ID, DocbookBuilderConstants.CONCEPTUALOVERVIEW_TAG_ID))
 		{
-			for (final GenericInjectionPoint<T> genericInjectionPoint : relatedLists.getInjectionPoints())
+			for (final GenericInjectionPoint<T, U> genericInjectionPoint : relatedLists.getInjectionPoints())
 			{
 				if (genericInjectionPoint.getCategoryIDAndName().getFirst() == topTag)
 				{
@@ -775,7 +776,7 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T>>
 					{
 						final Node itemizedlist = DocbookUtils.createRelatedTopicItemizedList(xmlDoc, "Related " + genericInjectionPoint.getCategoryIDAndName().getSecond() + "s");
 
-						Collections.sort(relatedTopics, new BaseTopicV1TitleComparator<T>());
+						Collections.sort(relatedTopics, new BaseTopicV1TitleComparator<T, U>());
 
 						for (final T relatedTopic : relatedTopics)
 						{

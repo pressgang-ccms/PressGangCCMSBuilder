@@ -21,7 +21,10 @@ import com.redhat.contentspec.builder.utils.XMLUtilities;
 import com.redhat.contentspec.entities.BugzillaOptions;
 import com.redhat.ecs.constants.CommonConstants;
 import com.redhat.ecs.services.docbookcompiling.DocbookBuildingOptions;
-import com.redhat.topicindex.rest.collections.BaseRestCollectionV1;
+import com.redhat.topicindex.rest.collections.RESTPropertyTagCollectionV1;
+import com.redhat.topicindex.rest.collections.RESTTagCollectionV1;
+import com.redhat.topicindex.rest.collections.RESTTopicCollectionV1;
+import com.redhat.topicindex.rest.collections.RESTTranslatedTopicCollectionV1;
 import com.redhat.topicindex.rest.entities.ComponentTopicV1;
 import com.redhat.topicindex.rest.entities.ComponentTranslatedTopicV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTPropertyTagV1;
@@ -31,8 +34,8 @@ import com.redhat.topicindex.rest.entities.interfaces.RESTTranslatedTopicV1;
 
 public class XMLPreProcessorTestCase
 {
-	private static final XMLPreProcessor<RESTTopicV1> topicPreProcessor = new XMLPreProcessor<RESTTopicV1>();
-	private static final XMLPreProcessor<RESTTranslatedTopicV1> translatedTopicPreProcessor = new XMLPreProcessor<RESTTranslatedTopicV1>();
+	private static final XMLPreProcessor<RESTTopicV1, RESTTopicCollectionV1> topicPreProcessor = new XMLPreProcessor<RESTTopicV1, RESTTopicCollectionV1>();
+	private static final XMLPreProcessor<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1> translatedTopicPreProcessor = new XMLPreProcessor<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1>();
 	private static SpecTopic specTopic;
 	private static SpecTopic specTranslatedTopic;
 	private static RESTTopicV1 topic;
@@ -86,10 +89,10 @@ public class XMLPreProcessorTestCase
 		bugzillaWriter.setValue("lnewson@redhat.com");
 		
 		/* Create the REST collections */
-		final BaseRestCollectionV1<RESTPropertyTagV1> writerTags = new BaseRestCollectionV1<RESTPropertyTagV1>();
+		final RESTPropertyTagCollectionV1 writerTags = new RESTPropertyTagCollectionV1();
 		writerTags.addItem(bugzillaWriter);
 		
-		final BaseRestCollectionV1<RESTPropertyTagV1> releaseTags = new BaseRestCollectionV1<RESTPropertyTagV1>();
+		final RESTPropertyTagCollectionV1 releaseTags = new RESTPropertyTagCollectionV1();
 		releaseTags.addItem(bugzillaProduct);
 		releaseTags.addItem(bugzillaKeywords);
 		releaseTags.addItem(bugzillaComponent);
@@ -103,7 +106,7 @@ public class XMLPreProcessorTestCase
 		releaseTag.setProperties(releaseTags);
 		
 		/* Add the tags to the topics */
-		final BaseRestCollectionV1<RESTTagV1> topicTags = new BaseRestCollectionV1<RESTTagV1>();
+		final RESTTagCollectionV1 topicTags = new RESTTagCollectionV1();
 		topicTags.addItem(assignedWriter);
 		topicTags.addItem(releaseTag);
 		

@@ -11,6 +11,8 @@ import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
 import com.redhat.contentspec.interfaces.ShutdownAbleApp;
 import com.redhat.ecs.commonutils.ZipUtilities;
 import com.redhat.ecs.services.docbookcompiling.DocbookBuilderConstants;
+import com.redhat.topicindex.rest.collections.RESTTopicCollectionV1;
+import com.redhat.topicindex.rest.collections.RESTTranslatedTopicCollectionV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTBlobConstantV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTUserV1;
 import com.redhat.topicindex.rest.entities.interfaces.RESTTopicV1;
@@ -34,7 +36,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	private final RESTReader reader;
 	private final RESTBlobConstantV1 rocbookdtd;
 	private final RESTManager restManager;	
-	private DocbookBuilder<?> docbookBuilder;
+	private DocbookBuilder<?, ?> docbookBuilder;
 
 	public ContentSpecBuilder(final RESTManager restManager) throws InvalidParameterException, InternalProcessingException {
 		this.restManager = restManager;
@@ -74,9 +76,9 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 		if (requester == null) throw new BuilderCreationException("A user must be specified as the user who requested the build.");
 		
 		if (contentSpec.getLocale() == null || contentSpec.getLocale().equals("en-US"))
-			docbookBuilder = new DocbookBuilder<RESTTopicV1>(restManager, rocbookdtd, "en-US");
+			docbookBuilder = new DocbookBuilder<RESTTopicV1, RESTTopicCollectionV1>(restManager, rocbookdtd, "en-US");
 		else
-			docbookBuilder = new DocbookBuilder<RESTTranslatedTopicV1>(restManager, rocbookdtd, "en-US");
+			docbookBuilder = new DocbookBuilder<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1>(restManager, rocbookdtd, "en-US");
 			
 		final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, null);
 		
