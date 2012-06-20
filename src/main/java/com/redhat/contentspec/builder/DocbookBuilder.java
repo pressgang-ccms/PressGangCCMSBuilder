@@ -1197,7 +1197,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 		/* add any compiler errors */
 		if (!docbookBuildingOptions.getSuppressErrorsPage() && errorDatabase.hasItems(locale))
 		{
-			final String compilerOutput = buildErrorChapter(locale);
+			final String compilerOutput = DocbookUtils.addXMLBoilerplate(buildErrorChapter(locale), this.escapedTitle + ".ent", "chapter");
 			files.put(BOOK_LOCALE_FOLDER + "Errors.xml", StringUtilities.getStringBytes(StringUtilities.cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
 			bookXIncludes.append("	<xi:include href=\"Errors.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
 		}
