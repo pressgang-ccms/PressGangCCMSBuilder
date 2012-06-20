@@ -1605,7 +1605,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					{
 						/* Expand the Langauge Images */
 						final ExpandDataTrunk expand = new ExpandDataTrunk();
-						expand.setBranches(CollectionUtilities.toArrayList(new ExpandDataTrunk(new ExpandDataDetails(RESTImageV1.LANGUAGEIMAGES_NAME))));
+						final ExpandDataTrunk expandLanguages = new ExpandDataTrunk(new ExpandDataDetails(RESTImageV1.LANGUAGEIMAGES_NAME));
+						
+						expandLanguages.setBranches(CollectionUtilities.toArrayList(new ExpandDataTrunk(new ExpandDataDetails(RESTLanguageImageV1.IMAGEDATA_NAME))));
+						expand.setBranches(CollectionUtilities.toArrayList(expandLanguages));
+						
 						final String expandString = mapper.writeValueAsString(expand);
 						final String expandEncodedString = URLEncoder.encode(expandString, "UTF-8");
 						
