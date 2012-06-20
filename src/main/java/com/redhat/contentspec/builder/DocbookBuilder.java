@@ -1028,17 +1028,18 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T>> implements ShutdownAbl
 			final Node idAttribute = attributes.getNamedItem("id");
 			if (idAttribute != null)
 			{
-				String idAttributeValue = idAttribute.getNodeValue();
+				final String idAttributeValue = idAttribute.getNodeValue();
+				String fixedIdAttributeValue = idAttributeValue;
 				
 				if (specTopic.getDuplicateId() != null)
-					idAttributeValue += "-" + specTopic.getDuplicateId();
+					fixedIdAttributeValue += "-" + specTopic.getDuplicateId();
 				
 				if (!isUniqueAttributeId(idAttributeValue, specTopic.getDBId(), usedIdAttributes))
-					idAttributeValue += "-" + specTopic.getStep();
+					fixedIdAttributeValue += "-" + specTopic.getStep();
 				
-				setUniqueIdReferences(node, idAttribute.getNodeValue(), idAttributeValue);
+				setUniqueIdReferences(node, idAttributeValue, fixedIdAttributeValue);
 				
-				idAttribute.setNodeValue(idAttributeValue);
+				idAttribute.setNodeValue(fixedIdAttributeValue);
 			}
 		}
 
