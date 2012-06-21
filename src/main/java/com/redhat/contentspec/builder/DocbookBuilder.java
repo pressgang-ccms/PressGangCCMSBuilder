@@ -1628,7 +1628,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 							}
 						}
 						
-						if (langaugeImageFile != null)
+						if (langaugeImageFile != null && langaugeImageFile.getImageData() != null)
 						{
 							success = true;
 							files.put(BOOK_LOCALE_FOLDER + imageLocation.getImageName(), langaugeImageFile.getImageData());
