@@ -1611,9 +1611,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						expand.setBranches(CollectionUtilities.toArrayList(expandLanguages));
 						
 						final String expandString = mapper.writeValueAsString(expand);
-						final String expandEncodedString = URLEncoder.encode(expandString, "UTF-8");
+						//final String expandEncodedString = URLEncoder.encode(expandString, "UTF-8");
 						
-						final RESTImageV1 imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(topicID), expandEncodedString);
+						final RESTImageV1 imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(topicID), expandString);
 	
 						/* Find the image that matches this locale. If the locale isn't found then use the default locale */
 						RESTLanguageImageV1 langaugeImageFile = null;
