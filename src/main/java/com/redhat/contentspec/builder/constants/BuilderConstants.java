@@ -88,7 +88,7 @@ public class BuilderConstants {
 	public static final String INLINE_XML_ELEMENTS	= "code,prompt,command,firstterm,ulink,guilabel,filename,replaceable,parameter,literal,classname,sgmltag," 
 			+ "guibutton,guimenuitem,guimenu,menuchoice,citetitle,revnumber,application,systemitem,acronym,keycap,emphasis,package,quote,trademark,abbrev,phrase,"
 			+ "anchor,citation,glossterm,link,xref,markup,tag,keycode,keycombo,accel,guisubmenu,keysym,shortcut,mousebutton,constant,errorcode,errorname,errortype,"
-			+ "function,msgtext,property,returnvalue,symbol,token,varname,database,email,hardware,option,optional,type,methodname";
+			+ "function,msgtext,property,returnvalue,symbol,token,varname,database,email,hardware,option,optional,type,methodname,interfacename";
 	
 	public static final String CONTENTS_INLINE_XML_ELEMENTS = "title,term";
 	
