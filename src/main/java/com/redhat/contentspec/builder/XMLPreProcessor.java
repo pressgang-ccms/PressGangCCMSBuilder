@@ -344,7 +344,7 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T, U>, U extends BaseRest
 	{	
 		final T topic = (T) specTopic.getTopic();
 		
-		if ((docbookBuildingOptions != null && docbookBuildingOptions.getInsertSurveyLink()) || searchTagsUrl != null)
+		if ((docbookBuildingOptions != null && (docbookBuildingOptions.getInsertSurveyLink() || docbookBuildingOptions.getInsertEditorLinks())) || searchTagsUrl != null)
 		{
 			/* SIMPLESECT TO HOLD OTHER LINKS */
 			final Element bugzillaSection = document.createElement("simplesect");
@@ -371,6 +371,24 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T, U>, U extends BaseRest
 	
 				final Text endSurveyText = document.createTextNode(".");
 				surveyPara.appendChild(endSurveyText);
+			}
+			
+			// EDITOR LINK
+			if (docbookBuildingOptions != null && docbookBuildingOptions.getInsertEditorLinks())
+			{
+				final String editorUrl = topic instanceof RESTTopicV1 ? ComponentTopicV1.returnEditorURL((RESTTopicV1)topic) : ComponentTranslatedTopicV1.returnEditorURL((RESTTranslatedTopicV1)topic);
+				
+				final Element editorLinkPara = document.createElement("para");
+				editorLinkPara.setAttribute("role", DocbookBuilderConstants.ROLE_CREATE_BUG_PARA);
+				bugzillaSection.appendChild(editorLinkPara);
+	
+				final Element surveyULink = document.createElement("ulink");
+				editorLinkPara.appendChild(surveyULink);
+				surveyULink.setTextContent("Edit this topic");
+				surveyULink.setAttribute("url", editorUrl);
+	
+				final Text endSurveyText = document.createTextNode(".");
+				editorLinkPara.appendChild(endSurveyText);
 			}
 	
 			/* searchTagsUrl will be null for internal (i.e. HTML rendering) builds */
