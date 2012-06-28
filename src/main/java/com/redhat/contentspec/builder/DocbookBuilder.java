@@ -1565,6 +1565,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		/* download the image files that were identified in the processing stage */
 		int imageProgress = 0;
 		final int imageTotal = this.imageLocations.size();
+		final int showPercent = 5;
+		int lastPercent = 0;
 
 		for (final TopicImageData<T, U> imageLocation : this.imageLocations)
 		{
@@ -1661,7 +1663,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			}
 
 			final float progress = (float) imageProgress / (float) imageTotal * 100;
-			log.info("\tDownloading Images " + Math.round(progress) + "% done");
+			if (imageProgress - lastPercent >= showPercent)
+			{
+				log.info("\tDownloading Images " + Math.round(progress) + "% done");
+			}
 
 			++imageProgress;
 		}
