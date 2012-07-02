@@ -394,7 +394,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		addLevelAndTopicsToDatabase(contentSpec.getBaseLevel(), fixedUrlsSuccess);
 		
 		// Check if the app should be shutdown
-		if (isShuttingDown.get()) {
+		if (isShuttingDown.get())
+		{
 			return false;
 		}
 		
@@ -613,11 +614,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	private void doTopicPass(final BaseRestCollectionV1<T, U> topics, final boolean fixedUrlsSuccess, final Map<Integer, Set<String>> usedIdAttributes)
 	{
 		log.info("Doing " + locale + " First topic pass");
-		log.info("\tProcessing " + topics.getItems().size() + " Topics");
 		
 		/* Check that we have some topics to process */
 		if (topics != null && topics.getItems() != null)
 		{
+			log.info("\tProcessing " + topics.getItems().size() + " Topics");
 			
 			final int showPercent = 5;
 			final float total = topics.getItems().size();
@@ -787,6 +788,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	
 			}
 		}
+		else
+		{
+			log.info("\tProcessing 0 Topics");
+		}
 	}
 	
 	/**
@@ -800,10 +805,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	private void doSpecTopicPass(final ContentSpec contentSpec, final String searchTagsUrl, final Map<Integer, Set<String>> usedIdAttributes, final boolean fixedUrlsSuccess, final String buildName)
 	{	
 		log.info("Doing " + locale + " Spec Topic Pass");
-		log.info("\tProcessing " + specDatabase.getAllSpecTopics().size() + " Spec Topics");
+		final List<SpecTopic> specTopics = specDatabase.getAllSpecTopics();
+		
+		log.info("\tProcessing " + specTopics.size() + " Spec Topics");
 		
 		final int showPercent = 5;
-		final float total = specDatabase.getAllSpecTopics().size();
+		final float total = specTopics.size();
 		float current = 0;
 		int lastPercent = 0;
 		
@@ -811,7 +818,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		final TocTopicDatabase<T, U> relatedTopicsDatabase = new TocTopicDatabase<T, U>();
 		relatedTopicsDatabase.setTopics(specDatabase.<T, U>getAllTopics());
 		
-		for (final SpecTopic specTopic : specDatabase.getAllSpecTopics())
+		for (final SpecTopic specTopic : specTopics)
 		{
 			// Check if the app should be shutdown
 			if (isShuttingDown.get()) {
@@ -1551,37 +1558,40 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				String topicFileName;
 				
 				final T topic = (T) specTopic.getTopic();
-				if (topic instanceof RESTTranslatedTopicV1)
+				if (topic != null)
 				{
-					if (fixedUrlsSuccess)
-						topicFileName = ComponentTranslatedTopicV1.returnXrefPropertyOrId((RESTTranslatedTopicV1) topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
+					if (topic instanceof RESTTranslatedTopicV1)
+					{
+						if (fixedUrlsSuccess)
+							topicFileName = ComponentTranslatedTopicV1.returnXrefPropertyOrId((RESTTranslatedTopicV1) topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
+						else
+						{
+							topicFileName = ComponentTranslatedTopicV1.returnXRefID((RESTTranslatedTopicV1) topic);
+						}
+					}
 					else
 					{
-						topicFileName = ComponentTranslatedTopicV1.returnXRefID((RESTTranslatedTopicV1) topic);
+						if (fixedUrlsSuccess)
+							topicFileName = ComponentTopicV1.returnXrefPropertyOrId((RESTTopicV1) topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
+						else
+						{
+							topicFileName = ComponentTopicV1.returnXRefID((RESTTopicV1) topic);
+						}
 					}
-				}
-				else
-				{
-					if (fixedUrlsSuccess)
-						topicFileName = ComponentTopicV1.returnXrefPropertyOrId((RESTTopicV1) topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
-					else
-					{
-						topicFileName = ComponentTopicV1.returnXRefID((RESTTopicV1) topic);
-					}
-				}
-				
-				if (specTopic.getDuplicateId() != null)
-					topicFileName += "-" + specTopic.getDuplicateId();			
 					
-				topicFileName += ".xml";
-				
-				final Element topicNode = chapter.createElement("xi:include");
-				topicNode.setAttribute("href", "topics/" + topicFileName);
-				topicNode.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
-				parentNode.appendChild(topicNode);
-				
-				final String topicXML = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", rootElementName);
-				files.put(BOOK_TOPICS_FOLDER + topicFileName, topicXML.getBytes());
+					if (specTopic.getDuplicateId() != null)
+						topicFileName += "-" + specTopic.getDuplicateId();			
+						
+					topicFileName += ".xml";
+					
+					final Element topicNode = chapter.createElement("xi:include");
+					topicNode.setAttribute("href", "topics/" + topicFileName);
+					topicNode.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
+					parentNode.appendChild(topicNode);
+					
+					final String topicXML = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", rootElementName);
+					files.put(BOOK_TOPICS_FOLDER + topicFileName, topicXML.getBytes());
+				}
 			}
 		}
 	}
@@ -2040,7 +2050,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	@SuppressWarnings("unchecked")
 	private void processImageLocations()
 	{
-		for (final Integer topicId : specDatabase.getTopicIds())
+		final List<Integer> topicIds = specDatabase.getTopicIds();
+		for (final Integer topicId : topicIds)
 		{
 			final SpecTopic specTopic = specDatabase.getSpecTopicsForTopicID(topicId).get(0);
 			final T topic = (T) specTopic.getTopic();
