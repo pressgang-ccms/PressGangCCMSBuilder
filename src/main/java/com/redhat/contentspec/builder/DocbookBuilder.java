@@ -77,6 +77,7 @@ import com.redhat.topicindex.rest.exceptions.InternalProcessingException;
 import com.redhat.topicindex.rest.exceptions.InvalidParameterException;
 import com.redhat.topicindex.rest.expand.ExpandDataDetails;
 import com.redhat.topicindex.rest.expand.ExpandDataTrunk;
+import com.redhat.topicindex.zanata.ZanataDetails;
 
 public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestCollectionV1<T, U>> implements ShutdownAbleApp
 {
@@ -95,6 +96,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	private final RESTManager restManager;
 	private final RESTBlobConstantV1 rocbookdtd;
 	private final String defaultLocale;
+	private final ZanataDetails zanataDetails;
 	
 	private final RESTStringConstantV1 errorEmptyTopic;
 	private final RESTStringConstantV1 errorInvalidInjectionTopic;
@@ -135,6 +137,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	
 	public DocbookBuilder(final RESTManager restManager, final RESTBlobConstantV1 rocbookDtd, final String defaultLocale) throws InvalidParameterException, InternalProcessingException
 	{
+		this(restManager, rocbookDtd, defaultLocale, new ZanataDetails());
+	}
+	
+	public DocbookBuilder(final RESTManager restManager, final RESTBlobConstantV1 rocbookDtd, final String defaultLocale, final ZanataDetails zanataDetails) throws InvalidParameterException, InternalProcessingException
+	{
 		reader = restManager.getReader();
 		this.restManager = restManager;
 		this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
@@ -143,6 +150,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		this.errorInvalidValidationTopic = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.CSP_INVALID_VALIDATION_TOPIC_ERROR_XML_ID, "");
 		
 		this.defaultLocale = defaultLocale;
+		this.zanataDetails = zanataDetails;
 		
 		/*
 		 * Get the XML formatting details. These are used to pretty-print
@@ -870,6 +878,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					{
 						xmlPreProcessor.processPrerequisiteInjections(specTopic, doc, fixedUrlsSuccess);
 						xmlPreProcessor.processPrevRelationshipInjections(specTopic, doc, fixedUrlsSuccess);
+						xmlPreProcessor.processLinkListRelationshipInjections(specTopic, doc, fixedUrlsSuccess);
 						xmlPreProcessor.processNextRelationshipInjections(specTopic, doc, fixedUrlsSuccess);
 						xmlPreProcessor.processSeeAlsoInjections(specTopic, doc, fixedUrlsSuccess);
 						
@@ -1018,7 +1027,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				else
 				{
 					/* add the standard boilerplate xml */
-					xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, contentSpec.getBugzillaOptions(), docbookBuildingOptions, buildName, searchTagsUrl, buildDate);
+					xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, contentSpec.getBugzillaOptions(), docbookBuildingOptions, buildName, searchTagsUrl, buildDate, zanataDetails);
 					
 					/*
 					 * make sure the XML is valid docbook after the standard
