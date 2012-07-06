@@ -36,6 +36,7 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
 		this.setSuppressContentSpecPage(docbookBuildingOptions.getSuppressContentSpecPage());
 		this.setSuppressErrorsPage(docbookBuildingOptions.getSuppressErrorsPage());
 		this.setTaskAndOverviewOnly(docbookBuildingOptions.getTaskAndOverviewOnly());
+		this.setInsertEditorLinks(docbookBuildingOptions.getInsertEditorLinks());
 		
 		this.setBookEdition(docbookBuildingOptions.getBookEdition());
 		this.setBookProduct(docbookBuildingOptions.getBookProduct());
