@@ -252,6 +252,18 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T, U>, U extends BaseRest
 			/* build the bugzilla url options */
 			String bugzillaURLComponents = "";
 			
+			bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
+			bugzillaURLComponents += "cf_environment=" + bugzillaEnvironment;
+
+			bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
+			bugzillaURLComponents += "cf_build_id=" + bugzillaBuildID;
+			
+			if (bugzillaAssignedTo != null)
+			{
+				bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
+				bugzillaURLComponents += "assigned_to=" + bugzillaAssignedTo;
+			}
+			
 			/* check the content spec options first */
 			if (bzOptions != null && bzOptions.getProduct() != null)
 			{
@@ -269,18 +281,6 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T, U>, U extends BaseRest
 					bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
 					bugzillaURLComponents += "version=" + URLEncoder.encode(bzOptions.getVersion(), "UTF-8");
 				}
-
-				if (bugzillaAssignedTo != null)
-				{
-					bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
-					bugzillaURLComponents += "assigned_to=" + bugzillaAssignedTo;
-				}
-
-				bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
-				bugzillaURLComponents += "cf_environment=" + bugzillaEnvironment;
-
-				bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
-				bugzillaURLComponents += "cf_build_id=" + bugzillaBuildID;
 			}
 			/* we need at least a product*/
 			else if (bugzillaProduct != null)
@@ -305,24 +305,12 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T, U>, U extends BaseRest
 					bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
 					bugzillaURLComponents += "keywords=" + bugzillaKeywords;
 				}
-
-				if (bugzillaAssignedTo != null)
-				{
-					bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
-					bugzillaURLComponents += "assigned_to=" + bugzillaAssignedTo;
-				}
-
-				bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
-				bugzillaURLComponents += "cf_environment=" + bugzillaEnvironment;
-
-				bugzillaURLComponents += bugzillaURLComponents.isEmpty() ? "?" : "&amp;";
-				bugzillaURLComponents += "cf_build_id=" + bugzillaBuildID;
 			}
 
 			/* build the bugzilla url with the base components */
-			String bugZillaUrl = "https://bugzilla.redhat.com/enter_bug.cgi" + bugzillaURLComponents;
+			String bugzillaUrl = "https://bugzilla.redhat.com/enter_bug.cgi" + bugzillaURLComponents;
 
-			bugzillaULink.setAttribute("url", bugZillaUrl);
+			bugzillaULink.setAttribute("url", bugzillaUrl);
 
 			/*
 			 * only add the elements to the XML DOM if there was no exception
@@ -1236,14 +1224,14 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T, U>, U extends BaseRest
 			for (final TopicRelationship prereq: topic.getPrerequisiteTopicRelationships())
 			{
 				final SpecTopic relatedTopic = prereq.getSecondaryRelationship();
-				list.add(DocbookUtils.buildXRef(doc, relatedTopic.getUniqueLinkId(useFixedUrls)));
+				list.add(DocbookUtils.buildXRef(doc, relatedTopic.getUniqueLinkId(useFixedUrls), "prereq"));
 			}
 			
 			// Add the Level Prerequisites
 			for (final TargetRelationship prereq: topic.getPrerequisiteLevelRelationships())
 			{
 				final Level relatedLevel = (Level) prereq.getSecondaryElement();
-				list.add(DocbookUtils.buildXRef(doc, relatedLevel.getUniqueLinkId(useFixedUrls)));
+				list.add(DocbookUtils.buildXRef(doc, relatedLevel.getUniqueLinkId(useFixedUrls), "prereq"));
 			}
 			
 			// Wrap the items into an itemized list
@@ -1287,14 +1275,14 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T, U>, U extends BaseRest
 		{
 			final SpecTopic relatedTopic = prereq.getSecondaryRelationship();
 			
-			list.add(DocbookUtils.buildXRef(doc, relatedTopic.getUniqueLinkId(useFixedUrls)));
+			list.add(DocbookUtils.buildXRef(doc, relatedTopic.getUniqueLinkId(useFixedUrls), "see-also"));
 		}
 		
 		// Add the Level Relationships
 		for (final TargetRelationship prereq: topic.getRelatedLevelRelationships())
 		{
 			final Level relatedLevel = (Level) prereq.getSecondaryElement();
-			list.add(DocbookUtils.buildXRef(doc, relatedLevel.getUniqueLinkId(useFixedUrls)));
+			list.add(DocbookUtils.buildXRef(doc, relatedLevel.getUniqueLinkId(useFixedUrls), "see-also"));
 		}
 		
 		// Wrap the items into an itemized list
@@ -1332,14 +1320,14 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T, U>, U extends BaseRest
 		{
 			final SpecTopic relatedTopic = prereq.getSecondaryRelationship();
 			
-			list.add(DocbookUtils.buildXRef(doc, relatedTopic.getUniqueLinkId(useFixedUrls)));
+			list.add(DocbookUtils.buildXRef(doc, relatedTopic.getUniqueLinkId(useFixedUrls), "link-list"));
 		}
 		
 		// Add the Level Relationships
 		for (final TargetRelationship prereq: topic.getLinkListLevelRelationships())
 		{
 			final Level relatedLevel = (Level) prereq.getSecondaryElement();
-			list.add(DocbookUtils.buildXRef(doc, relatedLevel.getUniqueLinkId(useFixedUrls)));
+			list.add(DocbookUtils.buildXRef(doc, relatedLevel.getUniqueLinkId(useFixedUrls), "link-list"));
 		}
 		
 		// Wrap the items into an itemized list

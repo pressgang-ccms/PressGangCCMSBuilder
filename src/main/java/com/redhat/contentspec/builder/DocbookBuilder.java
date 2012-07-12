@@ -335,7 +335,18 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		final boolean fixedUrlsSuccess;
 		if (contentSpec.getLocale() == null || contentSpec.getLocale().equals(defaultLocale))
 		{
-			final RESTTopicCollectionV1 normalTopics = reader.getTopicsByIds(CollectionUtilities.toArrayList(topicIds), false);
+			final RESTTopicCollectionV1 normalTopics;
+			
+			/* Ensure that the collection doesn't equal null */
+			final RESTTopicCollectionV1 topicCollection = reader.getTopicsByIds(CollectionUtilities.toArrayList(topicIds), false);
+			if (topicCollection == null)
+			{
+				normalTopics = new RESTTopicCollectionV1();
+			}
+			else
+			{
+				normalTopics = topicCollection;
+			}
 			
 			/* 
 			 * Fetch each topic that is a revision separately since this 
@@ -362,11 +373,23 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		}
 		else
 		{
-			final RESTTranslatedTopicCollectionV1 translatedTopics = reader.getTranslatedTopicsByTopicIds(CollectionUtilities.toArrayList(topicIds), contentSpec.getLocale());
+			final RESTTranslatedTopicCollectionV1 translatedTopics;
+			
+			/* Ensure that the collection doesn't equal null */
+			final RESTTranslatedTopicCollectionV1 topicCollection = reader.getTranslatedTopicsByTopicIds(CollectionUtilities.toArrayList(topicIds), contentSpec.getLocale());
+			if (topicCollection == null)
+			{
+				translatedTopics = new RESTTranslatedTopicCollectionV1();
+			}
+			else
+			{
+				translatedTopics = topicCollection;
+			}
+			
 			
 			// TODO handle building translations for topic revisions. (May need to extend the REST interface)
 			
-			List<Integer> dummyTopicIds = new ArrayList<Integer>(topicIds);
+			final List<Integer> dummyTopicIds = new ArrayList<Integer>(topicIds);
 			
 			/* Remove any topic ids for translated topics that were found */
 			if (translatedTopics != null && translatedTopics.getItems() != null)
