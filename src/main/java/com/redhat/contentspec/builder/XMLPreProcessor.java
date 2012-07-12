@@ -1264,7 +1264,7 @@ public class XMLPreProcessor<T extends RESTBaseTopicV1<T, U>, U extends BaseRest
 		// Create the paragraph and list of prerequisites.
 		if (topic.getRelatedRelationships().isEmpty()) return;
 		final Element formalParaEle = doc.createElement("formalpara");
-		formalParaEle.setAttribute("role", "refer-to-list");
+		formalParaEle.setAttribute("role", "see-also-list");
 		final Element formalParaTitleEle = doc.createElement("title");
 		formalParaTitleEle.setTextContent("See Also:");
 		formalParaEle.appendChild(formalParaTitleEle);

@@ -102,9 +102,11 @@ public class XMLUtilities {
     /**
      * Removes all of the child nodes from a parent node.
      */
-    public static void emptyNode(Node parent) {
-    	NodeList childNodes = parent.getChildNodes();
-		for (int i = childNodes.getLength() - 1; i >= 0; i--) {
+    public static void emptyNode(final Node parent)
+    {
+    	final NodeList childNodes = parent.getChildNodes();
+		for (int i = childNodes.getLength() - 1; i >= 0; i--)
+		{
 			Node childNode = childNodes.item(i);
 			childNode.getParentNode().removeChild(childNode);
 		}

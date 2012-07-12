@@ -158,7 +158,7 @@ public class XMLPreProcessorTestCase
 		/* Compare the processed topic XML to the expected XML output */
 		assertEquals(topicXml, "<section>\n\t<title>Test Topic</title>\n\t<para>\n\t\tThis is a Test Paragraph\n\t</para>\n\t<simplesect>\n" +
 					"\t\t<title/>\n\t\t<para role=\"RoleCreateBugPara\">\n" +
-					"\t\t\t<ulink url=\"https://bugzilla.redhat.com/enter_bug.cgi?product=JBoss+Enterprise+Application+Platform&amp;component=documentation&amp;version=6.0&amp;keywords=Documentation&amp;assigned_to=lnewson%40redhat.com&amp;cf_environment=Instance+Name%3A+Not+Defined%0ABuild%3A+null%0ABuild+Filter%3A+CSProcessor+Builder+Version+1.3%0ABuild+Name%3A+%0ABuild+Date%3A+" + buildDateString + "&amp;cf_build_id=" + bugzillaBuildID + "\">Report a bug</ulink>\n\t\t</para>\n\t</simplesect>\n</section>");
+					"\t\t\t<ulink url=\"https://bugzilla.redhat.com/enter_bug.cgi?cf_environment=Instance+Name%3A+Not+Defined%0ABuild%3A+null%0ABuild+Filter%3A+CSProcessor+Builder+Version+1.3%0ABuild+Name%3A+%0ABuild+Date%3A+" + buildDateString + "&amp;cf_build_id=" + bugzillaBuildID + "&amp;assigned_to=lnewson%40redhat.com&amp;product=JBoss+Enterprise+Application+Platform&amp;component=documentation&amp;version=6.0&amp;keywords=Documentation\">Report a bug</ulink>\n\t\t</para>\n\t</simplesect>\n</section>");
 		
 		/* Convert the translated document to a string so that it can be compared */
 		final String translatedTopicXml = XMLUtilities.convertNodeToString(translatedTopicDoc, Arrays.asList(BuilderConstants.VERBATIM_XML_ELEMENTS.split(",")), Arrays.asList(BuilderConstants.INLINE_XML_ELEMENTS.split(",")),
@@ -167,7 +167,7 @@ public class XMLPreProcessorTestCase
 		/* Compare the processed translated topic XML to the expected XML output */
 		assertEquals(translatedTopicXml, "<section>\n\t<title>Test Topic</title>\n\t<para>\n\t\tThis is a Test Paragraph\n\t</para>\n\t<simplesect>\n" +
 				"\t\t<title/>\n\t\t<para role=\"RoleCreateBugPara\">\n" +
-				"\t\t\t<ulink url=\"https://bugzilla.redhat.com/enter_bug.cgi?product=JBoss+Enterprise+Application+Platform&amp;component=documentation&amp;version=6.0&amp;keywords=Documentation&amp;assigned_to=lnewson%40redhat.com&amp;cf_environment=Instance+Name%3A+Not+Defined%0ABuild%3A+" + buildNameString + "%0ABuild+Filter%3A+null%0ABuild+Name%3A+%0ABuild+Date%3A+" + buildDateString + "&amp;cf_build_id=" + translatedBugzillaBuildID + "\">Report a bug</ulink>\n\t\t</para>\n\t</simplesect>\n</section>");
+				"\t\t\t<ulink url=\"https://bugzilla.redhat.com/enter_bug.cgi?cf_environment=Instance+Name%3A+Not+Defined%0ABuild%3A+" + buildNameString + "%0ABuild+Filter%3A+null%0ABuild+Name%3A+%0ABuild+Date%3A+" + buildDateString + "&amp;cf_build_id=" + translatedBugzillaBuildID + "&amp;assigned_to=lnewson%40redhat.com&amp;product=JBoss+Enterprise+Application+Platform&amp;component=documentation&amp;version=6.0&amp;keywords=Documentation\">Report a bug</ulink>\n\t\t</para>\n\t</simplesect>\n</section>");
 	}
 	
 	@Test
@@ -210,7 +210,7 @@ public class XMLPreProcessorTestCase
 		/* Compare the processed topic XML to the expected XML output */
 		assertEquals(topicXml, "<section>\n\t<title>Test Topic</title>\n\t<para>\n\t\tThis is a Test Paragraph\n\t</para>\n\t<simplesect>\n" +
 					"\t\t<title/>\n\t\t<para role=\"RoleCreateBugPara\">\n" +
-					"\t\t\t<ulink url=\"https://bugzilla.redhat.com/enter_bug.cgi?product=JBoss+Enterprise+SOA+Platform&amp;component=Documentation&amp;version=5.3.2&amp;assigned_to=lnewson%40redhat.com&amp;cf_environment=Instance+Name%3A+Not+Defined%0ABuild%3A+null%0ABuild+Filter%3A+CSProcessor+Builder+Version+1.3%0ABuild+Name%3A+%0ABuild+Date%3A+" + buildDateString + "&amp;cf_build_id=" + bugzillaBuildID + "\">Report a bug</ulink>\n\t\t</para>\n\t</simplesect>\n</section>");
+					"\t\t\t<ulink url=\"https://bugzilla.redhat.com/enter_bug.cgi?cf_environment=Instance+Name%3A+Not+Defined%0ABuild%3A+null%0ABuild+Filter%3A+CSProcessor+Builder+Version+1.3%0ABuild+Name%3A+%0ABuild+Date%3A+" + buildDateString + "&amp;cf_build_id=" + bugzillaBuildID + "&amp;assigned_to=lnewson%40redhat.com&amp;product=JBoss+Enterprise+SOA+Platform&amp;component=Documentation&amp;version=5.3.2\">Report a bug</ulink>\n\t\t</para>\n\t</simplesect>\n</section>");
 		
 		/* Convert the document to a string so that it can be compared */
 		final String translatedTopicXml = XMLUtilities.convertNodeToString(translatedTopicDoc, Arrays.asList(BuilderConstants.VERBATIM_XML_ELEMENTS.split(",")), Arrays.asList(BuilderConstants.INLINE_XML_ELEMENTS.split(",")),
@@ -219,6 +219,6 @@ public class XMLPreProcessorTestCase
 		/* Compare the processed translated topic XML to the expected XML output */
 		assertEquals(translatedTopicXml, "<section>\n\t<title>Test Topic</title>\n\t<para>\n\t\tThis is a Test Paragraph\n\t</para>\n\t<simplesect>\n" +
 				"\t\t<title/>\n\t\t<para role=\"RoleCreateBugPara\">\n" +
-				"\t\t\t<ulink url=\"https://bugzilla.redhat.com/enter_bug.cgi?product=JBoss+Enterprise+SOA+Platform&amp;component=Documentation&amp;version=5.3.2&amp;assigned_to=lnewson%40redhat.com&amp;cf_environment=Instance+Name%3A+Not+Defined%0ABuild%3A+" + buildNameString + "%0ABuild+Filter%3A+null%0ABuild+Name%3A+%0ABuild+Date%3A+" + buildDateString + "&amp;cf_build_id=" + translatedBugzillaBuildID + "\">Report a bug</ulink>\n\t\t</para>\n\t</simplesect>\n</section>");
+				"\t\t\t<ulink url=\"https://bugzilla.redhat.com/enter_bug.cgi?cf_environment=Instance+Name%3A+Not+Defined%0ABuild%3A+" + buildNameString + "%0ABuild+Filter%3A+null%0ABuild+Name%3A+%0ABuild+Date%3A+" + buildDateString + "&amp;cf_build_id=" + translatedBugzillaBuildID + "&amp;assigned_to=lnewson%40redhat.com&amp;product=JBoss+Enterprise+SOA+Platform&amp;component=Documentation&amp;version=5.3.2\">Report a bug</ulink>\n\t\t</para>\n\t</simplesect>\n</section>");
 	}
 }
