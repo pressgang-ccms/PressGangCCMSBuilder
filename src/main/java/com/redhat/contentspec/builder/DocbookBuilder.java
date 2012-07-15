@@ -1,5 +1,9 @@
 package com.redhat.contentspec.builder;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
 import java.net.URLEncoder;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -1295,7 +1299,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	{
 		log.info("\tAdding standard files to Publican ZIP file");
 		
-		final Map<String, String> variables = docbookBuildingOptions.getOverrides();
+		final Map<String, String> overrides = docbookBuildingOptions.getOverrides();
 		
 		final String bookInfo = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_INFO_XML_ID, "").getValue();
 		final String bookXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_XML_ID, "").getValue();
@@ -1343,7 +1347,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		files.put(BOOK_FOLDER + "publican.cfg", fixedPublicanCfg.getBytes());
 		
 		// Setup Book_Info.xml
-		final String pubsNumber = (variables.containsKey("pubsnumber") && variables.containsKey("pubsnumber")) ? variables.get("pubsnumber") : (contentSpec.getPubsNumber() == null ? BuilderConstants.PUBSNUMBER_DEFAULT : contentSpec.getPubsNumber().toString());
+		final String pubsNumber = overrides.containsKey("pubsnumber") ? overrides.get("pubsnumber") : (contentSpec.getPubsNumber() == null ? BuilderConstants.PUBSNUMBER_DEFAULT : contentSpec.getPubsNumber().toString());
 		String fixedBookInfo = bookInfo.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.TITLE_REGEX, contentSpec.getTitle());
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX, contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : contentSpec.getSubtitle());
@@ -1362,7 +1366,41 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		files.put(BOOK_LOCALE_FOLDER + "Book_Info.xml", fixedBookInfo.getBytes());
 		
 		// Setup Author_Group.xml
-		buildAuthorGroup(contentSpec, files);
+		if (overrides.containsKey("Author_Group.xml"))
+		{
+			final File author_grp = new File(overrides.get("Author_Group.xml"));
+			if (author_grp.exists() && author_grp.isFile())
+			{
+				try
+				{
+					final FileInputStream fis = new FileInputStream(author_grp);
+					final BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
+					final StringBuilder buffer = new StringBuilder();
+					String line = "";
+					while ((line = reader.readLine()) != null)
+					{
+						buffer.append(line + "\n");
+					}
+					
+					// Add the parsed file to the book
+					files.put(BOOK_LOCALE_FOLDER + "Author_Group.xml", buffer.toString().getBytes());
+				}
+				catch (Exception e)
+				{
+					log.error(e.getMessage());
+					buildAuthorGroup(contentSpec, files);
+				}
+			}
+			else
+			{
+				log.error("Author_Group.xml override is an invalid file. Using the default Author_Group.xml instead.");
+				buildAuthorGroup(contentSpec, files);
+			}
+		}
+		else
+		{
+			buildAuthorGroup(contentSpec, files);
+		}
 		
 		if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT))
 		{
@@ -1378,7 +1416,41 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		}
 		
 		// Setup Revision_History.xml
-		buildRevisionHistory(contentSpec, requester, files);
+		if (overrides.containsKey("Revision_History.xml"))
+		{
+			final File rev_history = new File(overrides.get("Revision_History.xml"));
+			if (rev_history.exists() && rev_history.isFile())
+			{
+				try
+				{
+					final FileInputStream fis = new FileInputStream(rev_history);
+					final BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
+					final StringBuilder buffer = new StringBuilder();
+					String line = "";
+					while ((line = reader.readLine()) != null)
+					{
+						buffer.append(line + "\n");
+					}
+					
+					// Add the parsed file to the book
+					files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", buffer.toString().getBytes());
+				}
+				catch (Exception e)
+				{
+					log.error(e.getMessage());
+					buildRevisionHistory(contentSpec, requester, files);
+				}
+			}
+			else
+			{
+				log.error("Revision_History.xml override is an invalid file. Using the default Revision_History.xml instead.");
+				buildRevisionHistory(contentSpec, requester, files);
+			}
+		}
+		else
+		{
+			buildRevisionHistory(contentSpec, requester, files);
+		}
 		
 		// Setup the <<contentSpec.title>>.ent file
 		String entFile = bookEnt.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);

@@ -62,8 +62,8 @@ public class BuilderConstants {
 
 	public static final String BRAND_DEFAULT			= "common";
 	public static final String SUBTITLE_DEFAULT			= "Subtitle goes here";
-	public static final String EDITION_DEFAULT			= "0";
-	public static final String PUBSNUMBER_DEFAULT		= "0";
+	public static final String EDITION_DEFAULT			= "1";
+	public static final String PUBSNUMBER_DEFAULT		= "1";
 	
 	public static final String DEFAULT_AUTHOR_FIRSTNAME	= "CS Builder";
 	public static final String DEFAULT_AUTHOR_LASTNAME	= "Robot";
