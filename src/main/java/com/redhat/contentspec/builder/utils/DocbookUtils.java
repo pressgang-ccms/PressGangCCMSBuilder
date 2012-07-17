@@ -7,10 +7,10 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 /*
- * A class to add more functionality to the com.redhat.topicindex.utils.docbookbuilding.DocbookUtils class.
+ * A class to add more functionality to the com.redhat.ecs.commonutils.DocBookUtilities class.
  */
 public class DocbookUtils extends
-		com.redhat.ecs.services.docbookcompiling.DocbookUtils {
+		com.redhat.ecs.commonutils.DocBookUtilities {
 	
 	/** A prefix for error xref ids */
 	private static final String ERROR_XREF_ID_PREFIX = "TagErrorXRef";

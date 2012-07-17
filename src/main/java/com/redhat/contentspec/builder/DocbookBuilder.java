@@ -731,8 +731,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						if (topicDoc != null)
 						{
 							/* Ensure the topic is wrapped in a section and the title matches the topic */
-							DocbookUtils.wrapDocumentInSection(topicDoc);
-							DocbookUtils.setSectionTitle(topic.getTitle(), topicDoc);
+							DocBookUtilities.wrapDocumentInSection(topicDoc);
+							DocBookUtilities.setSectionTitle(topic.getTitle(), topicDoc);
 						}
 						else
 						{
@@ -1253,7 +1253,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				}
 				else if (docbookBuildingOptions.isAllowEmptySections())
 				{
-					bookXIncludes.append(DocbookUtils.wrapInPara("No Content"));
+					bookXIncludes.append(DocBookUtilities.wrapInPara("No Content"));
 				}
 			}
 		}
@@ -1270,7 +1270,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		/* build the content specification page */
 		if (!docbookBuildingOptions.getSuppressContentSpecPage())
 		{
-			files.put(BOOK_LOCALE_FOLDER + "Build_Content_Specification.xml", DocbookUtils.buildAppendix(DocbookUtils.wrapInPara("<programlisting>" + XMLUtilities.wrapStringInCDATA(contentSpec.toString()) + "</programlisting>"), "Build Content Specification").getBytes());
+			files.put(BOOK_LOCALE_FOLDER + "Build_Content_Specification.xml", DocBookUtilities.buildAppendix(DocBookUtilities.wrapInPara("<programlisting>" + XMLUtilities.wrapStringInCDATA(contentSpec.toString()) + "</programlisting>"), "Build Content Specification").getBytes());
 			bookXIncludes.append("	<xi:include href=\"Build_Content_Specification.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
 		}
 		
@@ -2110,14 +2110,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					url = ComponentTopicV1.returnSkynetURL((RESTTopicV1) topic);
 				}
 
-				topicErrorItems.add(DocbookUtils.buildListItem("INFO: " + tags));
-				topicErrorItems.add(DocbookUtils.buildListItem("INFO: <ulink url=\"" + url + "\">Topic URL</ulink>"));
+				topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + tags));
+				topicErrorItems.add(DocBookUtilities.buildListItem("INFO: <ulink url=\"" + url + "\">Topic URL</ulink>"));
 
 				for (final String error : topicErrorData.getItemsOfType(TopicErrorDatabase.ERROR))
-					topicErrorItems.add(DocbookUtils.buildListItem("ERROR: " + error));
+					topicErrorItems.add(DocBookUtilities.buildListItem("ERROR: " + error));
 
 				for (final String warning : topicErrorData.getItemsOfType(TopicErrorDatabase.WARNING))
-					topicErrorItems.add(DocbookUtils.buildListItem("WARNING: " + warning));
+					topicErrorItems.add(DocBookUtilities.buildListItem("WARNING: " + warning));
 
 				/*
 				 * this should never be false, because a topic will only be
@@ -2139,7 +2139,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					}
 					final String id = topic instanceof RESTTranslatedTopicV1 ? ComponentTranslatedTopicV1.returnErrorXRefID((RESTTranslatedTopicV1) topic) : ComponentTopicV1.returnErrorXRefID((RESTTopicV1) topic);
 
-					errorItemizedLists += DocbookUtils.wrapListItems(topicErrorItems, title, id);
+					errorItemizedLists += DocBookUtilities.wrapListItems(topicErrorItems, title, id);
 				}
 			}
 		}
@@ -2148,7 +2148,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			errorItemizedLists = "<para>No Errors Found</para>";
 		}
 
-		return DocbookUtils.buildChapter(errorItemizedLists, "Compiler Output");
+		return DocBookUtilities.buildChapter(errorItemizedLists, "Compiler Output");
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -2283,7 +2283,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			log.debug(ExceptionUtilities.getStackTrace(ex));
 			System.exit(-1);
 		}
-		DocbookUtils.setSectionTitle(topic.getTitle(), doc);
+		DocBookUtilities.setSectionTitle(topic.getTitle(), doc);
 		processTopicID(topic, doc, fixedUrlsSuccess);
 		return doc;
 	}
@@ -2304,7 +2304,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			System.exit(-1);
 		}
 		topic.setXmlDocument(doc);
-		DocbookUtils.setSectionTitle(topic.getTitle(), doc);
+		DocBookUtilities.setSectionTitle(topic.getTitle(), doc);
 		processTopicID((T) topic.getTopic(), doc, fixedUrlsSuccess);
 	}
 
