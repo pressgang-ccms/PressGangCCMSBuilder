@@ -697,18 +697,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				if (topicXML == null || topicXML.equals(""))
 				{
 					// Create an empty topic with the topic title from the resource file
-					String topicXMLErrorTemplate = errorEmptyTopic.getValue();
-					topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
-					
-					// Set the topic id in the error
-					if (topic instanceof RESTTranslatedTopicV1)
-					{
-						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, topicId + ", Revision " + ((RESTTranslatedTopicV1) topic).getTopicRevision());
-					}
-					else
-					{
-						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topicId));
-					}
+					final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorEmptyTopic.getValue());
 					
 					errorDatabase.addWarning(topic, BuilderConstants.EMPTY_TOPIC_XML);
 					topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, fixedUrlsSuccess);
@@ -736,31 +725,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						}
 						else
 						{
-							String topicXMLErrorTemplate = errorInvalidValidationTopic.getValue();
-							topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
-							
-							// Set the topic id in the error
-							final String errorXRefID;
-							if (topic instanceof RESTTranslatedTopicV1)
-							{
-								topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, topicId + ", Revision " + ((RESTTranslatedTopicV1) topic).getTopicRevision());
-								errorXRefID = ComponentTranslatedTopicV1.returnErrorXRefID((RESTTranslatedTopicV1) topic);
-							}
-							else
-							{
-								topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topicId));
-								errorXRefID = ComponentTopicV1.returnErrorXRefID((RESTTopicV1) topic);
-							}
-							
-							// Add the link to the errors page. If the errors page is suppressed then remove the injection point.
-							if (!docbookBuildingOptions.getSuppressErrorsPage())
-							{
-								topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + errorXRefID + "\"/> for more detailed information.</para>");
-							}
-							else
-							{
-								topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
-							}
+							final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorInvalidValidationTopic.getValue());
 							
 							errorDatabase.addError(topic, BuilderConstants.INVALID_XML_CONTENT);
 							topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, fixedUrlsSuccess);
@@ -768,31 +733,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					}
 					catch (SAXException ex)
 					{
-						String topicXMLErrorTemplate = errorInvalidValidationTopic.getValue();
-						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
-						
-						// Set the topic id in the error
-						final String errorXRefID;
-						if (topic instanceof RESTTranslatedTopicV1)
-						{
-							topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, topicId + ", Revision " + ((RESTTranslatedTopicV1) topic).getTopicRevision());
-							errorXRefID = ComponentTranslatedTopicV1.returnErrorXRefID((RESTTranslatedTopicV1) topic);
-						}
-						else
-						{
-							topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topicId));
-							errorXRefID = ComponentTopicV1.returnErrorXRefID((RESTTopicV1) topic);
-						}
-						
-						// Add the link to the errors page. If the errors page is suppressed then remove the injection point.
-						if (!docbookBuildingOptions.getSuppressErrorsPage())
-						{
-							topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + errorXRefID + "\"/> for more detailed information.</para>");
-						}
-						else
-						{
-							topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
-						}
+						final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorInvalidValidationTopic.getValue());
 						
 						errorDatabase.addError(topic, BuilderConstants.BAD_XML_STRUCTURE + " " + StringUtilities.escapeForXML(ex.getMessage()));
 						topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, fixedUrlsSuccess);
@@ -1023,28 +964,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 
 				if (!valid)
 				{
-					String topicXMLErrorTemplate = errorInvalidInjectionTopic.getValue();
-					topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
-					
-					// Set the topic id in the error
-					if (topic instanceof RESTTranslatedTopicV1)
-					{
-						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, ((RESTTranslatedTopicV1) topic).getTopicId() + ", Revision " + ((RESTTranslatedTopicV1) topic).getTopicRevision());
-					}
-					else
-					{
-						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topic.getId()));
-					}
-					
-					// Add the link to the errors page. If the errors page is suppressed then remove the injection point.
-					if (!docbookBuildingOptions.getSuppressErrorsPage())
-					{
-						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"TagErrorXRef" + topic.getId() + "\"/> for more detailed information.</para>");
-					}
-					else
-					{
-						topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
-					}
+					final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorInvalidInjectionTopic.getValue());
 					
 					final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(XMLUtilities.convertNodeToString(doc, verbatimElements, inlineElements, contentsInlineElements, true));
 					errorDatabase.addError(topic, "Topic has invalid Injection Points. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
@@ -2234,31 +2154,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		SAXXMLValidator validator = new SAXXMLValidator();
 		if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue()))
 		{
-			String topicXMLErrorTemplate = errorInvalidValidationTopic.getValue();
-			topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
-			
-			// Set the topic id in the error
-			final String errorXRefID;
-			if (topic instanceof RESTTranslatedTopicV1)
-			{
-				topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, ((RESTTranslatedTopicV1) topic).getTopicId() + ", Revision " + ((RESTTranslatedTopicV1) topic).getTopicRevision());
-				errorXRefID = ComponentTranslatedTopicV1.returnErrorXRefID((RESTTranslatedTopicV1) topic);
-			}
-			else
-			{
-				topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topic.getId()));
-				errorXRefID = ComponentTopicV1.returnErrorXRefID((RESTTopicV1) topic);
-			}
-			
-			// Add the link to the errors page. If the errors page is suppressed then remove the injection point.
-			if (!docbookBuildingOptions.getSuppressErrorsPage())
-			{
-				topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + errorXRefID + "\"/> for more detailed information.</para>");
-			}
-			else
-			{
-				topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
-			}
+			final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorInvalidValidationTopic.getValue());
 			
 			final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(XMLUtilities.convertNodeToString(topicDoc, verbatimElements, inlineElements, contentsInlineElements, true));
 			errorDatabase.addError(topic, "Topic has invalid Docbook XML. The error is <emphasis>" + validator.getErrorText() + "</emphasis>. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
@@ -2268,6 +2164,37 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		}
 		
 		return true;
+	}
+	
+	private String buildTopicErrorTemplate(final T topic, final String errorTemplate)
+	{
+		String topicXMLErrorTemplate = new String(errorTemplate);
+		topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
+		
+		// Set the topic id in the error
+		final String errorXRefID;
+		if (topic instanceof RESTTranslatedTopicV1)
+		{
+			topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, ((RESTTranslatedTopicV1) topic).getTopicId() + ", Revision " + ((RESTTranslatedTopicV1) topic).getTopicRevision());
+			errorXRefID = ComponentTranslatedTopicV1.returnErrorXRefID((RESTTranslatedTopicV1) topic);
+		}
+		else
+		{
+			topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_ID_REGEX, Integer.toString(topic.getId()));
+			errorXRefID = ComponentTopicV1.returnErrorXRefID((RESTTopicV1) topic);
+		}
+		
+		// Add the link to the errors page. If the errors page is suppressed then remove the injection point.
+		if (!docbookBuildingOptions.getSuppressErrorsPage())
+		{
+			topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "<para>Please review the compiler error for <xref linkend=\"" + errorXRefID + "\"/> for more detailed information.</para>");
+		}
+		else
+		{
+			topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
+		}
+		
+		return topicXMLErrorTemplate;
 	}
 	
 	/**
@@ -2526,8 +2453,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 * @param title The title that will be used to create the URL Title
 	 * @return The URL representation of the title;
 	 */
-	private String createURLTitle(final String title) {
+	private String createURLTitle(final String title)
+	{
 		String baseTitle = new String(title);
+		/* Remove XML Elements from the Title. */
+		baseTitle =  baseTitle.replaceAll("</(.*?)>", "").replaceAll("<(.*?)>", "");
 		
 		/*
 		 * Check if the title starts with an invalid sequence
