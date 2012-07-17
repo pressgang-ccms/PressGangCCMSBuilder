@@ -1808,26 +1808,26 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					return;
 				}
 				
-				AuthorInformation authorInfo = reader.getAuthorInformation(authorId);
+				final AuthorInformation authorInfo = reader.getAuthorInformation(authorId);
 				if (authorInfo == null) continue;
-				Element authorEle = authorDoc.createElement("author");
-				Element firstNameEle = authorDoc.createElement("firstname");
+				final Element authorEle = authorDoc.createElement("author");
+				final Element firstNameEle = authorDoc.createElement("firstname");
 				firstNameEle.setTextContent(authorInfo.getFirstName());
 				authorEle.appendChild(firstNameEle);
-				Element lastNameEle = authorDoc.createElement("surname");
+				final Element lastNameEle = authorDoc.createElement("surname");
 				lastNameEle.setTextContent(authorInfo.getLastName());
 				authorEle.appendChild(lastNameEle);
 				
 				// Add the affiliation information
 				if (authorInfo.getOrganization() != null)
 				{
-					Element affiliationEle = authorDoc.createElement("affiliation");
-					Element orgEle = authorDoc.createElement("orgname");
+					final Element affiliationEle = authorDoc.createElement("affiliation");
+					final Element orgEle = authorDoc.createElement("orgname");
 					orgEle.setTextContent(authorInfo.getOrganization());
 					affiliationEle.appendChild(orgEle);
 					if (authorInfo.getOrgDivision() != null)
 					{
-						Element orgDivisionEle = authorDoc.createElement("orgdiv");
+						final Element orgDivisionEle = authorDoc.createElement("orgdiv");
 						orgDivisionEle.setTextContent(authorInfo.getOrgDivision());
 						affiliationEle.appendChild(orgDivisionEle);
 					}
@@ -1849,21 +1849,21 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			if (!insertedAuthor && contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT))
 			{
 				// Use the author "Skynet Alpha Build System"
-				Element authorEle = authorDoc.createElement("author");
-				Element firstNameEle = authorDoc.createElement("firstname");
-				firstNameEle.setTextContent("SkyNet");
+				final Element authorEle = authorDoc.createElement("author");
+				final Element firstNameEle = authorDoc.createElement("firstname");
+				firstNameEle.setTextContent("Skynet");
 				authorEle.appendChild(firstNameEle);
-				Element lastNameEle = authorDoc.createElement("surname");
+				final Element lastNameEle = authorDoc.createElement("surname");
 				lastNameEle.setTextContent("Alpha Build System");
 				authorEle.appendChild(lastNameEle);
 				authorDoc.getDocumentElement().appendChild(authorEle);
 				
 				// Add the affiliation
-				Element affiliationEle = authorDoc.createElement("affiliation");
-				Element orgEle = authorDoc.createElement("orgname");
+				final Element affiliationEle = authorDoc.createElement("affiliation");
+				final Element orgEle = authorDoc.createElement("orgname");
 				orgEle.setTextContent("Red Hat");
 				affiliationEle.appendChild(orgEle);
-				Element orgDivisionEle = authorDoc.createElement("orgdiv");
+				final Element orgDivisionEle = authorDoc.createElement("orgdiv");
 				orgDivisionEle.setTextContent("Enigineering Content Services");
 				affiliationEle.appendChild(orgDivisionEle);
 				authorEle.appendChild(affiliationEle);
@@ -1871,11 +1871,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			else if (!insertedAuthor)
 			{
 				// Use the author "Staff Writer"
-				Element authorEle = authorDoc.createElement("author");
-				Element firstNameEle = authorDoc.createElement("firstname");
+				final Element authorEle = authorDoc.createElement("author");
+				final Element firstNameEle = authorDoc.createElement("firstname");
 				firstNameEle.setTextContent("Staff");
 				authorEle.appendChild(firstNameEle);
-				Element lastNameEle = authorDoc.createElement("surname");
+				final Element lastNameEle = authorDoc.createElement("surname");
 				lastNameEle.setTextContent("Writer");
 				authorEle.appendChild(lastNameEle);
 				authorDoc.getDocumentElement().appendChild(authorEle);
