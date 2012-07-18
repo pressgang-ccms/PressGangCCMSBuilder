@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -1190,12 +1191,26 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		/* build the content specification page */
 		if (!docbookBuildingOptions.getSuppressContentSpecPage())
 		{
-			files.put(BOOK_LOCALE_FOLDER + "Build_Content_Specification.xml", DocBookUtilities.buildAppendix(DocBookUtilities.wrapInPara("<programlisting>" + XMLUtilities.wrapStringInCDATA(contentSpec.toString()) + "</programlisting>"), "Build Content Specification").getBytes());
+			try
+			{
+				files.put(BOOK_LOCALE_FOLDER + "Build_Content_Specification.xml", DocBookUtilities.buildAppendix(DocBookUtilities.wrapInPara("<programlisting>" + XMLUtilities.wrapStringInCDATA(contentSpec.toString()) + "</programlisting>"), "Build Content Specification").getBytes("UTF-8"));
+			}
+			catch (UnsupportedEncodingException e)
+			{
+				/* UTF-8 is a valid format so this should exception should never get thrown */
+			}
 			bookXIncludes.append("	<xi:include href=\"Build_Content_Specification.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
 		}
 		
 		final String book = bookBase.replace(BuilderConstants.XIINCLUDES_INJECTION_STRING, bookXIncludes);
-		files.put(BOOK_LOCALE_FOLDER + escapedTitle + ".xml", book.getBytes());
+		try
+		{
+			files.put(BOOK_LOCALE_FOLDER + escapedTitle + ".xml", book.getBytes("UTF-8"));
+		}
+		catch (UnsupportedEncodingException e)
+		{
+			/* UTF-8 is a valid format so this should exception should never get thrown */
+		}
 		
 		// Check if the app should be shutdown
 		if (isShuttingDown.get()) {
@@ -1264,7 +1279,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			fixedPublicanCfg += "\ncvs_pkg: " + docbookBuildingOptions.getCvsPkgOption();
 		}
 		
-		files.put(BOOK_FOLDER + "publican.cfg", fixedPublicanCfg.getBytes());
+		try
+		{
+			files.put(BOOK_FOLDER + "publican.cfg", fixedPublicanCfg.getBytes("UTF-8"));
+		}
+		catch (UnsupportedEncodingException e2)
+		{
+			/* UTF-8 is a valid format so this should exception should never get thrown */
+		}
 		
 		// Setup Book_Info.xml
 		final String pubsNumber = overrides.containsKey("pubsnumber") ? overrides.get("pubsnumber") : (contentSpec.getPubsNumber() == null ? BuilderConstants.PUBSNUMBER_DEFAULT : contentSpec.getPubsNumber().toString());
@@ -1283,7 +1305,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.LEGAL_NOTICE_REGEX, "<xi:include href=\"Common_Content/Legal_Notice.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
 		}
 		
-		files.put(BOOK_LOCALE_FOLDER + "Book_Info.xml", fixedBookInfo.getBytes());
+		try
+		{
+			files.put(BOOK_LOCALE_FOLDER + "Book_Info.xml", fixedBookInfo.getBytes("UTF-8"));
+		}
+		catch (UnsupportedEncodingException e2)
+		{
+			/* UTF-8 is a valid format so this should exception should never get thrown */
+		}
 		
 		// Setup Author_Group.xml
 		if (overrides.containsKey("Author_Group.xml"))
@@ -1303,7 +1332,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					}
 					
 					// Add the parsed file to the book
-					files.put(BOOK_LOCALE_FOLDER + "Author_Group.xml", buffer.toString().getBytes());
+					files.put(BOOK_LOCALE_FOLDER + "Author_Group.xml", buffer.toString().getBytes("UTF-8"));
 				}
 				catch (Exception e)
 				{
@@ -1326,7 +1355,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		{
 			// Setup Preface.xml
 			String fixedPrefaceXml = prefaceXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
-			files.put(BOOK_LOCALE_FOLDER + "Preface.xml", fixedPrefaceXml.getBytes());
+			try
+			{
+				files.put(BOOK_LOCALE_FOLDER + "Preface.xml", fixedPrefaceXml.getBytes("UTF-8"));
+			}
+			catch (UnsupportedEncodingException e)
+			{
+				/* UTF-8 is a valid format so this should exception should never get thrown */
+			}
 			
 			// Add the preface to the book.xml
 			basicBook = basicBook.replaceAll(BuilderConstants.PREFACE_REGEX, "<xi:include href=\"Preface.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
@@ -1353,7 +1389,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					}
 					
 					// Add the parsed file to the book
-					files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", buffer.toString().getBytes());
+					files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", buffer.toString().getBytes("UTF-8"));
 				}
 				catch (Exception e)
 				{
@@ -1381,11 +1417,25 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		entFile = entFile.replaceAll(BuilderConstants.BZPRODUCT_REGEX, contentSpec.getBugzillaProduct() == null ? contentSpec.getProduct() : contentSpec.getBugzillaProduct());
 		entFile = entFile.replaceAll(BuilderConstants.BZCOMPONENT_REGEX, contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec.getBugzillaComponent());
 		entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, contentSpec.getBugzillaURL() == null ? "https://bugzilla.redhat.com/" : contentSpec.getBugzillaURL());
-		files.put(BOOK_LOCALE_FOLDER + escapedTitle + ".ent", entFile.getBytes());
+		try
+		{
+			files.put(BOOK_LOCALE_FOLDER + escapedTitle + ".ent", entFile.getBytes("UTF-8"));
+		}
+		catch (UnsupportedEncodingException e1)
+		{
+			/* UTF-8 is a valid format so this should exception should never get thrown */
+		}
 		
 		// Setup the images and files folders
 		final String iconSvg = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ICON_SVG_ID, "").getValue();
-		files.put(BOOK_IMAGES_FOLDER + "icon.svg", iconSvg.getBytes());
+		try
+		{
+			files.put(BOOK_IMAGES_FOLDER + "icon.svg", iconSvg.getBytes("UTF-8"));
+		}
+		catch (UnsupportedEncodingException e)
+		{
+			/* UTF-8 is a valid format so this should exception should never get thrown */
+		}
 		
 		if (contentSpec.getOutputStyle() != null && contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT))
 		{
@@ -1463,7 +1513,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		
 		// Add the boiler plate text and add the chapter to the book
 		final String chapterString = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", elementName);
-		files.put(BOOK_LOCALE_FOLDER + chapterName, chapterString.getBytes());
+		try
+		{
+			files.put(BOOK_LOCALE_FOLDER + chapterName, chapterString.getBytes("UTF-8"));
+		}
+		catch (UnsupportedEncodingException e)
+		{
+			/* UTF-8 is a valid format so this should exception should never get thrown */
+		}
 	}
 	
 	/**
@@ -1513,7 +1570,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		
 		// Add the boiler plate text and add the chapter to the book
 		final String chapterString = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", elementName);
-		files.put(BOOK_LOCALE_FOLDER + chapterName, chapterString.getBytes());
+		try
+		{
+			files.put(BOOK_LOCALE_FOLDER + chapterName, chapterString.getBytes("UTF-8"));
+		}
+		catch (UnsupportedEncodingException e)
+		{
+			/* UTF-8 is a valid format so this should exception should never get thrown */
+		}
 	}
 	
 	/**
@@ -1614,7 +1678,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					parentNode.appendChild(topicNode);
 					
 					final String topicXML = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", rootElementName);
-					files.put(BOOK_TOPICS_FOLDER + topicFileName, topicXML.getBytes());
+					try
+					{
+						files.put(BOOK_TOPICS_FOLDER + topicFileName, topicXML.getBytes("UTF-8"));
+					}
+					catch (UnsupportedEncodingException e)
+					{
+						/* UTF-8 is a valid format so this should exception should never get thrown */
+					}
 				}
 			}
 		}
@@ -1884,7 +1955,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		
 		// Add the Author_Group.xml to the book
 		fixedAuthorGroupXml = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(authorDoc, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", "authorgroup");
-		files.put(BOOK_LOCALE_FOLDER + "Author_Group.xml", fixedAuthorGroupXml.getBytes());
+		try
+		{
+			files.put(BOOK_LOCALE_FOLDER + "Author_Group.xml", fixedAuthorGroupXml.getBytes("UTF-8"));
+		}
+		catch (UnsupportedEncodingException e)
+		{
+			/* UTF-8 is a valid format so this should exception should never get thrown */
+		}
 	}
 	
 	/**
@@ -1936,7 +2014,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		
 		// Add the revision history to the book
 		fixedRevisionHistoryXml = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(revHistoryDoc, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", "appendix");
-		files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", fixedRevisionHistoryXml.getBytes());
+		try
+		{
+			files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", fixedRevisionHistoryXml.getBytes("UTF-8"));
+		}
+		catch (UnsupportedEncodingException e)
+		{
+			/* UTF-8 is a valid format so this should exception should never get thrown */
+		}
 	}
 	
 	/**
