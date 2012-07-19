@@ -246,7 +246,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		
 		// Get the injection mode
 		InjectionOptions.UserType injectionType = InjectionOptions.UserType.NONE;
-		Boolean injection = buildingOptions.getInjection();
+		final Boolean injection = buildingOptions.getInjection();
 		if (injection != null && !injection) injectionType = InjectionOptions.UserType.OFF;
 		else if (injection != null && injection) injectionType = InjectionOptions.UserType.ON;
 		
@@ -267,7 +267,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		injectionOptions.setClientType(injectionType);
 		
 		// Set the injection options for the content spec
-		if (contentSpec.getInjectionOptions() != null) {
+		if (contentSpec.getInjectionOptions() != null)
+		{
 			injectionOptions.setContentSpecType(contentSpec.getInjectionOptions().getContentSpecType());
 			injectionOptions.addStrictTopicTypes(contentSpec.getInjectionOptions().getStrictTopicTypes());
 		}
@@ -282,16 +283,25 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		final boolean fixedUrlsSuccess = doPopulateDatabasePass(contentSpec, usedIdAttributes);
 		
 		// Check if the app should be shutdown
-		if (isShuttingDown.get()) {
+		if (isShuttingDown.get())
+		{
 			shutdown.set(true);
 			return null;
 		}
+		
+		final Set<String> bookIdAttributes = specDatabase.getIdAttributes(fixedUrlsSuccess);
+		for (final Integer id : usedIdAttributes.keySet())
+		{
+			bookIdAttributes.addAll(usedIdAttributes.get(id));
+		}
+		validateTopicLinks(bookIdAttributes, fixedUrlsSuccess);
 		
 		// second topic pass to set the ids and process injections
 		doSpecTopicPass(contentSpec, searchTagsUrl, usedIdAttributes, fixedUrlsSuccess, BuilderConstants.BUILD_NAME);
 		
 		// Check if the app should be shutdown
-		if (isShuttingDown.get()) {
+		if (isShuttingDown.get())
+		{
 			shutdown.set(true);
 			return null;
 		}
@@ -300,12 +310,95 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		processImageLocations();
 		
 		// Check if the app should be shutdown
-		if (isShuttingDown.get()) {
+		if (isShuttingDown.get())
+		{
 			shutdown.set(true);
 			return null;
 		}
 		
 		return doBuildZipPass(contentSpec, requester, fixedUrlsSuccess);
+	}
+	
+	@SuppressWarnings("unchecked")
+	private void validateTopicLinks(final Set<String> bookIdAttributes, final boolean fixedUrlsSuccess)
+	{
+		log.info("Doing " + locale + " Topic Link Pass");
+		
+		final List<SpecTopic> topics = specDatabase.getAllSpecTopics();
+		final Set<Integer> processedTopics = new HashSet<Integer>();
+		for (final SpecTopic specTopic : topics)
+		{
+			final T topic = (T) specTopic.getTopic();
+			final Document doc = specTopic.getXmlDocument();
+			
+			/* 
+			 * We only to to process topics at this point and not spec topics.
+			 * So check to see if the topic has all ready been processed.
+			 */
+			if (!processedTopics.contains(topic.getId()))
+			{
+				processedTopics.add(topic.getId());
+				
+				/* Get the XRef links in the topic document */
+				final Set<String> linkIds = new HashSet<String>();
+				getTopicLinkIds(doc, linkIds);
+				
+				for(final String linkId : linkIds)
+				{
+					/* Check if the xref linkend id exists in the book */
+					if (!bookIdAttributes.contains(linkId))
+					{
+						final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorInvalidValidationTopic.getValue());
+						
+						final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(XMLUtilities.convertNodeToString(doc, verbatimElements, inlineElements, contentsInlineElements, true));
+						errorDatabase.addError(topic, "Topic references non-exist ID's in links. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+						
+						/* Find the Topic ID */
+						final Integer topicId;
+						if (topic instanceof RESTTranslatedTopicV1)
+						{
+							topicId = ((RESTTranslatedTopicV1) topic).getTopicId();
+						}
+						else
+						{
+							topicId = topic.getId();
+						}
+						
+						final List<SpecTopic> specTopics = specDatabase.getSpecTopicsForTopicID(topicId);
+						for (final SpecTopic spec : specTopics)
+						{
+							setSpecTopicXMLForError(spec, topicXMLErrorTemplate, fixedUrlsSuccess);
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	private void getTopicLinkIds(final Node node, final Set<String> linkIds)
+	{
+		// Check if the app should be shutdown
+		if (isShuttingDown.get()) {
+			return;
+		}
+		
+		if (node.getNodeName().equals("xref") || node.getNodeName().equals("link"))
+		{
+			final NamedNodeMap attributes = node.getAttributes();
+			if (attributes != null)
+			{
+				final Node idAttribute = attributes.getNamedItem("linkend");
+				if (idAttribute != null)
+				{
+					final String idAttibuteValue = idAttribute.getNodeValue();
+					linkIds.add(idAttibuteValue);
+				}
+			}
+		}
+
+		final NodeList elements = node.getChildNodes();
+		for (int i = 0; i < elements.getLength(); ++i)
+			getTopicLinkIds(elements.item(i), linkIds);
 	}
 	
 	/**
@@ -446,6 +539,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		/* Pass the topics to make sure they are valid */
 		doTopicPass(topics, fixedUrlsSuccess, usedIdAttributes);
 		
+		// Check if the app should be shutdown
+		if (isShuttingDown.get()) {
+			return false;
+		}
+		
 		return fixedUrlsSuccess;
 	}
 	
@@ -529,7 +627,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		if (dummyTopics == null || dummyTopics.getItems() == null || dummyTopics.getItems().isEmpty()) return;
 		
 		/* Split the topics up into their different locales */
-		final Map<String, Map<Integer, RESTTranslatedTopicV1>> groupedLocaleTopics = new HashMap<String, Map<Integer, RESTTranslatedTopicV1>>();
+		final Map<Integer, RESTTranslatedTopicV1> translatedTopicsMap = new HashMap<Integer, RESTTranslatedTopicV1>();
 		
 		if (topics != null && topics.getItems() != null)
 		{
@@ -540,29 +638,24 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					return;
 				}
 				
-				if (!groupedLocaleTopics.containsKey(topic.getLocale()))
-					groupedLocaleTopics.put(topic.getLocale(), new HashMap<Integer, RESTTranslatedTopicV1>());
-				groupedLocaleTopics.get(topic.getLocale()).put(topic.getTopicId(), topic);
+				translatedTopicsMap.put(topic.getTopicId(), topic);
 			}
 		}
 		
-		/* create and add the dummy topics per locale */
-		for (final String locale : groupedLocaleTopics.keySet())
+		/* create and add the dummy topics */
+		for (final RESTTopicV1 topic: dummyTopics.getItems())
 		{
-			final Map<Integer, RESTTranslatedTopicV1> translatedTopicsMap = groupedLocaleTopics.get(locale);
-			for (final RESTTopicV1 topic: dummyTopics.getItems())
+			// Check if the app should be shutdown
+			if (isShuttingDown.get())
 			{
-				// Check if the app should be shutdown
-				if (isShuttingDown.get()) {
-					return;
-				}
+				return;
+			}
+			
+			if (!translatedTopicsMap.containsKey(topic.getId()))
+			{
+				final RESTTranslatedTopicV1 dummyTopic = createDummyTranslatedTopic(translatedTopicsMap, topic, true, locale);
 				
-				if (!translatedTopicsMap.containsKey(topic.getId()))
-				{
-					final RESTTranslatedTopicV1 dummyTopic = createDummyTranslatedTopic(translatedTopicsMap, topic, true, locale);
-					
-					topics.addItem(dummyTopic);
-				}
+				topics.addItem(dummyTopic);
 			}
 		}
 	}
@@ -930,7 +1023,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 							for (T relatedTopic: topic.getOutgoingRelationships().getItems())
 							{
 								// Check if the app should be shutdown
-								if (isShuttingDown.get()) {
+								if (isShuttingDown.get())
+								{
 									return;
 								}
 								
@@ -1612,8 +1706,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				final Level childLevel = (Level)node;
 				
 				// Create the section and its title
-				Element sectionNode = chapter.createElement("section");
-				Element sectionTitleNode = chapter.createElement("title");
+				final Element sectionNode = chapter.createElement("section");
+				final Element sectionTitleNode = chapter.createElement("title");
 				sectionTitleNode.setTextContent(childLevel.getTitle());
 				sectionNode.appendChild(sectionTitleNode);
 				sectionNode.setAttribute("id", childLevel.getUniqueLinkId(fixedUrlsSuccess));

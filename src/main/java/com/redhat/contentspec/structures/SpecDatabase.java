@@ -2,9 +2,11 @@ package com.redhat.contentspec.structures;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.redhat.contentspec.Level;
 import com.redhat.contentspec.SpecTopic;
@@ -125,6 +127,33 @@ public class SpecDatabase {
 		}
 		
 		return levels;
+	}
+	
+	public Set<String> getIdAttributes(final boolean useFixedUrls)
+	{
+		final Set<String> ids = new HashSet<String>();
+		
+		// Add all the level id attributes
+		for (final String levelTitle : this.specLevels.keySet())
+		{
+			final List<Level> levels = specLevels.get(levelTitle);
+			for (final Level level : levels)
+			{
+				ids.add(level.getUniqueLinkId(useFixedUrls));
+			}
+		}
+		
+		// Add all the topic id attributes
+		for (final Integer topicId : this.specTopics.keySet())
+		{
+			final List<SpecTopic> topics = specTopics.get(topicId);
+			for (final SpecTopic topic : topics)
+			{
+				ids.add(topic.getUniqueLinkId(useFixedUrls));
+			}
+		}
+		
+		return ids;
 	}
 	
 	@SuppressWarnings("unchecked")
