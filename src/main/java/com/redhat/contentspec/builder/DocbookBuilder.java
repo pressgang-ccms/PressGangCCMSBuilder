@@ -289,6 +289,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			return null;
 		}
 		
+		/* 
+		 * We need to create a list of all id's in the book to check if links
+		 * are valid. So generate the id attribute that are used by topics, 
+		 * section and chapters. Then add any id's that were found in the topics.
+		 */
 		final Set<String> bookIdAttributes = specDatabase.getIdAttributes(fixedUrlsSuccess);
 		for (final Integer id : usedIdAttributes.keySet())
 		{
@@ -319,8 +324,17 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		return doBuildZipPass(contentSpec, requester, fixedUrlsSuccess);
 	}
 	
+	/**
+	 * Validate all the book links in the each topic to ensure that
+	 * they exist somewhere in the book. If they don't then the topic 
+	 * XML is replaced with a generic error template.
+	 * 
+	 * @param bookIdAttributes A set of all the id's that exist in the book.
+	 * @param useFixedUrls Whether or not the fixed urls should be used for
+	 * topic ID's.
+	 */
 	@SuppressWarnings("unchecked")
-	private void validateTopicLinks(final Set<String> bookIdAttributes, final boolean fixedUrlsSuccess)
+	private void validateTopicLinks(final Set<String> bookIdAttributes, final boolean useFixedUrls)
 	{
 		log.info("Doing " + locale + " Topic Link Pass");
 		
@@ -367,7 +381,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						final List<SpecTopic> specTopics = specDatabase.getSpecTopicsForTopicID(topicId);
 						for (final SpecTopic spec : specTopics)
 						{
-							setSpecTopicXMLForError(spec, topicXMLErrorTemplate, fixedUrlsSuccess);
+							setSpecTopicXMLForError(spec, topicXMLErrorTemplate, useFixedUrls);
 						}
 					}
 				}
@@ -375,6 +389,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		}
 	}
 	
+	/**
+	 * Get any ids that are referenced by a "link" or "xref"
+	 * XML attribute within the node. Any ids that are found
+	 * are added to the passes linkIds set.
+	 * 
+	 * @param node The DOM XML node to check for links.
+	 * @param linkIds The set of current found link ids.
+	 */
 	private void getTopicLinkIds(final Node node, final Set<String> linkIds)
 	{
 		// Check if the app should be shutdown
@@ -2250,6 +2272,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		return DocBookUtilities.buildChapter(errorItemizedLists, "Compiler Output");
 	}
 	
+	/**
+	 * Processes the Topics in the SpecDatabase and builds up the 
+	 * images found within the topics XML. If the image reference
+	 * is blank or invalid it is replaced by the fail penguin image.
+	 */
 	@SuppressWarnings("unchecked")
 	private void processImageLocations()
 	{
@@ -2300,6 +2327,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	private List<Node> getImages(final Node node)
 	{
 		final List<Node> images = new ArrayList<Node>();
+		
+		/* Ensure that the node isn't null */
+		if (node == null)
+			return images;
+		
 		final NodeList children = node.getChildNodes();
 		for (int i = 0; i < children.getLength(); ++i)
 		{
@@ -2345,6 +2377,19 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		return true;
 	}
 	
+	/**
+	 * Build up an error template by replacing key pointers in
+	 * the template. The pointers that get replaced are:
+	 * 
+	 * <!-- Inject TopicTitle -->
+	 * <!-- Inject TopicID -->
+	 * <!-- Inject ErrorXREF -->
+	 * 
+	 * @param topic The topic to generate the error template for.
+	 * @param errorTemplate The pre processed error template.
+	 * @return The input error template with the pointers replaced
+	 * with values from the topic.
+	 */
 	private String buildTopicErrorTemplate(final T topic, final String errorTemplate)
 	{
 		String topicXMLErrorTemplate = new String(errorTemplate);
