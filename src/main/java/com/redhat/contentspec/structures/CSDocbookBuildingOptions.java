@@ -11,9 +11,9 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
 
 	private List<String> injectionTypes = new ArrayList<String>();
 	private Boolean injection = true;
-	private Boolean permissive = false;
 	private Map<String, String> overrides = new HashMap<String, String>();
 	private Boolean allowEmptySections = false;
+	private Boolean showReportPage = false;
 	
 	public CSDocbookBuildingOptions()
 	{
@@ -46,43 +46,53 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
 		this.setBookSubtitle(docbookBuildingOptions.getBookSubtitle());
 	}
 	
-	public List<String> getInjectionTypes() {
+	public List<String> getInjectionTypes()
+	{
 		return injectionTypes;
 	}
 	
-	public void setInjectionTypes(List<String> injectionTypes) {
+	public void setInjectionTypes(final List<String> injectionTypes)
+	{
 		this.injectionTypes = injectionTypes;
 	}
 	
-	public boolean getInjection() {
+	public boolean getInjection()
+	{
 		return injection;
 	}
 	
-	public void setInjection(Boolean injection) {
+	public void setInjection(final Boolean injection)
+	{
 		this.injection = injection;
 	}
 	
-	public boolean getPermissive() {
-		return permissive;
-	}
-	
-	public void setPermissive(Boolean permissive) {
-		this.permissive = permissive;
-	}
-
-	public Map<String, String> getOverrides() {
+	public Map<String, String> getOverrides()
+	{
 		return overrides;
 	}
 
-	public void setOverrides(Map<String, String> overrides) {
+	public void setOverrides(final Map<String, String> overrides)
+	{
 		this.overrides = overrides;
 	}
 
-	public boolean isAllowEmptySections() {
+	public boolean isAllowEmptySections()
+	{
 		return allowEmptySections;
 	}
 
-	public void setAllowEmptySections(boolean allowEmptySections) {
+	public void setAllowEmptySections(final Boolean allowEmptySections)
+	{
 		this.allowEmptySections = allowEmptySections;
+	}
+
+	public Boolean getShowReportPage()
+	{
+		return showReportPage;
+	}
+
+	public void setShowReportPage(final Boolean showReportPage)
+	{
+		this.showReportPage = showReportPage;
 	}
 }

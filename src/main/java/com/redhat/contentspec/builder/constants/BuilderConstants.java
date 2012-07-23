@@ -41,7 +41,7 @@ public class BuilderConstants {
 	public static final String PREFACE_REGEX			= "<!-- Inject Preface -->";
 	public static final String LEGAL_NOTICE_REGEX		= "<!-- Inject Legal Notice -->";
 	public static final String ABSTRACT_REGEX			= "<!-- Inject Abstract -->";
-	public static final String REV_HISTORY_REGEX			= "<!-- Inject Revision History -->";
+	public static final String REV_HISTORY_REGEX		= "<!-- Inject Revision History -->";
 	
 	public static final String XIINCLUDES_INJECTION_STRING = "<!-- Inject XIIncludes -->";
 	
@@ -88,7 +88,8 @@ public class BuilderConstants {
 	public static final String INLINE_XML_ELEMENTS	= "code,prompt,command,firstterm,ulink,guilabel,filename,replaceable,parameter,literal,classname,sgmltag," 
 			+ "guibutton,guimenuitem,guimenu,menuchoice,citetitle,revnumber,application,systemitem,acronym,keycap,emphasis,package,quote,trademark,abbrev,phrase,"
 			+ "anchor,citation,glossterm,link,xref,markup,tag,keycode,keycombo,accel,guisubmenu,keysym,shortcut,mousebutton,constant,errorcode,errorname,errortype,"
-			+ "function,msgtext,property,returnvalue,symbol,token,varname,database,email,hardware,option,optional,type,methodname,interfacename,uri";
+			+ "function,msgtext,property,returnvalue,symbol,token,varname,database,email,hardware,option,optional,type,methodname,interfacename,uri,productname,"
+			+ "productversion";
 	
 	public static final String CONTENTS_INLINE_XML_ELEMENTS = "title,term";
 	

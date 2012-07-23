@@ -9,7 +9,7 @@ import org.w3c.dom.Element;
 /*
  * A class to add more functionality to the com.redhat.ecs.commonutils.DocBookUtilities class.
  */
-public class DocbookUtils extends
+public class DocBookUtilities extends
 		com.redhat.ecs.commonutils.DocBookUtilities {
 	
 	/** A prefix for error xref ids */

@@ -39,7 +39,8 @@ import com.redhat.contentspec.Level;
 import com.redhat.contentspec.SpecTopic;
 import com.redhat.contentspec.builder.constants.BuilderConstants;
 import com.redhat.contentspec.builder.exception.BuilderCreationException;
-import com.redhat.contentspec.builder.utils.DocbookUtils;
+import com.redhat.contentspec.builder.utils.DocBookUtilities;
+import com.redhat.contentspec.builder.utils.ReportUtilities;
 import com.redhat.contentspec.builder.utils.SAXXMLValidator;
 import com.redhat.contentspec.builder.utils.XMLUtilities;
 import com.redhat.contentspec.constants.CSConstants;
@@ -53,7 +54,6 @@ import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
 import com.redhat.contentspec.structures.SpecDatabase;
 import com.redhat.ecs.commonstructures.Pair;
 import com.redhat.ecs.commonutils.CollectionUtilities;
-import com.redhat.ecs.commonutils.DocBookUtilities;
 import com.redhat.ecs.commonutils.ExceptionUtilities;
 import com.redhat.ecs.commonutils.StringUtilities;
 import com.redhat.ecs.constants.CommonConstants;
@@ -61,6 +61,8 @@ import com.redhat.ecs.services.docbookcompiling.DocbookBuilderConstants;
 import com.redhat.ecs.services.docbookcompiling.xmlprocessing.structures.TocTopicDatabase;
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorData;
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorDatabase;
+import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorDatabase.ErrorLevel;
+import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorDatabase.ErrorType;
 import com.redhat.topicindex.component.docbookrenderer.structures.TopicImageData;
 import com.redhat.topicindex.rest.collections.BaseRestCollectionV1;
 import com.redhat.topicindex.rest.collections.RESTPropertyTagCollectionV1;
@@ -140,6 +142,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 */
 	private final ArrayList<TopicImageData<T, U>> imageLocations = new ArrayList<TopicImageData<T, U>>();
 	
+	private Class<T> clazz;
+	
 	public DocbookBuilder(final RESTManager restManager, final RESTBlobConstantV1 rocbookDtd, final String defaultLocale) throws InvalidParameterException, InternalProcessingException
 	{
 		this(restManager, rocbookDtd, defaultLocale, new ZanataDetails());
@@ -189,7 +193,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		{
 			for (final TopicErrorData<T, U> errorData: errorDatabase.getErrors(locale))
 			{
-				numWarnings += errorData.getItemsOfType(TopicErrorDatabase.WARNING).size();
+				numWarnings += errorData.getItemsOfType(ErrorLevel.WARNING).size();
 			}
 		}
 		return numWarnings;
@@ -202,18 +206,28 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		{
 			for (final TopicErrorData<T, U> errorData: errorDatabase.getErrors(locale))
 			{
-				numErrors += errorData.getItemsOfType(TopicErrorDatabase.ERROR).size();
+				numErrors += errorData.getItemsOfType(ErrorLevel.ERROR).size();
 			}
 		}
 		return numErrors;
 	}
 	
+	@SuppressWarnings("unchecked")
 	public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final RESTUserV1 requester, final CSDocbookBuildingOptions buildingOptions, final String searchTagsUrl) throws Exception
 	{
 		if (contentSpec == null) throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
 		
 		errorDatabase = new TopicErrorDatabase<T, U>();
 		specDatabase = new SpecDatabase();
+		
+		if (contentSpec.getLocale() == null || contentSpec.getLocale().equals(defaultLocale))
+		{
+			clazz = (Class<T>)RESTTopicV1.class;
+		}
+		else
+		{
+			clazz = (Class<T>)RESTTranslatedTopicV1.class;
+		}
 		
 		// Setup the constants
 		escapedTitle = DocBookUtilities.escapeTitle(contentSpec.getTitle());
@@ -365,7 +379,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorInvalidValidationTopic.getValue());
 						
 						final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(XMLUtilities.convertNodeToString(doc, verbatimElements, inlineElements, contentsInlineElements, true));
-						errorDatabase.addError(topic, "Topic references non-exist ID's in links. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+						errorDatabase.addError(topic, ErrorType.INVALID_CONTENT, "Topic references non-exist ID's in links. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
 						
 						/* Find the Topic ID */
 						final Integer topicId;
@@ -815,7 +829,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					// Create an empty topic with the topic title from the resource file
 					final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorEmptyTopic.getValue());
 					
-					errorDatabase.addWarning(topic, BuilderConstants.EMPTY_TOPIC_XML);
+					errorDatabase.addWarning(topic, ErrorType.NO_CONTENT, BuilderConstants.EMPTY_TOPIC_XML);
 					topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, fixedUrlsSuccess);
 					xmlValid = false;
 				}
@@ -843,7 +857,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						{
 							final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorInvalidValidationTopic.getValue());
 							
-							errorDatabase.addError(topic, BuilderConstants.INVALID_XML_CONTENT);
+							errorDatabase.addError(topic, ErrorType.INVALID_CONTENT, BuilderConstants.INVALID_XML_CONTENT);
 							topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, fixedUrlsSuccess);
 						}
 					}
@@ -851,7 +865,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					{
 						final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorInvalidValidationTopic.getValue());
 						
-						errorDatabase.addError(topic, BuilderConstants.BAD_XML_STRUCTURE + " " + StringUtilities.escapeForXML(ex.getMessage()));
+						errorDatabase.addError(topic, ErrorType.INVALID_CONTENT, BuilderConstants.BAD_XML_STRUCTURE + " " + StringUtilities.escapeForXML(ex.getMessage()));
 						topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, fixedUrlsSuccess);
 					}
 				}
@@ -984,11 +998,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						final String message = "Topic has referenced Topic(s) " + CollectionUtilities.toSeperatedString(customInjectionErrors) + " in a custom injection point that was either not related, or not included in the filter used to build this book.";
 						if (docbookBuildingOptions.getIgnoreMissingCustomInjections())
 						{
-							errorDatabase.addWarning(topic, message);
+							errorDatabase.addWarning(topic, ErrorType.INVALID_INJECTION, message);
 						}
 						else
 						{
-							errorDatabase.addError(topic, message);
+							errorDatabase.addError(topic, ErrorType.INVALID_INJECTION, message);
 							valid = false;
 						}
 					}
@@ -999,11 +1013,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						final String message = "Topic has related Topic(s) " + CollectionUtilities.toSeperatedString(CollectionUtilities.toAbsIntegerList(genericInjectionErrors)) + " that were not included in the filter used to build this book.";
 						if (docbookBuildingOptions.getIgnoreMissingCustomInjections())
 						{
-							errorDatabase.addWarning(topic, message);
+							errorDatabase.addWarning(topic, ErrorType.INVALID_INJECTION, message);
 						}
 						else
 						{
-							errorDatabase.addError(topic, message);
+							errorDatabase.addError(topic, ErrorType.INVALID_INJECTION, message);
 							valid = false;
 						}
 					}
@@ -1013,11 +1027,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						final String message = "Topic has injected content from Topic(s) " + CollectionUtilities.toSeperatedString(topicContentFragmentsErrors) + " that were not related.";
 						if (docbookBuildingOptions.getIgnoreMissingCustomInjections())
 						{
-							errorDatabase.addWarning(topic, message);
+							errorDatabase.addWarning(topic, ErrorType.INVALID_INJECTION, message);
 						}
 						else
 						{
-							errorDatabase.addError(topic, message);
+							errorDatabase.addError(topic, ErrorType.INVALID_INJECTION, message);
 							valid = false;
 						}
 					}
@@ -1027,11 +1041,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						final String message = "Topic has injected a title from Topic(s) " + CollectionUtilities.toSeperatedString(topicTitleFragmentsErrors) + " that were not related.";
 						if (docbookBuildingOptions.getIgnoreMissingCustomInjections())
 						{
-							errorDatabase.addWarning(topic, message);
+							errorDatabase.addWarning(topic, ErrorType.INVALID_INJECTION, message);
 						}
 						else
 						{
-							errorDatabase.addError(topic, message);
+							errorDatabase.addError(topic, ErrorType.INVALID_INJECTION, message);
 							valid = false;
 						}
 					}
@@ -1068,9 +1082,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						
 						/* Check the topic itself isn't a dummy topic */
 						if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic) && ComponentTranslatedTopicV1.hasBeenPushedForTranslation((RESTTranslatedTopicV1) topic))
-							errorDatabase.addWarning(topic, "This topic is an untranslated topic.");
+							errorDatabase.addWarning(topic, ErrorType.UNTRANSLATED, "This topic is an untranslated topic.");
 						else if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic))
-							errorDatabase.addWarning(topic, "This topic hasn't been pushed for translation.");
+							errorDatabase.addWarning(topic, ErrorType.NOT_PUSHED_FOR_TRANSLATION, "This topic hasn't been pushed for translation.");
+						/* Check if the topic's content isn't fully translated */
+						else if (((RESTTranslatedTopicV1) topic).getTranslationPercentage() < 100)
+							errorDatabase.addWarning(topic, ErrorType.INCOMPLETE_TRANSLATION, "This topic hasn't been fully translated.");
 					}
 				}
 				
@@ -1299,9 +1316,17 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		/* add any compiler errors */
 		if (!docbookBuildingOptions.getSuppressErrorsPage() && errorDatabase.hasItems(locale))
 		{
-			final String compilerOutput = DocbookUtils.addXMLBoilerplate(buildErrorChapter(locale), this.escapedTitle + ".ent", "chapter");
+			final String compilerOutput = DocBookUtilities.addXMLBoilerplate(buildErrorChapter(locale), this.escapedTitle + ".ent", "chapter");
 			files.put(BOOK_LOCALE_FOLDER + "Errors.xml", StringUtilities.getStringBytes(StringUtilities.cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
 			bookXIncludes.append("	<xi:include href=\"Errors.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
+		}
+		
+		/* add the report chapter */
+		if (docbookBuildingOptions.getShowReportPage())
+		{
+			final String compilerOutput = DocBookUtilities.addXMLBoilerplate(buildReportChapter(locale), this.escapedTitle + ".ent", "chapter");
+			files.put(BOOK_LOCALE_FOLDER + "Report.xml", StringUtilities.getStringBytes(StringUtilities.cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
+			bookXIncludes.append("	<xi:include href=\"Report.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
 		}
 		
 		/* build the content specification page */
@@ -1628,7 +1653,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		createSectionXML(files, level, chapter, chapter.getDocumentElement(), fixedUrlsSuccess, elementName);
 		
 		// Add the boiler plate text and add the chapter to the book
-		final String chapterString = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", elementName);
+		final String chapterString = DocBookUtilities.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", elementName);
 		try
 		{
 			files.put(BOOK_LOCALE_FOLDER + chapterName, chapterString.getBytes("UTF-8"));
@@ -1685,7 +1710,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		createSectionXML(files, level, chapter, chapter.getDocumentElement(), fixedUrlsSuccess, elementName);
 		
 		// Add the boiler plate text and add the chapter to the book
-		final String chapterString = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", elementName);
+		final String chapterString = DocBookUtilities.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", elementName);
 		try
 		{
 			files.put(BOOK_LOCALE_FOLDER + chapterName, chapterString.getBytes("UTF-8"));
@@ -1793,7 +1818,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					topicNode.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
 					parentNode.appendChild(topicNode);
 					
-					final String topicXML = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", rootElementName);
+					final String topicXML = DocBookUtilities.addXMLBoilerplate(XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", rootElementName);
 					try
 					{
 						files.put(BOOK_TOPICS_FOLDER + topicFileName, topicXML.getBytes("UTF-8"));
@@ -1851,7 +1876,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					if (topicID.equals("failpenguinPng"))
 					{
 						success = false;
-						errorDatabase.addError(imageLocation.getTopic(), "No image filename specified. Must be in the format [ImageFileID].extension e.g. 123.png, or images/321.jpg");
+						errorDatabase.addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES, "No image filename specified. Must be in the format [ImageFileID].extension e.g. 123.png, or images/321.jpg");
 					}
 					else
 					{
@@ -1887,7 +1912,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						}
 						else
 						{
-							errorDatabase.addError(imageLocation.getTopic(), "ImageFile ID " + topicID + " from image location " + imageLocation + " was not found!");
+							errorDatabase.addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES, "ImageFile ID " + topicID + " from image location " + imageLocation + " was not found!");
 							log.error("ImageFile ID " + topicID + " from image location " + imageLocation + " was not found!");
 						}
 					}
@@ -1895,13 +1920,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				catch (final NumberFormatException ex)
 				{
 					success = false;
-					errorDatabase.addError(imageLocation.getTopic(), imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123.png, or images/321.jpg");
+					errorDatabase.addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES, imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123.png, or images/321.jpg");
 					log.debug(ExceptionUtilities.getStackTrace(ex));
 				}
 				catch (final Exception ex)
 				{
 					success = false;
-					errorDatabase.addError(imageLocation.getTopic(), imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123.png, or images/321.jpg");
+					errorDatabase.addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES, imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123.png, or images/321.jpg");
 					log.error(ExceptionUtilities.getStackTrace(ex));
 				}
 			}
@@ -2070,7 +2095,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		}
 		
 		// Add the Author_Group.xml to the book
-		fixedAuthorGroupXml = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(authorDoc, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", "authorgroup");
+		fixedAuthorGroupXml = DocBookUtilities.addXMLBoilerplate(XMLUtilities.convertNodeToString(authorDoc, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", "authorgroup");
 		try
 		{
 			files.put(BOOK_LOCALE_FOLDER + "Author_Group.xml", fixedAuthorGroupXml.getBytes("UTF-8"));
@@ -2129,7 +2154,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		}
 		
 		// Add the revision history to the book
-		fixedRevisionHistoryXml = DocbookUtils.addXMLBoilerplate(XMLUtilities.convertNodeToString(revHistoryDoc, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", "appendix");
+		fixedRevisionHistoryXml = DocBookUtilities.addXMLBoilerplate(XMLUtilities.convertNodeToString(revHistoryDoc, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", "appendix");
 		try
 		{
 			files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", fixedRevisionHistoryXml.getBytes("UTF-8"));
@@ -2234,10 +2259,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + tags));
 				topicErrorItems.add(DocBookUtilities.buildListItem("INFO: <ulink url=\"" + url + "\">Topic URL</ulink>"));
 
-				for (final String error : topicErrorData.getItemsOfType(TopicErrorDatabase.ERROR))
+				for (final String error : topicErrorData.getItemsOfType(ErrorLevel.ERROR))
 					topicErrorItems.add(DocBookUtilities.buildListItem("ERROR: " + error));
 
-				for (final String warning : topicErrorData.getItemsOfType(TopicErrorDatabase.WARNING))
+				for (final String warning : topicErrorData.getItemsOfType(ErrorLevel.WARNING))
 					topicErrorItems.add(DocBookUtilities.buildListItem("WARNING: " + warning));
 
 				/*
@@ -2270,6 +2295,60 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		}
 
 		return DocBookUtilities.buildChapter(errorItemizedLists, "Compiler Output");
+	}
+	
+	private String buildReportChapter(final String locale)
+	{
+		log.info("\tBuilding Report Chapter");
+		
+		String reportChapter = "";
+
+		final List<TopicErrorData<T, U>> noContentTopics = errorDatabase.getErrorsOfType(locale, ErrorType.NO_CONTENT);
+		final List<TopicErrorData<T, U>> invalidInjectionTopics = errorDatabase.getErrorsOfType(locale, ErrorType.INVALID_INJECTION);
+		final List<TopicErrorData<T, U>> invalidContentTopics = errorDatabase.getErrorsOfType(locale, ErrorType.INVALID_CONTENT);
+		final List<TopicErrorData<T, U>> invalidImageTopics = errorDatabase.getErrorsOfType(locale, ErrorType.INVALID_IMAGES);
+		final List<TopicErrorData<T, U>> untranslatedTopics = errorDatabase.getErrorsOfType(locale, ErrorType.UNTRANSLATED);
+		final List<TopicErrorData<T, U>> incompleteTranslatedTopics = errorDatabase.getErrorsOfType(locale, ErrorType.INCOMPLETE_TRANSLATION);
+		final List<TopicErrorData<T, U>> notPushedTranslatedTopics = errorDatabase.getErrorsOfType(locale, ErrorType.NOT_PUSHED_FOR_TRANSLATION);
+		
+		final List<String> list = new LinkedList<String>();
+		list.add(DocBookUtilities.buildListItem("Total Number of Errors: " + this.getNumErrors()));
+		list.add(DocBookUtilities.buildListItem("Total Number of Warnings: " + this.getNumWarnings()));
+		list.add(DocBookUtilities.buildListItem("Number of Topics with No Content: " + noContentTopics.size()));
+		list.add(DocBookUtilities.buildListItem("Number of Topics with Invalid Injection points: " + invalidInjectionTopics.size()));
+		list.add(DocBookUtilities.buildListItem("Number of Topics with Invalid Content: " + invalidContentTopics.size()));
+		list.add(DocBookUtilities.buildListItem("Number of Topics with Invalid Image references: " + invalidImageTopics.size()));
+		
+		if (clazz.equals(RESTTranslatedTopicV1.class))
+		{
+			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been pushed for Translation: " + notPushedTranslatedTopics.size()));
+			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been Translated: " + untranslatedTopics.size()));
+			list.add(DocBookUtilities.buildListItem("Number of Topics that have incomplete Translations: " + incompleteTranslatedTopics.size()));
+		}
+	
+		reportChapter += DocBookUtilities.wrapListItems(list, "Build Statistics");
+		
+		final boolean showEditorLinks = this.docbookBuildingOptions.getInsertEditorLinks();
+		
+		/* Create the Report Tables */
+		reportChapter += ReportUtilities.buildReportTable(noContentTopics, "Topics that have no Content", showEditorLinks, zanataDetails);
+		
+		reportChapter += ReportUtilities.buildReportTable(invalidContentTopics, "Topics that haven Invalid XML Content", showEditorLinks, zanataDetails);
+		
+		reportChapter += ReportUtilities.buildReportTable(invalidInjectionTopics, "Topics that have Invalid Injection points in the XML", showEditorLinks, zanataDetails);
+		
+		reportChapter += ReportUtilities.buildReportTable(invalidImageTopics, "Topics that have Invalid Image references in the XML", showEditorLinks, zanataDetails);
+		
+		if (clazz.equals(RESTTranslatedTopicV1.class))
+		{	
+			reportChapter += ReportUtilities.buildReportTable(notPushedTranslatedTopics, "Topics that haven't been pushed for Translation", showEditorLinks, zanataDetails);
+			
+			reportChapter += ReportUtilities.buildReportTable(untranslatedTopics, "Topics that haven't been Translated", showEditorLinks, zanataDetails);
+		
+			reportChapter += ReportUtilities.buildReportTable(incompleteTranslatedTopics, "Topics that have Incomplete Translations", showEditorLinks, zanataDetails);
+		}
+
+		return DocBookUtilities.buildChapter(reportChapter, "Status Report");
 	}
 	
 	/**
@@ -2368,7 +2447,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorInvalidValidationTopic.getValue());
 			
 			final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(XMLUtilities.convertNodeToString(topicDoc, verbatimElements, inlineElements, contentsInlineElements, true));
-			errorDatabase.addError(topic, "Topic has invalid Docbook XML. The error is <emphasis>" + validator.getErrorText() + "</emphasis>. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+			errorDatabase.addError(topic, ErrorType.INVALID_CONTENT, "Topic has invalid Docbook XML. The error is <emphasis>" + validator.getErrorText() + "</emphasis>. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
 			setSpecTopicXMLForError(specTopic, topicXMLErrorTemplate, fixedUrlsSuccess);
 			
 			return false;
