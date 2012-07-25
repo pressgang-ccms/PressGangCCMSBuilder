@@ -19,6 +19,13 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMResult;
 import javax.xml.transform.dom.DOMSource;
 
+import org.jboss.pressgangccms.utils.common.CollectionUtilities;
+import org.jboss.pressgangccms.utils.common.ExceptionUtilities;
+import org.jboss.pressgangccms.utils.common.StringUtilities;
+import org.jboss.pressgangccms.utils.sort.EntitySubstitutionBoundaryDataBoundaryStartSort;
+import org.jboss.pressgangccms.utils.structures.EntitySubstitutionBoundaryData;
+import org.jboss.pressgangccms.utils.structures.Pair;
+import org.jboss.pressgangccms.utils.structures.StringToNodeCollection;
 import org.jboss.resteasy.logging.Logger;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -30,13 +37,6 @@ import org.xml.sax.SAXException;
 
 import com.google.code.regexp.NamedMatcher;
 import com.google.code.regexp.NamedPattern;
-import com.redhat.ecs.commonstructures.Pair;
-import com.redhat.ecs.commonstructures.StringToNodeCollection;
-import com.redhat.ecs.commonutils.CollectionUtilities;
-import com.redhat.ecs.commonutils.ExceptionUtilities;
-import com.redhat.ecs.commonutils.StringUtilities;
-import com.redhat.ecs.internalsort.EntitySubstitutionBoundaryDataBoundaryStartSort;
-import com.redhat.ecs.internaltructures.EntitySubstitutionBoundaryData;
 
 /**
  * A class that adds/duplicates additional functionality to the com.redhat.ecs.commonutils.XMLUtilities class so that it will work on Java SE 6.

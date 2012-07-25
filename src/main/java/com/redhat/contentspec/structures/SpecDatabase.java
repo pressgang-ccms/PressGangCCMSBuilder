@@ -8,14 +8,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.redhat.contentspec.Level;
-import com.redhat.contentspec.SpecTopic;
-import com.redhat.ecs.commonutils.CollectionUtilities;
-import com.redhat.topicindex.rest.collections.BaseRestCollectionV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTBaseTopicV1;
+import org.jboss.pressgangccms.contentspec.Level;
+import org.jboss.pressgangccms.contentspec.SpecTopic;
+import org.jboss.pressgangccms.rest.v1.collections.base.BaseRestCollectionV1;
+import org.jboss.pressgangccms.rest.v1.entities.base.RESTBaseTopicV1;
+import org.jboss.pressgangccms.utils.common.CollectionUtilities;
 
-public class SpecDatabase {
-
+public class SpecDatabase
+{
 	private Map<Integer, List<SpecTopic>> specTopics = new HashMap<Integer, List<SpecTopic>>();
 	private Map<String, List<SpecTopic>> specTopicsTitles = new HashMap<String, List<SpecTopic>>();
 	private Map<String, List<Level>> specLevels = new HashMap<String, List<Level>>();

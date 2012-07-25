@@ -5,10 +5,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.redhat.ecs.services.docbookcompiling.DocbookBuildingOptions;
+import org.jboss.pressgangccms.docbook.compiling.DocbookBuildingOptions;
 
-public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
-
+public class CSDocbookBuildingOptions extends DocbookBuildingOptions
+{
 	private List<String> injectionTypes = new ArrayList<String>();
 	private Boolean injection = true;
 	private Map<String, String> overrides = new HashMap<String, String>();

@@ -21,6 +21,50 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.codehaus.jackson.map.ObjectMapper;
+import org.jboss.pressgangccms.contentspec.ContentSpec;
+import org.jboss.pressgangccms.contentspec.Level;
+import org.jboss.pressgangccms.contentspec.SpecTopic;
+import org.jboss.pressgangccms.contentspec.constants.CSConstants;
+import org.jboss.pressgangccms.contentspec.entities.AuthorInformation;
+import org.jboss.pressgangccms.contentspec.entities.InjectionOptions;
+import org.jboss.pressgangccms.contentspec.enums.LevelType;
+import org.jboss.pressgangccms.contentspec.interfaces.ShutdownAbleApp;
+import org.jboss.pressgangccms.contentspec.rest.RESTManager;
+import org.jboss.pressgangccms.contentspec.rest.RESTReader;
+import org.jboss.pressgangccms.docbook.constants.DocbookBuilderConstants;
+import org.jboss.pressgangccms.docbook.structures.TocTopicDatabase;
+import org.jboss.pressgangccms.docbook.structures.TopicErrorData;
+import org.jboss.pressgangccms.docbook.structures.TopicErrorDatabase;
+import org.jboss.pressgangccms.docbook.structures.TopicErrorDatabase.ErrorLevel;
+import org.jboss.pressgangccms.docbook.structures.TopicErrorDatabase.ErrorType;
+import org.jboss.pressgangccms.docbook.structures.TopicImageData;
+import org.jboss.pressgangccms.rest.v1.collections.RESTPropertyTagCollectionV1;
+import org.jboss.pressgangccms.rest.v1.collections.RESTTopicCollectionV1;
+import org.jboss.pressgangccms.rest.v1.collections.RESTTranslatedTopicCollectionV1;
+import org.jboss.pressgangccms.rest.v1.collections.base.BaseRestCollectionV1;
+import org.jboss.pressgangccms.rest.v1.components.ComponentTopicV1;
+import org.jboss.pressgangccms.rest.v1.components.ComponentTranslatedTopicV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTBlobConstantV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTImageV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTLanguageImageV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTPropertyTagV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTStringConstantV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTTagV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTTopicV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTTranslatedTopicV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTUserV1;
+import org.jboss.pressgangccms.rest.v1.entities.base.RESTBaseTopicV1;
+import org.jboss.pressgangccms.rest.v1.exceptions.InternalProcessingException;
+import org.jboss.pressgangccms.rest.v1.exceptions.InvalidParameterException;
+import org.jboss.pressgangccms.rest.v1.expansion.ExpandDataDetails;
+import org.jboss.pressgangccms.rest.v1.expansion.ExpandDataTrunk;
+import org.jboss.pressgangccms.utils.common.CollectionUtilities;
+import org.jboss.pressgangccms.utils.common.DocBookUtilities;
+import org.jboss.pressgangccms.utils.common.ExceptionUtilities;
+import org.jboss.pressgangccms.utils.common.StringUtilities;
+import org.jboss.pressgangccms.utils.constants.CommonConstants;
+import org.jboss.pressgangccms.utils.structures.Pair;
+import org.jboss.pressgangccms.zanata.ZanataDetails;
 import org.jboss.resteasy.logging.Logger;
 import org.jboss.resteasy.specimpl.PathSegmentImpl;
 import org.w3c.dom.Document;
@@ -34,57 +78,13 @@ import com.google.code.regexp.NamedMatcher;
 import com.google.code.regexp.NamedPattern;
 import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
-import com.redhat.contentspec.ContentSpec;
-import com.redhat.contentspec.Level;
-import com.redhat.contentspec.SpecTopic;
 import com.redhat.contentspec.builder.constants.BuilderConstants;
 import com.redhat.contentspec.builder.exception.BuilderCreationException;
-import com.redhat.contentspec.builder.utils.DocBookUtilities;
 import com.redhat.contentspec.builder.utils.ReportUtilities;
 import com.redhat.contentspec.builder.utils.SAXXMLValidator;
 import com.redhat.contentspec.builder.utils.XMLUtilities;
-import com.redhat.contentspec.constants.CSConstants;
-import com.redhat.contentspec.entities.AuthorInformation;
-import com.redhat.contentspec.entities.InjectionOptions;
-import com.redhat.contentspec.enums.LevelType;
-import com.redhat.contentspec.interfaces.ShutdownAbleApp;
-import com.redhat.contentspec.rest.RESTManager;
-import com.redhat.contentspec.rest.RESTReader;
 import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
 import com.redhat.contentspec.structures.SpecDatabase;
-import com.redhat.ecs.commonstructures.Pair;
-import com.redhat.ecs.commonutils.CollectionUtilities;
-import com.redhat.ecs.commonutils.ExceptionUtilities;
-import com.redhat.ecs.commonutils.StringUtilities;
-import com.redhat.ecs.constants.CommonConstants;
-import com.redhat.ecs.services.docbookcompiling.DocbookBuilderConstants;
-import com.redhat.ecs.services.docbookcompiling.xmlprocessing.structures.TocTopicDatabase;
-import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorData;
-import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorDatabase;
-import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorDatabase.ErrorLevel;
-import com.redhat.topicindex.component.docbookrenderer.structures.TopicErrorDatabase.ErrorType;
-import com.redhat.topicindex.component.docbookrenderer.structures.TopicImageData;
-import com.redhat.topicindex.rest.collections.BaseRestCollectionV1;
-import com.redhat.topicindex.rest.collections.RESTPropertyTagCollectionV1;
-import com.redhat.topicindex.rest.collections.RESTTopicCollectionV1;
-import com.redhat.topicindex.rest.collections.RESTTranslatedTopicCollectionV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTBlobConstantV1;
-import com.redhat.topicindex.rest.entities.ComponentTopicV1;
-import com.redhat.topicindex.rest.entities.ComponentTranslatedTopicV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTImageV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTLanguageImageV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTStringConstantV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTUserV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTPropertyTagV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTTagV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTTopicV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTBaseTopicV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTTranslatedTopicV1;
-import com.redhat.topicindex.rest.exceptions.InternalProcessingException;
-import com.redhat.topicindex.rest.exceptions.InvalidParameterException;
-import com.redhat.topicindex.rest.expand.ExpandDataDetails;
-import com.redhat.topicindex.rest.expand.ExpandDataTrunk;
-import com.redhat.topicindex.zanata.ZanataDetails;
 
 public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestCollectionV1<T, U>> implements ShutdownAbleApp
 {
@@ -1288,10 +1288,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		/* add the images to the book */
 		addImagesToBook(files, locale);
 		
-		final LinkedList<com.redhat.contentspec.Node> levelData = contentSpec.getBaseLevel().getChildNodes();
+		final LinkedList<org.jboss.pressgangccms.contentspec.Node> levelData = contentSpec.getBaseLevel().getChildNodes();
 
 		// Loop through and create each chapter and the topics inside those chapters
-		for (final com.redhat.contentspec.Node node: levelData) {
+		for (final org.jboss.pressgangccms.contentspec.Node node: levelData) {
 		
 			// Check if the app should be shutdown
 			if (isShuttingDown.get()) {
@@ -1731,10 +1731,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	@SuppressWarnings("unchecked")
 	protected void createSectionXML(final Map<String, byte[]> files, final Level level, final Document chapter, final Element parentNode, final boolean fixedUrlsSuccess, final String rootElementName)
 	{
-		final LinkedList<com.redhat.contentspec.Node> levelData = level.getChildNodes();
+		final LinkedList<org.jboss.pressgangccms.contentspec.Node> levelData = level.getChildNodes();
 		
 		// Add the section and topics for this level to the chapter.xml
-		for (final com.redhat.contentspec.Node node: levelData)
+		for (final org.jboss.pressgangccms.contentspec.Node node: levelData)
 		{
 			
 			// Check if the app should be shutdown

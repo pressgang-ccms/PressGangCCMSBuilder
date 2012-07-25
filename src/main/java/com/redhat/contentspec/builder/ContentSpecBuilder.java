@@ -3,24 +3,25 @@ package com.redhat.contentspec.builder;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.jboss.pressgangccms.contentspec.ContentSpec;
+import org.jboss.pressgangccms.contentspec.interfaces.ShutdownAbleApp;
+import org.jboss.pressgangccms.contentspec.rest.RESTManager;
+import org.jboss.pressgangccms.contentspec.rest.RESTReader;
+import org.jboss.pressgangccms.docbook.constants.DocbookBuilderConstants;
+import org.jboss.pressgangccms.rest.v1.collections.RESTTopicCollectionV1;
+import org.jboss.pressgangccms.rest.v1.collections.RESTTranslatedTopicCollectionV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTBlobConstantV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTTopicV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTTranslatedTopicV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTUserV1;
+import org.jboss.pressgangccms.rest.v1.exceptions.InternalProcessingException;
+import org.jboss.pressgangccms.rest.v1.exceptions.InvalidParameterException;
+import org.jboss.pressgangccms.utils.common.ZipUtilities;
+import org.jboss.pressgangccms.utils.constants.CommonConstants;
+import org.jboss.pressgangccms.zanata.ZanataDetails;
+
 import com.redhat.contentspec.builder.exception.BuilderCreationException;
-import com.redhat.contentspec.ContentSpec;
-import com.redhat.contentspec.rest.RESTManager;
-import com.redhat.contentspec.rest.RESTReader;
 import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
-import com.redhat.contentspec.interfaces.ShutdownAbleApp;
-import com.redhat.ecs.commonutils.ZipUtilities;
-import com.redhat.ecs.constants.CommonConstants;
-import com.redhat.ecs.services.docbookcompiling.DocbookBuilderConstants;
-import com.redhat.topicindex.rest.collections.RESTTopicCollectionV1;
-import com.redhat.topicindex.rest.collections.RESTTranslatedTopicCollectionV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTBlobConstantV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTUserV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTTopicV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTTranslatedTopicV1;
-import com.redhat.topicindex.rest.exceptions.InternalProcessingException;
-import com.redhat.topicindex.rest.exceptions.InvalidParameterException;
-import com.redhat.topicindex.zanata.ZanataDetails;
 
 /**
  * 
@@ -29,8 +30,8 @@ import com.redhat.topicindex.zanata.ZanataDetails;
  * @author lnewson
  * @author alabbas
  */
-public class ContentSpecBuilder implements ShutdownAbleApp {
-	
+public class ContentSpecBuilder implements ShutdownAbleApp
+{	
 	private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
 	private final AtomicBoolean shutdown = new AtomicBoolean(false);
 	
@@ -40,28 +41,33 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 	private final RESTManager restManager;	
 	private DocbookBuilder<?, ?> docbookBuilder;
 
-	public ContentSpecBuilder(final RESTManager restManager) throws InvalidParameterException, InternalProcessingException {
+	public ContentSpecBuilder(final RESTManager restManager) throws InvalidParameterException, InternalProcessingException
+	{
 		this.restManager = restManager;
 		reader = restManager.getReader();
 		this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
 	}
 	
 	@Override
-	public void shutdown() {
+	public void shutdown()
+	{
 		isShuttingDown.set(true);
 		docbookBuilder.shutdown();
 	}
 
 	@Override
-	public boolean isShutdown() {
+	public boolean isShutdown()
+	{
 		return shutdown.get();
 	}
 	
-	public int getNumWarnings() {
+	public int getNumWarnings()
+	{
 		return docbookBuilder == null ? 0 : docbookBuilder.getNumWarnings();
 	}
 
-	public int getNumErrors() {
+	public int getNumErrors()
+	{
 		return docbookBuilder == null ? 0 : docbookBuilder.getNumErrors();
 	}
 	

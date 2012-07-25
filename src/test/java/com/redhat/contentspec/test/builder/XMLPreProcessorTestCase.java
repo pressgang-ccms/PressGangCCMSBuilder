@@ -7,6 +7,20 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 
+import org.jboss.pressgangccms.contentspec.SpecTopic;
+import org.jboss.pressgangccms.contentspec.entities.BugzillaOptions;
+import org.jboss.pressgangccms.docbook.compiling.DocbookBuildingOptions;
+import org.jboss.pressgangccms.rest.v1.collections.RESTPropertyTagCollectionV1;
+import org.jboss.pressgangccms.rest.v1.collections.RESTTagCollectionV1;
+import org.jboss.pressgangccms.rest.v1.collections.RESTTopicCollectionV1;
+import org.jboss.pressgangccms.rest.v1.collections.RESTTranslatedTopicCollectionV1;
+import org.jboss.pressgangccms.rest.v1.components.ComponentTopicV1;
+import org.jboss.pressgangccms.rest.v1.components.ComponentTranslatedTopicV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTPropertyTagV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTTagV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTTopicV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTTranslatedTopicV1;
+import org.jboss.pressgangccms.utils.constants.CommonConstants;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -14,23 +28,9 @@ import static org.junit.Assert.*;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 
-import com.redhat.contentspec.SpecTopic;
 import com.redhat.contentspec.builder.XMLPreProcessor;
 import com.redhat.contentspec.builder.constants.BuilderConstants;
 import com.redhat.contentspec.builder.utils.XMLUtilities;
-import com.redhat.contentspec.entities.BugzillaOptions;
-import com.redhat.ecs.constants.CommonConstants;
-import com.redhat.ecs.services.docbookcompiling.DocbookBuildingOptions;
-import com.redhat.topicindex.rest.collections.RESTPropertyTagCollectionV1;
-import com.redhat.topicindex.rest.collections.RESTTagCollectionV1;
-import com.redhat.topicindex.rest.collections.RESTTopicCollectionV1;
-import com.redhat.topicindex.rest.collections.RESTTranslatedTopicCollectionV1;
-import com.redhat.topicindex.rest.entities.ComponentTopicV1;
-import com.redhat.topicindex.rest.entities.ComponentTranslatedTopicV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTPropertyTagV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTTagV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTTopicV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTTranslatedTopicV1;
 
 public class XMLPreProcessorTestCase
 {
