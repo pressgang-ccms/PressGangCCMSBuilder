@@ -24,30 +24,31 @@ import com.redhat.contentspec.builder.exception.BuilderCreationException;
 import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
 
 /**
- * 
+ *
  * A class that provides the ability to build a book from content specifications.
- * 
+ *
  * @author lnewson
  * @author alabbas
  */
 public class ContentSpecBuilder implements ShutdownAbleApp
-{	
+{
 	private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
 	private final AtomicBoolean shutdown = new AtomicBoolean(false);
-	
+
 	@SuppressWarnings("unused")
 	private final RESTReader reader;
 	private final RESTBlobConstantV1 rocbookdtd;
 	private final RESTManager restManager;	
 	private DocbookBuilder<?, ?> docbookBuilder;
 
-	public ContentSpecBuilder(final RESTManager restManager) throws InvalidParameterException, InternalProcessingException
+	public ContentSpecBuilder(final RESTManager restManager)
+			throws InvalidParameterException, InternalProcessingException
 	{
 		this.restManager = restManager;
 		reader = restManager.getReader();
 		this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
 	}
-	
+
 	@Override
 	public void shutdown()
 	{
@@ -60,7 +61,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp
 	{
 		return shutdown.get();
 	}
-	
+
 	public int getNumWarnings()
 	{
 		return docbookBuilder == null ? 0 : docbookBuilder.getNumWarnings();
@@ -70,28 +71,49 @@ public class ContentSpecBuilder implements ShutdownAbleApp
 	{
 		return docbookBuilder == null ? 0 : docbookBuilder.getNumErrors();
 	}
-	
+
 	/**
-	 * Builds a book into a zip file for the passed Content Specification
-	 * 
-	 * @param contentSpec The content specification that is to be built. It should have already been validated, if not errors may occur.
-	 * @param requester The user who requested the book to be built.
+	 * Builds a book into a zip file for the passed Content Specification.
+	 *
+	 * @param contentSpec
+	 * 					The content specification that is to be built. It
+	 * 					should have already been validated, if not errors
+	 * 					may occur.
+	 * @param requester
+	 * 					The user who requested the book to be built.
+	 * @param builderOptions
+	 * 					The set of options what are to be when building the
+	 * 					book.
+	 * @param zanataDetails
+	 * 					The Zanata details to be used when editor links are
+	 * 					turned on.
 	 * @return A byte array that is the zip file
-	 * @throws Exception 
+	 * @throws Exception Any unexpected errors that occur during building.
 	 */
-	public byte[] buildBook(final ContentSpec contentSpec, final RESTUserV1 requester, final CSDocbookBuildingOptions builderOptions, 
-			final ZanataDetails zanataDetails) throws Exception
+	public byte[] buildBook(final ContentSpec contentSpec, final RESTUserV1 requester,
+			final CSDocbookBuildingOptions builderOptions, final ZanataDetails zanataDetails)
+			throws Exception
 	{
-		if (contentSpec == null) throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
-		if (requester == null) throw new BuilderCreationException("A user must be specified as the user who requested the build.");
-		
+		if (contentSpec == null)
+		{
+			throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
+		}
+		else if (requester == null)
+		{
+			throw new BuilderCreationException("A user must be specified as the user who requested the build.");
+		}
+
 		if (contentSpec.getLocale() == null || contentSpec.getLocale().equals("en-US"))
+		{
 			docbookBuilder = new DocbookBuilder<RESTTopicV1, RESTTopicCollectionV1>(restManager, rocbookdtd, CommonConstants.DEFAULT_LOCALE, zanataDetails);
+		}
 		else
+		{
 			docbookBuilder = new DocbookBuilder<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1>(restManager, rocbookdtd, CommonConstants.DEFAULT_LOCALE, zanataDetails);
-			
+		}
+
 		final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, null);
-		
+
 		// Create the zip file
 		byte[] zipFile = null;
 		try
