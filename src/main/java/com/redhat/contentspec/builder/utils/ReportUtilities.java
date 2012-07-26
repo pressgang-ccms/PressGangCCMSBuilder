@@ -47,12 +47,23 @@ public class ReportUtilities
 			final Integer topicId;
 			final Integer topicRevision;
 			final String editorUrl;
+			final List<String> topicTitles;
 			if (topic instanceof RESTTranslatedTopicV1)
 			{
-				url = ComponentTranslatedTopicV1.returnSkynetURL((RESTTranslatedTopicV1) topic);
-				topicId = ((RESTTranslatedTopicV1) topic).getTopicId();
-				topicRevision = ((RESTTranslatedTopicV1) topic).getTopicRevision();
-				editorUrl = ComponentTranslatedTopicV1.returnEditorURL((RESTTranslatedTopicV1) topic, zanataDetails);
+				final RESTTranslatedTopicV1 translatedTopic = (RESTTranslatedTopicV1) topic;
+				url = ComponentTranslatedTopicV1.returnSkynetURL(translatedTopic);
+				topicId = translatedTopic.getTopicId();
+				topicRevision = translatedTopic.getTopicRevision();
+				editorUrl = ComponentTranslatedTopicV1.returnEditorURL(translatedTopic, zanataDetails);
+				if (!ComponentTranslatedTopicV1.returnIsDummyTopic(translatedTopic) && translatedTopic.getTopic() != null)
+				{
+					topicTitles = CollectionUtilities.toArrayList(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara("[" + translatedTopic.getTopic().getLocale() + "] " + translatedTopic.getTopic().getTitle()))
+							, DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara("[" + translatedTopic.getLocale() + "] " + translatedTopic.getTitle())));
+				}
+				else
+				{
+					topicTitles = CollectionUtilities.toArrayList(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(topic.getTitle())));
+				}
 			}
 			else
 			{
@@ -60,10 +71,11 @@ public class ReportUtilities
 				topicId = topic.getId();
 				topicRevision = topic.getRevision();
 				editorUrl = ComponentTopicV1.returnEditorURL((RESTTopicV1) topic);
+				topicTitles = CollectionUtilities.toArrayList(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(topic.getTitle())));
 			}
 			
 			final String topicULink = createTopicTableLinks(topicId, topicRevision, url, editorUrl);
-			final String topicTitle = DocBookUtilities.wrapListItems(CollectionUtilities.toArrayList(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(topic.getTitle()))));
+			final String topicTitle = DocBookUtilities.wrapListItems(topicTitles);
 			final String topicTags = buildItemizedTopicTagList(topic);
 			
 			rows.add(CollectionUtilities.toArrayList(new String[] {topicULink, topicTitle, topicTags}));
@@ -123,6 +135,12 @@ public class ReportUtilities
 			}
 			
 			items.add(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara("<emphasis role=\"bold\">" + catName + ":</emphasis> " + thisTagList)));
+		}
+		
+		/* Check that some tags exist, otherwise add a message about there being no tags */
+		if (items.isEmpty())
+		{
+			items.add(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara("No Tags exist for this topic")));
 		}
 		
 		return DocBookUtilities.wrapListItems(items);

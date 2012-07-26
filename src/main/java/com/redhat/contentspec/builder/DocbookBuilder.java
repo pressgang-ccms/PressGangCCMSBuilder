@@ -450,6 +450,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		{
 			return;
 		}
+		
+		// If the node is null then there isn't anything to find, so just return.
+		if (node == null)
+		{
+			return;
+		}
 
 		if (node.getNodeName().equals("xref") || node.getNodeName().equals("link"))
 		{
@@ -562,11 +568,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			{
 				translatedTopics = topicCollection;
 			}
-
-			// TODO handle building translations for topic revisions. (May need to extend the REST interface)
-
-			final List<Integer> dummyTopicIds = new ArrayList<Integer>(topicIds);
-
+			
+			/*
+			 * Populate the dummy topic ids using the latest topics.
+			 * We will remove the topics that exist a little later.
+			 */
+			final Set<Integer> dummyTopicIds = new HashSet<Integer>(topicIds);
+			
 			/* Remove any topic ids for translated topics that were found */
 			if (translatedTopics != null && translatedTopics.getItems() != null)
 			{
@@ -582,10 +590,28 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				}
 			}
 
-			/* Create the dummy translated topics */
-			if (!dummyTopicIds.isEmpty())
+			/*
+			 * Fetch each topic that is a revision separately since this
+			 * functionality isn't offered by the REST API.
+			 */
+			final Set<Pair<Integer, Integer>> dummyTopicRevisionIds = new HashSet<Pair<Integer, Integer>>();
+			for (final Pair<Integer, Integer> topicToRevision : topicRevisions)
 			{
-				populateDummyTranslatedTopicsPass(translatedTopics, dummyTopicIds);
+				final RESTTranslatedTopicV1 topicRevision = reader.getClosestTranslatedTopicByTopicId(topicToRevision.getFirst(), topicToRevision.getSecond(), contentSpec.getLocale(), true);
+				if (topicRevision != null)
+				{
+					translatedTopics.addItem(topicRevision);
+				}
+				else
+				{
+					dummyTopicRevisionIds.add(topicToRevision);
+				}
+			}
+
+			/* Create the dummy translated topics */
+			if (!dummyTopicIds.isEmpty() || !dummyTopicRevisionIds.isEmpty())
+			{
+				populateDummyTranslatedTopicsPass(translatedTopics, dummyTopicIds, dummyTopicRevisionIds);
 			}
 
 			/*
@@ -709,13 +735,34 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 *
 	 * @param topics The set of topics to add the dummy translated topics to.
 	 * @param dummyTopicIds The list of topics to be added as dummy translated topics.
+	 * @param dummyRevisionTopicIds
 	 */
-	private void populateDummyTranslatedTopicsPass(final RESTTranslatedTopicCollectionV1 topics, final List<Integer> dummyTopicIds)
+	private void populateDummyTranslatedTopicsPass(final RESTTranslatedTopicCollectionV1 topics, final Set<Integer> dummyTopicIds, Set<Pair<Integer, Integer>> dummyRevisionTopicIds)
 	{
 		log.info("\tDoing dummy Translated Topic pass");
 
-		final RESTTopicCollectionV1 dummyTopics = reader.getTopicsByIds(dummyTopicIds, true);
+		final RESTTopicCollectionV1 dummyTopics;
 
+		RESTTopicCollectionV1 tempCollection = reader.getTopicsByIds(CollectionUtilities.toArrayList(dummyTopicIds), true);
+		if (tempCollection == null)
+		{
+			dummyTopics = new RESTTopicCollectionV1();
+		}
+		else
+		{
+			dummyTopics = tempCollection;
+		}
+
+		/* Add any revision topics */
+		for (final Pair<Integer, Integer> topicToRevision : dummyRevisionTopicIds)
+		{
+			final RESTTopicV1 topic = reader.getTopicById(topicToRevision.getFirst(), topicToRevision.getSecond(), true);
+			if (topic != null)
+			{
+				dummyTopics.addItem(topic);
+			}
+		}
+		
 		/* Only continue if we found dummy topics */
 		if (dummyTopics == null || dummyTopics.getItems() == null || dummyTopics.getItems().isEmpty())
 		{
@@ -1209,6 +1256,26 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					 * processing has been done
 					 */
 					validateTopicXML(specTopic, doc, useFixedUrls);
+				}
+				
+				/* 
+				 * Check to see if the translated topic revision is an older
+				 * topic than the topic revision specified in the map
+				 */
+				if (topic instanceof RESTTranslatedTopicV1)
+				{
+					final RESTTranslatedTopicV1 pushedTranslatedTopic = ComponentTranslatedTopicV1.returnPushedTranslatedTopic((RESTTranslatedTopicV1) topic);
+					if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision().equals(specTopic.getRevision()))
+					{
+						if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic))
+						{
+							errorDatabase.addWarning((T) topic, ErrorType.OLD_UNTRANSLATED, "This untranslated topic uses content that is older than the specfied topic's content.");
+						}
+						else
+						{
+							errorDatabase.addWarning((T) topic, ErrorType.OLD_TRANSLATION, "This topic's translated content is older than the specfied topic's content.");
+						}
+					}
 				}
 
 				/*
@@ -2038,7 +2105,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 
 					/*
 					 * If the image is the failpenguin the that means that an error has
-					 * already occured most likely from not specifying an image file at
+					 * already occurred most likely from not specifying an image file at
 					 * all.
 					 */
 					if (topicID.equals("failpenguinPng"))
@@ -2157,10 +2224,18 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		}
 
 		// Get the mapping of authors using the topics inside the content spec
-		for (Integer topicId : specDatabase.getTopicIds())
+		for (final Integer topicId : specDatabase.getTopicIds())
 		{
 			final T topic = (T) specDatabase.getSpecTopicsForTopicID(topicId).get(0).getTopic();
-			final List<RESTTagV1> authorTags = topic instanceof RESTTranslatedTopicV1 ? ComponentTranslatedTopicV1.returnTagsInCategoriesByID(topic, CollectionUtilities.toArrayList(CSConstants.WRITER_CATEGORY_ID)) : ComponentTopicV1.returnTagsInCategoriesByID(topic, CollectionUtilities.toArrayList(CSConstants.WRITER_CATEGORY_ID));
+			final List<RESTTagV1> authorTags;
+			if (topic instanceof RESTTranslatedTopicV1)
+			{
+				authorTags = ComponentTranslatedTopicV1.returnTagsInCategoriesByID(topic, CollectionUtilities.toArrayList(CSConstants.WRITER_CATEGORY_ID));
+			}
+			else
+			{
+				authorTags = ComponentTopicV1.returnTagsInCategoriesByID(topic, CollectionUtilities.toArrayList(CSConstants.WRITER_CATEGORY_ID));
+			}
 			if (authorTags.size() > 0)
 			{
 				for (final RESTTagV1 author : authorTags)
@@ -2534,6 +2609,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		final List<TopicErrorData<T, U>> untranslatedTopics = errorDatabase.getErrorsOfType(locale, ErrorType.UNTRANSLATED);
 		final List<TopicErrorData<T, U>> incompleteTranslatedTopics = errorDatabase.getErrorsOfType(locale, ErrorType.INCOMPLETE_TRANSLATION);
 		final List<TopicErrorData<T, U>> notPushedTranslatedTopics = errorDatabase.getErrorsOfType(locale, ErrorType.NOT_PUSHED_FOR_TRANSLATION);
+		final List<TopicErrorData<T, U>> oldTranslatedTopics = errorDatabase.getErrorsOfType(locale, ErrorType.OLD_TRANSLATION);
+		final List<TopicErrorData<T, U>> oldUntranslatedTopics = errorDatabase.getErrorsOfType(locale, ErrorType.OLD_UNTRANSLATED);
 
 		final List<String> list = new LinkedList<String>();
 		list.add(DocBookUtilities.buildListItem("Total Number of Errors: " + this.getNumErrors()));
@@ -2548,6 +2625,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been pushed for Translation: " + notPushedTranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been Translated: " + untranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that have incomplete Translations: " + incompleteTranslatedTopics.size()));
+			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been Translated but are using older content: " + oldUntranslatedTopics.size()));
+			list.add(DocBookUtilities.buildListItem("Number of Topics that have been Translated using older content: " + oldTranslatedTopics.size()));
 		}
 
 		reportChapter += DocBookUtilities.wrapListItems(list, "Build Statistics");
@@ -2570,6 +2649,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			reportChapter += ReportUtilities.buildReportTable(untranslatedTopics, "Topics that haven't been Translated", showEditorLinks, zanataDetails);
 
 			reportChapter += ReportUtilities.buildReportTable(incompleteTranslatedTopics, "Topics that have Incomplete Translations", showEditorLinks, zanataDetails);
+			
+			reportChapter += ReportUtilities.buildReportTable(oldUntranslatedTopics, "Topics that haven't been Translated but are using older content", showEditorLinks, zanataDetails);
+			
+			reportChapter += ReportUtilities.buildReportTable(oldTranslatedTopics, "Topics that have been Translated using older content", showEditorLinks, zanataDetails);
 		}
 
 		return DocBookUtilities.buildChapter(reportChapter, "Status Report");

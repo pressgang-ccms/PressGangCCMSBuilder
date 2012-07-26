@@ -81,15 +81,13 @@ public class BuilderConstants {
 	// Defaults
 	public static final String DEFAULT_CS_DECRIPTION	= "A brief paragraph describing this book. This will be used as the description for the rpm package.";
 	public static final String DEFAULT_BZCOMPONENT		= "documentation";
-	public static final boolean DEFAULT_PERMISSIVE_MODE = false;
-	public static final boolean DEFAULT_BUGZILLA_INJECTION_MODE	= true;
 	
-	public static final String VERBATIM_XML_ELEMENTS	= "screen,programlisting";
+	public static final String VERBATIM_XML_ELEMENTS	= "screen,programlisting,literallayout,synopsis,address";
 	public static final String INLINE_XML_ELEMENTS	= "code,prompt,command,firstterm,ulink,guilabel,filename,replaceable,parameter,literal,classname,sgmltag," 
 			+ "guibutton,guimenuitem,guimenu,menuchoice,citetitle,revnumber,application,systemitem,acronym,keycap,emphasis,package,quote,trademark,abbrev,phrase,"
 			+ "anchor,citation,glossterm,link,xref,markup,tag,keycode,keycombo,accel,guisubmenu,keysym,shortcut,mousebutton,constant,errorcode,errorname,errortype,"
 			+ "function,msgtext,property,returnvalue,symbol,token,varname,database,email,hardware,option,optional,type,methodname,interfacename,uri,productname,"
-			+ "productversion";
+			+ "productversion,firstname,surname,orgname,orgdiv";
 	
 	public static final String CONTENTS_INLINE_XML_ELEMENTS = "title,term";
 	
