@@ -2594,6 +2594,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		return DocBookUtilities.buildChapter(errorItemizedLists, "Compiler Output");
 	}
 	
+	/**
+	 * 
+	 * @param title
+	 * @return
+	 */
 	private String buildErrorChapterGlossary(final String title)
 	{
 		final StringBuilder glossary = new StringBuilder("<glossary>");
