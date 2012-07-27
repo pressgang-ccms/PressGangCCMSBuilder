@@ -2072,8 +2072,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		final byte[] failpenguinPng = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.FAILPENGUIN_PNG_ID, "").getValue();
 
 		/* download the image files that were identified in the processing stage */
-		int imageProgress = 0;
-		final int imageTotal = this.imageLocations.size();
+		float imageProgress = 0;
+		final float imageTotal = this.imageLocations.size();
 		final int showPercent = 5;
 		int lastPercent = 0;
 
@@ -2166,7 +2166,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				{
 					success = false;
 					errorDatabase.addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES, imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123.png, or images/321.jpg");
-					log.error(ExceptionUtilities.getStackTrace(ex));
+					log.debug(ExceptionUtilities.getStackTrace(ex));
 				}
 			}
 
@@ -2176,9 +2176,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				files.put(BOOK_LOCALE_FOLDER + imageLocation.getImageName(), failpenguinPng);
 			}
 
-			final float progress = (float) imageProgress / (float) imageTotal * 100;
-			if (imageProgress - lastPercent >= showPercent)
+			final int progress = Math.round(imageProgress / imageTotal * 100);
+			if (progress - lastPercent >= showPercent)
 			{
+				lastPercent = progress;
 				log.info("\tDownloading Images " + Math.round(progress) + "% done");
 			}
 
