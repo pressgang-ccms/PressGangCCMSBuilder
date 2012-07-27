@@ -145,18 +145,18 @@ public class BuilderConstants {
 	
 	public static final List<String> WARNING_OLD_UNTRANSLATED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(new String[]
 			{
-				"An older revision of this topic has been pushed to Zanata, but has not been translated."
-						+ " As such the topic will be displayed using the untranslated content and possibly contain invalid translations, once translated.",
+				"A previous revision of this topic has been pushed to Zanata, and has not yet been translated."
+						+ "This previous revision has been included in the book, but will display content that is older than what was defined by the Content Specification.",
 				"To fix this warning, please send a request to the User responsible for pushing Translations to Zanata and request that the topic be pushed for translation."
 			}
 		);
 	
 	public static final List<String> WARNING_OLD_TRANSLATED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(new String[]
 			{
-				"An older revision of this topic has been pushed to Zanata, but has been translated."
-						+ " As such the topic may possibly contain invalid translations.",
+				"A previous revision of this topic has been pushed to Zanata, and has been translated."
+						+ " This previous revision has been included in the book, but will display content that is older than what was defined by the Content Specification.",
 				"To fix this warning, please send a request to the User responsible for pushing Translations to Zanata and request that the topic be pushed for translation."
-						+ " In most cases the older translations will be able to be reused when pushed to Zanata."
+						+ " In most cases the existing translations will be able to be reused when the topic is pushed to Zanata."
 			}
 		);
 	
