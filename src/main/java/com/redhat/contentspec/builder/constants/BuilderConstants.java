@@ -1,5 +1,9 @@
 package com.redhat.contentspec.builder.constants;
 
+import java.util.List;
+
+import org.jboss.pressgangccms.utils.common.CollectionUtilities;
+
 public class BuilderConstants {
 	
 	/** Number of times to try setting the property tags on the topics */
@@ -69,11 +73,7 @@ public class BuilderConstants {
 	public static final String DEFAULT_AUTHOR_LASTNAME	= "Robot";
 	public static final String DEFAULT_EMAIL			= "robot@dev.null.com";
 	
-	public static final String INVALID_TOPIC_XML		= "Topic failed schema validation. The error was <emphasis>%s</emphasis>";
-	public static final String EMPTY_TOPIC_XML			= "Topic has no XML data";
 	public static final String INVALID_UTF8_CHARACTER 	= "Invalid UTF-8 character found! You may have issues building the content specification if not fixed";
-	public static final String BAD_XML_STRUCTURE 		= "Topic doesn't have well-formed xml";
-	public static final String INVALID_XML_CONTENT 		= "Topic contains an invalid element that can't be converted into a DOM Element.";
 	public static final String FAILED_TOPIC_XML			= "Topic failed relationship and bug reporting injection/validation. The error was <emphasis>%s</emphasis>";
 	public static final String BUILT_MSG				= "Built from Content Specification: %d, Revision: %d";
 	public static final String BUILT_FILE_MSG			= "Content Specification built from file";
@@ -99,4 +99,93 @@ public class BuilderConstants {
 												"<!ENTITY BZURL \"<<contentSpec.bugzillaUrl>>\">\n" + 
 												"<!ENTITY BZCOMPONENT \"<<contentSpec.bzcomponent>>\">\n" +
 												"<!ENTITY BZPRODUCT \"<<contentSpec.bzproduct>>\">";
+	
+	// Warning compiler output messages.
+	public static final String WARNING_UNTRANSLATED_TOPIC 		= "This topic is an untranslated topic.";
+	public static final String WARNING_NONPUSHED_TOPIC			= "This topic hasn't been pushed for translation.";
+	public static final String WARNING_OLD_UNTRANSLATED_TOPIC	= "This untranslated topic uses content that is older than the specfied topic's content.";
+	public static final String WARNING_OLD_TRANSLATED_TOPIC		= "This topic's translated content is older than the specfied topic's content.";
+	public static final String WARNING_INCOMPLETE_TRANSLATION	= "This topic hasn't been fully translated.";
+	public static final String WARNING_EMPTY_TOPIC_XML			= "This topic has no XML data";
+	
+	// Error compiler output messages.
+	public static final String ERROR_INVALID_XML_CONTENT 		= "This topic contains an invalid element that can't be converted into a DOM Element.";
+	public static final String ERROR_BAD_XML_STRUCTURE 			= "This topic doesn't have well-formed xml.";
+	public static final String ERROR_INVALID_TOPIC_XML			= "This topic has invalid Docbook XML.";
+	public static final String ERROR_INVALID_INJECTIONS			= "This topic has invalid Injection Points.";
+	
+	// Glossary Defs for warning messages
+	public static final List<String> WARNING_NO_CONTENT_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(new String[]
+			{
+			"The topic doesn't have any XML Content to display.",
+			"To fix this warning, open the topic URL and add some content."
+			}
+		);
+	
+	public static final List<String> WARNING_UNTRANSLATED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(new String[]
+			{
+			"The topic hasn't been translated yet by the Translator(s), as such the topic will be displayed using the untranslated content.",
+			"To fix this warning, please contact the Translator(s) responsible for translating the topics in this locale."
+			}
+		);
+	
+	public static final List<String> WARNING_NONPUSHED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(new String[]
+			{
+				"The topic hasn't been pushed for translation yet, as such the topic will be displayed using the original topic's content.",
+				"To fix this warning, please send a request to the User responsible for pushing Translations to Zanata and request that the topic be pushed for translation."
+			}
+		);
+	
+	public static final List<String> WARNING_INCOMPLETE_TRANSLATED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(new String[]
+			{
+				"The topic hasn't finished being translated by the Translator(s) yet, as such the topic will be displayed using incomplete translated content.",
+				"To fix this warning, please contact the Translator(s) responsible for translating the topics in this locale."
+			}
+		);
+	
+	public static final List<String> WARNING_OLD_UNTRANSLATED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(new String[]
+			{
+				"An older revision of this topic has been pushed to Zanata, but has not been translated."
+						+ " As such the topic will be displayed using the untranslated content and possibly contain invalid translations, once translated.",
+				"To fix this warning, please send a request to the User responsible for pushing Translations to Zanata and request that the topic be pushed for translation."
+			}
+		);
+	
+	public static final List<String> WARNING_OLD_TRANSLATED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(new String[]
+			{
+				"An older revision of this topic has been pushed to Zanata, but has been translated."
+						+ " As such the topic may possibly contain invalid translations.",
+				"To fix this warning, please send a request to the User responsible for pushing Translations to Zanata and request that the topic be pushed for translation."
+						+ " In most cases the older translations will be able to be reused when pushed to Zanata."
+			}
+		);
+	
+	// Glossary Defs for error messages
+	public static final List<String> ERROR_INVALID_XML_CONTENT_DEFINTIION = CollectionUtilities.toArrayList(new String[]
+			{
+			"The topic XML contains invalid elements that cannot be successfully converted in DOM elements.",
+			"To fix this error please remove or correct any invalid XML elements or entities. Note: HTML Entities aren't classified as valid XML Entities."
+			}
+		);
+	
+	public static final List<String> ERROR_BAD_XML_STRUCTURE_DEFINTIION = CollectionUtilities.toArrayList(new String[]
+			{
+			"The topic XML is not well-formed XML and maybe missing opening or closing element statements.",
+			"To fix this error please ensure that all XML elements having an opening and closing statement and all XML reserved characters are represented as XML entities."
+			}
+		);
+	
+	public static final List<String> ERROR_INVALID_TOPIC_XML_DEFINTIION = CollectionUtilities.toArrayList(new String[]
+			{
+			"The topic XML is not valid against the Docbook 4.5 DTD.",
+			"To fix this error please ensure that all XML elements are valid Docbook elements . Also check to ensure all XML sub elements are valid for the root XML element."
+			}
+		);
+	
+	public static final List<String> ERROR_INVALID_INJECTIONS_DEFINTIION = CollectionUtilities.toArrayList(new String[]
+			{
+			"The topic XML contains Injection Points that cannot be resolved into links.",
+			"To fix this error please ensure that all the topics referred to by Injection Points are included in the build and/or have adequate relationships."
+			}
+		);
 }

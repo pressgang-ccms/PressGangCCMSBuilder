@@ -43,18 +43,10 @@ public class ReportUtilities
 		for (final TopicErrorData<T, U> topicErrorData : topicErrorDatas)
 		{
 			final T topic = topicErrorData.getTopic();
-			final String url;
-			final Integer topicId;
-			final Integer topicRevision;
-			final String editorUrl;
 			final List<String> topicTitles;
 			if (topic instanceof RESTTranslatedTopicV1)
 			{
 				final RESTTranslatedTopicV1 translatedTopic = (RESTTranslatedTopicV1) topic;
-				url = ComponentTranslatedTopicV1.returnSkynetURL(translatedTopic);
-				topicId = translatedTopic.getTopicId();
-				topicRevision = translatedTopic.getTopicRevision();
-				editorUrl = ComponentTranslatedTopicV1.returnEditorURL(translatedTopic, zanataDetails);
 				if (!ComponentTranslatedTopicV1.returnIsDummyTopic(translatedTopic) && translatedTopic.getTopic() != null)
 				{
 					topicTitles = CollectionUtilities.toArrayList(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara("[" + translatedTopic.getTopic().getLocale() + "] " + translatedTopic.getTopic().getTitle()))
@@ -67,14 +59,10 @@ public class ReportUtilities
 			}
 			else
 			{
-				url = ComponentTopicV1.returnSkynetURL((RESTTopicV1) topic);
-				topicId = topic.getId();
-				topicRevision = topic.getRevision();
-				editorUrl = ComponentTopicV1.returnEditorURL((RESTTopicV1) topic);
 				topicTitles = CollectionUtilities.toArrayList(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(topic.getTitle())));
 			}
 			
-			final String topicULink = createTopicTableLinks(topicId, topicRevision, url, editorUrl);
+			final String topicULink = createTopicTableLinks(topic, showEditorLink, zanataDetails);
 			final String topicTitle = DocBookUtilities.wrapListItems(topicTitles);
 			final String topicTags = buildItemizedTopicTagList(topic);
 			
@@ -84,18 +72,70 @@ public class ReportUtilities
 		return rows.size() > 0 ? DocBookUtilities.wrapInTable(tableTitle, tableHeaders, rows) : "";
 	}
 	
-	private static String createTopicTableLinks(final Integer topicId, final Integer topicRevision, final String url, final String editorUrl)
+	private static <T extends RESTBaseTopicV1<T, U>, U extends BaseRestCollectionV1<T, U>> String createTopicTableLinks(final T topic, final boolean showEditorLink, final ZanataDetails zanataDetails)
 	{
-		final String topicPara = DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(url, "Topic " + topicId + ", Revision " + topicRevision));
-		if (editorUrl != null)
+		final List<String> topicIdUrls = new ArrayList<String>();
+		final String url;
+		final String editorUrl;
+		if (topic instanceof RESTTranslatedTopicV1)
 		{
-			final String editorPara = DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(editorUrl, "Editor Link"));
-			return DocBookUtilities.wrapListItems(CollectionUtilities.toArrayList(DocBookUtilities.wrapInListItem(topicPara), DocBookUtilities.wrapInListItem(editorPara)));
+			final String topicIdString;
+			final RESTTranslatedTopicV1 translatedTopic = (RESTTranslatedTopicV1) topic;
+			if (ComponentTranslatedTopicV1.returnIsDummyTopic(translatedTopic))
+			{
+				topicIdString = "Topic " + translatedTopic.getTopicId() + ", Revision " + translatedTopic.getTopicRevision();
+				if (translatedTopic.getTopic() != null)
+				{
+					url = ComponentTopicV1.returnSkynetURL(translatedTopic.getTopic());
+				}
+				else
+				{
+					url = ComponentTranslatedTopicV1.returnSkynetURL(translatedTopic);
+				}
+			}
+			else
+			{
+				if (translatedTopic.getTopic() != null)
+				{
+					final String topicUrl = ComponentTopicV1.returnSkynetURL(translatedTopic.getTopic());
+					topicIdUrls.add(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(topicUrl, "Topic " + translatedTopic.getTopic().getId()))));
+				}
+				topicIdString = "Translated Topic " + translatedTopic.getTranslatedTopicId();
+				url = ComponentTranslatedTopicV1.returnSkynetURL(translatedTopic);
+			}
+			topicIdUrls.add(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(url, topicIdString))));
+			
+			if (showEditorLink)
+			{
+				editorUrl = ComponentTranslatedTopicV1.returnEditorURL(translatedTopic, zanataDetails);
+			}
+			else
+			{
+				editorUrl = null;
+			}
 		}
 		else
 		{
-			return DocBookUtilities.wrapListItems(CollectionUtilities.toArrayList(DocBookUtilities.wrapInListItem(topicPara)));
+			url = ComponentTopicV1.returnSkynetURL((RESTTopicV1) topic);
+			final String topicIdString = "Topic " + topic.getId() + ", Revision " + topic.getRevision();
+			topicIdUrls.add(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(url, topicIdString))));
+			
+			if (showEditorLink)
+			{
+				editorUrl = ComponentTopicV1.returnEditorURL((RESTTopicV1) topic);
+			}
+			else
+			{
+				editorUrl = null;
+			}
 		}
+		
+		if (editorUrl != null)
+		{
+			topicIdUrls.add(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(editorUrl, "Editor Link"))));
+		}
+
+		return DocBookUtilities.wrapListItems(topicIdUrls);
 	}
 	
 	private static <T extends RESTBaseTopicV1<T, U>, U extends BaseRestCollectionV1<T, U>> String buildItemizedTopicTagList(final T topic)

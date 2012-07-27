@@ -948,7 +948,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					// Create an empty topic with the topic title from the resource file
 					final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorEmptyTopic.getValue());
 
-					errorDatabase.addWarning(topic, ErrorType.NO_CONTENT, BuilderConstants.EMPTY_TOPIC_XML);
+					errorDatabase.addWarning(topic, ErrorType.NO_CONTENT, BuilderConstants.WARNING_EMPTY_TOPIC_XML);
 					topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
 					xmlValid = false;
 				}
@@ -976,7 +976,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						{
 							final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorInvalidValidationTopic.getValue());
 
-							errorDatabase.addError(topic, ErrorType.INVALID_CONTENT, BuilderConstants.INVALID_XML_CONTENT);
+							errorDatabase.addError(topic, ErrorType.INVALID_CONTENT, BuilderConstants.ERROR_INVALID_XML_CONTENT);
 							topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
 						}
 					}
@@ -984,7 +984,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					{
 						final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorInvalidValidationTopic.getValue());
 
-						errorDatabase.addError(topic, ErrorType.INVALID_CONTENT, BuilderConstants.BAD_XML_STRUCTURE + " " + StringUtilities.escapeForXML(ex.getMessage()));
+						errorDatabase.addError(topic, ErrorType.INVALID_CONTENT, BuilderConstants.ERROR_BAD_XML_STRUCTURE + " " + StringUtilities.escapeForXML(ex.getMessage()));
 						topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
 					}
 				}
@@ -1217,16 +1217,16 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						/* Check the topic itself isn't a dummy topic */
 						if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic) && ComponentTranslatedTopicV1.hasBeenPushedForTranslation((RESTTranslatedTopicV1) topic))
 						{
-							errorDatabase.addWarning(topic, ErrorType.UNTRANSLATED, "This topic is an untranslated topic.");
+							errorDatabase.addWarning(topic, ErrorType.UNTRANSLATED, BuilderConstants.WARNING_UNTRANSLATED_TOPIC);
 						}
 						else if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic))
 						{
-							errorDatabase.addWarning(topic, ErrorType.NOT_PUSHED_FOR_TRANSLATION, "This topic hasn't been pushed for translation.");
+							errorDatabase.addWarning(topic, ErrorType.NOT_PUSHED_FOR_TRANSLATION, BuilderConstants.WARNING_NONPUSHED_TOPIC);
 						}
 						/* Check if the topic's content isn't fully translated */
 						else if (((RESTTranslatedTopicV1) topic).getTranslationPercentage() < 100)
 						{
-							errorDatabase.addWarning(topic, ErrorType.INCOMPLETE_TRANSLATION, "This topic hasn't been fully translated.");
+							errorDatabase.addWarning(topic, ErrorType.INCOMPLETE_TRANSLATION, BuilderConstants.WARNING_INCOMPLETE_TRANSLATION);
 						}
 					}
 				}
@@ -1242,7 +1242,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorInvalidInjectionTopic.getValue());
 
 					final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(XMLUtilities.convertNodeToString(doc, verbatimElements, inlineElements, contentsInlineElements, true));
-					errorDatabase.addError(topic, "Topic has invalid Injection Points. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+					errorDatabase.addError(topic, BuilderConstants.ERROR_INVALID_INJECTIONS + " The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
 
 					setSpecTopicXMLForError(specTopic, topicXMLErrorTemplate, useFixedUrls);
 				}
@@ -1269,11 +1269,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					{
 						if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic))
 						{
-							errorDatabase.addWarning((T) topic, ErrorType.OLD_UNTRANSLATED, "This untranslated topic uses content that is older than the specfied topic's content.");
+							errorDatabase.addWarning((T) topic, ErrorType.OLD_UNTRANSLATED, BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
 						}
 						else
 						{
-							errorDatabase.addWarning((T) topic, ErrorType.OLD_TRANSLATION, "This topic's translated content is older than the specfied topic's content.");
+							errorDatabase.addWarning((T) topic, ErrorType.OLD_TRANSLATION, BuilderConstants.WARNING_OLD_TRANSLATED_TOPIC);
 						}
 					}
 				}
@@ -2508,7 +2508,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		String errorItemizedLists = "";
 
 		if (errorDatabase.hasItems(locale))
-		{
+		{	
 			for (final TopicErrorData<T, U> topicErrorData : errorDatabase.getErrors(locale))
 			{
 				// Check if the app should be shutdown
@@ -2578,6 +2578,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					errorItemizedLists += DocBookUtilities.wrapListItems(topicErrorItems, title, id);
 				}
 			}
+			
+			// Create the glossary
+			final String errorGlossary = buildErrorChapterGlossary("Compiler Glossary");
+			if (errorGlossary != null)
+			{
+				errorItemizedLists += errorGlossary;
+			}
 		}
 		else
 		{
@@ -2585,6 +2592,69 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		}
 
 		return DocBookUtilities.buildChapter(errorItemizedLists, "Compiler Output");
+	}
+	
+	private String buildErrorChapterGlossary(final String title)
+	{
+		final StringBuilder glossary = new StringBuilder("<glossary>");
+
+		// Add the title of the glossary
+		glossary.append("<title>");
+		if (title != null)
+		{
+			glossary.append(title);
+		}
+		glossary.append("</title>");
+
+		// Add generic error messages
+
+		// No Content Warning
+		glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_EMPTY_TOPIC_XML + "\""),
+				DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_NO_CONTENT_TOPIC_DEFINTIION)));
+
+		// Invalid XML entity or element
+		glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.ERROR_INVALID_XML_CONTENT + "\""),
+				DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.ERROR_INVALID_XML_CONTENT_DEFINTIION)));
+
+		// No Content Error
+		glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.ERROR_BAD_XML_STRUCTURE + "\""),
+				DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.ERROR_BAD_XML_STRUCTURE_DEFINTIION)));
+
+		// Invalid Docbook XML Error
+		glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.ERROR_INVALID_TOPIC_XML + "\""),
+				DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.ERROR_INVALID_TOPIC_XML_DEFINTIION)));
+		
+		// Invalid Injections Error
+		glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.ERROR_INVALID_INJECTIONS + "\""),
+				DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.ERROR_INVALID_INJECTIONS_DEFINTIION)));
+
+		// Add the glossary terms and definitions
+		if (clazz.equals(RESTTranslatedTopicV1.class))
+		{
+			// Incomplete translation warning
+			glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_INCOMPLETE_TRANSLATION + "\""),
+					DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_INCOMPLETE_TRANSLATED_TOPIC_DEFINTIION)));
+			
+			// Untranslated Content warning
+			glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_UNTRANSLATED_TOPIC + "\""),
+					DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_UNTRANSLATED_TOPIC_DEFINTIION)));
+			
+			// Non Pushed Translation Content warning
+			glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_NONPUSHED_TOPIC + "\""),
+					DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_NONPUSHED_TOPIC_DEFINTIION)));
+			
+			// Old Translation Content warning
+			glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_OLD_TRANSLATED_TOPIC + "\""),
+					DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_OLD_TRANSLATED_TOPIC_DEFINTIION)));
+			
+			// Old Untranslated Content warning
+			glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC + "\""),
+					DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC_DEFINTIION)));
+		}
+		
+		glossary.append("</glossary>");
+		
+		return glossary.toString();
 	}
 
 	/**
@@ -2757,7 +2827,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			final String topicXMLErrorTemplate = buildTopicErrorTemplate(topic, errorInvalidValidationTopic.getValue());
 
 			final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(XMLUtilities.convertNodeToString(topicDoc, verbatimElements, inlineElements, contentsInlineElements, true));
-			errorDatabase.addError(topic, ErrorType.INVALID_CONTENT, "Topic has invalid Docbook XML. The error is <emphasis>" + validator.getErrorText() + "</emphasis>. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+			errorDatabase.addError(topic, ErrorType.INVALID_CONTENT, BuilderConstants.ERROR_INVALID_TOPIC_XML + " The error is <emphasis>" + validator.getErrorText() + "</emphasis>. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
 			setSpecTopicXMLForError(specTopic, topicXMLErrorTemplate, useFixedUrls);
 
 			return false;
