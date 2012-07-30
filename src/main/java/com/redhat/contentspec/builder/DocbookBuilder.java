@@ -27,6 +27,7 @@ import org.jboss.pressgangccms.contentspec.SpecTopic;
 import org.jboss.pressgangccms.contentspec.constants.CSConstants;
 import org.jboss.pressgangccms.contentspec.entities.AuthorInformation;
 import org.jboss.pressgangccms.contentspec.entities.InjectionOptions;
+import org.jboss.pressgangccms.contentspec.enums.BookType;
 import org.jboss.pressgangccms.contentspec.enums.LevelType;
 import org.jboss.pressgangccms.contentspec.interfaces.ShutdownAbleApp;
 import org.jboss.pressgangccms.contentspec.rest.RESTManager;
@@ -819,11 +820,41 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			final RESTTopicV1 topic, final boolean expandRelationships, final String locale)
 	{
 		final RESTTranslatedTopicV1 translatedTopic = new RESTTranslatedTopicV1();
-
+		translatedTopic.setTopic(topic);
 		translatedTopic.setId(topic.getId() * -1);
+		
+		final RESTTranslatedTopicV1 pushedTranslatedTopic = ComponentTranslatedTopicV1.returnPushedTranslatedTopic(translatedTopic);
+		
+		/* 
+		 * Try and use the untranslated default locale translated topic as the 
+		 * base for the dummy topic. If that fails then create a dummy topic from
+		 * the passed RESTTopicV1.
+		 */
+		if (pushedTranslatedTopic != null)
+		{
+			final RESTTranslatedTopicV1 defaultLocaleTranslatedTopic = reader.getTranslatedTopicById(pushedTranslatedTopic.getId());
+			
+			if (defaultLocaleTranslatedTopic != null)
+			{
+				/* Negate the ID to show it isn't a proper translated topic */
+				defaultLocaleTranslatedTopic.setId(topic.getId() * -1);
+				
+				/* prefix the locale to show that it is missing the related translated topic */
+				defaultLocaleTranslatedTopic.setTitle("[" + defaultLocaleTranslatedTopic.getLocale() + "] " + defaultLocaleTranslatedTopic.getTitle());
+				
+				/* Change the locale since the default locale translation is being transformed into a dummy translation */
+				defaultLocaleTranslatedTopic.setLocale(locale);
+				
+				return defaultLocaleTranslatedTopic;
+			}
+		}
+		
+		/* 
+		 * If we get to this point then no translation exists or
+		 * the default locale translation failed to be downloaded.
+		 */
 		translatedTopic.setTopicId(topic.getId());
 		translatedTopic.setTopicRevision(topic.getRevision().intValue());
-		translatedTopic.setTopic(topic);
 		translatedTopic.setTranslationPercentage(100);
 		translatedTopic.setRevision(topic.getRevision());
 		translatedTopic.setXml(topic.getXml());
@@ -1562,7 +1593,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 *
 	 * @param contentSpec The content specification object to be built.
 	 * @param requester The User who requested the book be built.
-	 * @param files TODO
+	 * @param files The mapping of file names/locations to files that will be packaged into the ZIP
+	 * archive.
 	 * @return A Document object to be used in generating the book.xml
 	 * @throws InternalProcessingException TODO
 	 * @throws InvalidParameterException TODO
@@ -1574,8 +1606,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 
 		final Map<String, String> overrides = docbookBuildingOptions.getOverrides();
 
-		final String bookInfo = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_INFO_XML_ID, "").getValue();
-		final String bookXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_XML_ID, "").getValue();
 		final String publicanCfg = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.PUBLICAN_CFG_ID, "").getValue();
 		final String bookEnt = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_ENT_ID, "").getValue();
 		final String prefaceXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.CSP_PREFACE_XML_ID, "").getValue();
@@ -1583,18 +1613,29 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		final String brand = contentSpec.getBrand() == null ? "common" : contentSpec.getBrand();
 
 		// Setup the basic book.xml
+		final String bookXml;
+		if (contentSpec.getBookType() == BookType.ARTICLE)
+		{
+			bookXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ARTICLE_XML_ID, "").getValue();
+		}
+		else
+		{
+			bookXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_XML_ID, "").getValue();
+		}
 		String basicBook = bookXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
 		basicBook = basicBook.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
 		basicBook = basicBook.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
 
 		// Setup publican.cfg
 		String fixedPublicanCfg = publicanCfg.replaceAll(BuilderConstants.BRAND_REGEX, brand);
+		fixedPublicanCfg = fixedPublicanCfg.replaceFirst(BuilderConstants.BOOK_TYPE_REGEX, contentSpec.getBookType().toString());
 		fixedPublicanCfg = fixedPublicanCfg.replaceFirst("xml_lang\\: .*(\\r\\n|\\n)", "xml_lang: " + locale + "\n");
 
 		// Remove the image width for CSP output
 		if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT))
 		{
-			fixedPublicanCfg = fixedPublicanCfg.replaceFirst("max_image_width: \\d+(\\r)?\\n", "");
+			fixedPublicanCfg = fixedPublicanCfg.replaceFirst("max_image_width:[\\s]*\\d+(\\r)?\\n", "");
+			fixedPublicanCfg = fixedPublicanCfg.replaceFirst("toc_section_depth:[\\s]*\\d+(\\r)?\\n", "");
 		}
 
 		if (contentSpec.getPublicanCfg() != null)
@@ -1626,6 +1667,16 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			/* UTF-8 is a valid format so this should exception should never get thrown */
 			log.error(e.getMessage());
 		}
+		
+		final String bookInfo;
+		if (contentSpec.getBookType() == BookType.ARTICLE)
+		{
+			bookInfo = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ARTICLE_INFO_XML_ID, "").getValue();
+		}
+		else
+		{
+			bookInfo = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_INFO_XML_ID, "").getValue();
+		}
 
 		// Setup Book_Info.xml
 		final String pubsNumber = overrides.containsKey("pubsnumber") ? overrides.get("pubsnumber") : (contentSpec.getPubsNumber() == null ? BuilderConstants.PUBSNUMBER_DEFAULT : contentSpec.getPubsNumber().toString());
@@ -1646,7 +1697,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 
 		try
 		{
-			files.put(BOOK_LOCALE_FOLDER + "Book_Info.xml", fixedBookInfo.getBytes("UTF-8"));
+			if (contentSpec.getBookType() == BookType.ARTICLE)
+			{
+				files.put(BOOK_LOCALE_FOLDER + "Article_Info.xml", fixedBookInfo.getBytes("UTF-8"));
+			}
+			else
+			{
+				files.put(BOOK_LOCALE_FOLDER + "Book_Info.xml", fixedBookInfo.getBytes("UTF-8"));
+			}
 		}
 		catch (UnsupportedEncodingException e)
 		{
@@ -2101,14 +2159,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					 * The file name minus the extension should be an integer
 					 * that references an ImageFile record ID.
 					 */
-					final String topicID = imageLocation.getImageName().substring(pathIndex + 1, extensionIndex);
+					final String imageID = imageLocation.getImageName().substring(pathIndex + 1, extensionIndex);
 
 					/*
 					 * If the image is the failpenguin the that means that an error has
 					 * already occurred most likely from not specifying an image file at
 					 * all.
 					 */
-					if (topicID.equals("failpenguinPng"))
+					if (imageID.equals("failpenguinPng"))
 					{
 						success = false;
 						errorDatabase.addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES, "No image filename specified. Must be in the format [ImageFileID].extension e.g. 123.png, or images/321.jpg");
@@ -2125,7 +2183,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						final String expandString = mapper.writeValueAsString(expand);
 						//final String expandEncodedString = URLEncoder.encode(expandString, "UTF-8");
 
-						final RESTImageV1 imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(topicID), expandString);
+						final RESTImageV1 imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(imageID), expandString);
 
 						/* Find the image that matches this locale. If the locale isn't found then use the default locale */
 						RESTLanguageImageV1 langaugeImageFile = null;
@@ -2151,8 +2209,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						}
 						else
 						{
-							errorDatabase.addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES, "ImageFile ID " + topicID + " from image location " + imageLocation + " was not found!");
-							log.error("ImageFile ID " + topicID + " from image location " + imageLocation + " was not found!");
+							errorDatabase.addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES, "ImageFile ID " + imageID + " from image location " + imageLocation.getImageName() + " was not found!");
+							log.error("ImageFile ID " + imageID + " from image location " + imageLocation.getImageName() + " was not found!");
 						}
 					}
 				}
@@ -2701,8 +2759,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been pushed for Translation: " + notPushedTranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been Translated: " + untranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that have incomplete Translations: " + incompleteTranslatedTopics.size()));
-			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been Translated but are using older content: " + oldUntranslatedTopics.size()));
-			list.add(DocBookUtilities.buildListItem("Number of Topics that have been Translated using older content: " + oldTranslatedTopics.size()));
+			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been Translated but are using previous revisions: " + oldUntranslatedTopics.size()));
+			list.add(DocBookUtilities.buildListItem("Number of Topics that have been Translated using a previous revision: " + oldTranslatedTopics.size()));
 		}
 
 		reportChapter += DocBookUtilities.wrapListItems(list, "Build Statistics");
@@ -2726,9 +2784,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 
 			reportChapter += ReportUtilities.buildReportTable(incompleteTranslatedTopics, "Topics that have Incomplete Translations", showEditorLinks, zanataDetails);
 			
-			reportChapter += ReportUtilities.buildReportTable(oldUntranslatedTopics, "Topics that haven't been Translated but are using older content", showEditorLinks, zanataDetails);
+			reportChapter += ReportUtilities.buildReportTable(oldUntranslatedTopics, "Topics that haven't been Translated but are using previous revisions", showEditorLinks, zanataDetails);
 			
-			reportChapter += ReportUtilities.buildReportTable(oldTranslatedTopics, "Topics that have been Translated using older content", showEditorLinks, zanataDetails);
+			reportChapter += ReportUtilities.buildReportTable(oldTranslatedTopics, "Topics that have been Translated using a previous revision", showEditorLinks, zanataDetails);
 		}
 
 		return DocBookUtilities.buildChapter(reportChapter, "Status Report");

@@ -28,6 +28,7 @@ public class BuilderConstants
 	public static final String BZPRODUCT_REGEX 			= "<<contentSpec\\.bzproduct>>";
 	public static final String BZCOMPONENT_REGEX 		= "<<contentSpec\\.bzcomponent>>";
 	public static final String BUILDER_VERSION_REGEX 	= "<<csBuilder\\.version>>";
+	public static final String BOOK_TYPE_REGEX			= "<<contentSpec\\.bookType>>";
 	public static final String DATE_FORMAT_REGEX		= "Day Mon DD HH:MM:SS YYYY";
 	public static final String REV_DATE_FORMAT_REGEX	= "DAY MON DD YYYY";
 	public static final String DATE_STRING_FORMAT		= "EEE MMM dd HH:mm:ss yyyy";
