@@ -51,6 +51,9 @@ public class BuilderConstants
 	public static final String AUTHOR_FIRST_NAME_REGEX	= "<!-- Inject authorInformation\\.firstName -->";
 	public static final String AUTHOR_SURNAME_REGEX		= "<!-- Inject authorInformation\\.lastName -->";
 	public static final String AUTHOR_EMAIL_REGEX		= "<!-- Inject authorInformation\\.email -->";
+	
+	// Common Content File Names
+	public static final String[] COMMON_CONTENT_FILES = new String[] {"Conventions.xml", "Feedback.xml", "Legal_Notice.xml"}; 
 
 	public static final String INVALID_UTF8_CHARACTER 	= "Invalid UTF-8 character found! You may have issues building the content specification if not fixed";
 	public static final String BUILT_MSG				= "Built from Content Specification: %d, Revision: %d";
@@ -62,7 +65,8 @@ public class BuilderConstants
 	public static final String SUBTITLE_DEFAULT			= "Subtitle goes here";
 	public static final String EDITION_DEFAULT			= "1";
 	public static final String PUBSNUMBER_DEFAULT		= "1";
-
+	public static final String DEFAULT_BUGZILLA_URL 	= "https://bugzilla.redhat.com/";
+	
 	public static final String DEFAULT_AUTHOR_FIRSTNAME	= "CS Builder";
 	public static final String DEFAULT_AUTHOR_LASTNAME	= "Robot";
 	public static final String DEFAULT_EMAIL			= "robot@dev.null.com";
@@ -89,6 +93,13 @@ public class BuilderConstants
 												"<!ENTITY BZURL \"<<contentSpec.bugzillaUrl>>\">\n" + 
 												"<!ENTITY BZCOMPONENT \"<<contentSpec.bzcomponent>>\">\n" +
 												"<!ENTITY BZPRODUCT \"<<contentSpec.bzproduct>>\">";
+	
+	public static final String LEGAL_NOTICE_XML = "<xi:include href=\"Legal_Notice.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\">\n"
+			+ "\t<xi:fallback xmlns:xi=\"http://www.w3.org/2001/XInclude\">\n"
+			+ "\t\t<xi:include href=\"Common_Content/Legal_Notice.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n"
+			+ "\t</xi:fallback>\n"
+			+ "</xi:include>";
+			
 
 	// Warning compiler output messages.
 	public static final String WARNING_UNTRANSLATED_TOPIC 		= "This topic is an untranslated topic.";

@@ -62,6 +62,7 @@ import org.jboss.pressgangccms.rest.v1.expansion.ExpandDataTrunk;
 import org.jboss.pressgangccms.utils.common.CollectionUtilities;
 import org.jboss.pressgangccms.utils.common.DocBookUtilities;
 import org.jboss.pressgangccms.utils.common.ExceptionUtilities;
+import org.jboss.pressgangccms.utils.common.FileUtilities;
 import org.jboss.pressgangccms.utils.common.StringUtilities;
 import org.jboss.pressgangccms.utils.constants.CommonConstants;
 import org.jboss.pressgangccms.utils.structures.Pair;
@@ -1610,7 +1611,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		final String bookEnt = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_ENT_ID, "").getValue();
 		final String prefaceXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.CSP_PREFACE_XML_ID, "").getValue();
 
-		final String brand = contentSpec.getBrand() == null ? "common" : contentSpec.getBrand();
+		final String brand = contentSpec.getBrand() == null ? BuilderConstants.BRAND_DEFAULT : contentSpec.getBrand();
 
 		// Setup the basic book.xml
 		final String bookXml;
@@ -1692,7 +1693,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		{
 			fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX, contentSpec.getAbstract() == null ? BuilderConstants.DEFAULT_ABSTRACT :
 					("<abstract>\n\t\t<para>\n\t\t\t" + contentSpec.getAbstract() + "\n\t\t</para>\n\t</abstract>\n"));
-			fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.LEGAL_NOTICE_REGEX, "<xi:include href=\"Common_Content/Legal_Notice.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
+			fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.LEGAL_NOTICE_REGEX, BuilderConstants.LEGAL_NOTICE_XML);
 		}
 
 		try
@@ -1713,9 +1714,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		}
 
 		// Setup Author_Group.xml
-		if (overrides.containsKey("Author_Group.xml"))
+		if (overrides.containsKey(CSConstants.AUTHOR_GROUP_OVERRIDE))
 		{
-			final File authorGrp = new File(overrides.get("Author_Group.xml"));
+			final File authorGrp = new File(overrides.get(CSConstants.AUTHOR_GROUP_OVERRIDE));
 			if (authorGrp.exists() && authorGrp.isFile())
 			{
 				try
@@ -1770,10 +1771,16 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			basicBook = basicBook.replaceAll(BuilderConstants.REV_HISTORY_REGEX, "<xi:include href=\"Revision_History.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
 		}
 
-		// Setup Revision_History.xml
-		if (overrides.containsKey("Revision_History.xml"))
+		// Add any common content files that need to be included locally
+		if (docbookBuildingOptions.getCommonContentLocale() != null && docbookBuildingOptions.getCommonContentDirectory() != null)
 		{
-			final File revHistory = new File(overrides.get("Revision_History.xml"));
+			addPublicanCommonContentToBook(contentSpec, docbookBuildingOptions.getCommonContentLocale(), docbookBuildingOptions.getCommonContentDirectory(), files);
+		}
+
+		// Setup Revision_History.xml
+		if (overrides.containsKey(CSConstants.REVISION_HISTORY_OVERRIDE))
+		{
+			final File revHistory = new File(overrides.get(CSConstants.REVISION_HISTORY_OVERRIDE));
 			if (revHistory.exists() && revHistory.isFile())
 			{
 				try
@@ -1815,7 +1822,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_COPYRIGHT_REGEX, contentSpec.getCopyrightHolder());
 		entFile = entFile.replaceAll(BuilderConstants.BZPRODUCT_REGEX, contentSpec.getBugzillaProduct() == null ? contentSpec.getProduct() : contentSpec.getBugzillaProduct());
 		entFile = entFile.replaceAll(BuilderConstants.BZCOMPONENT_REGEX, contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec.getBugzillaComponent());
-		entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, contentSpec.getBugzillaURL() == null ? "https://bugzilla.redhat.com/" : contentSpec.getBugzillaURL());
+		entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, contentSpec.getBugzillaURL() == null ? BuilderConstants.DEFAULT_BUGZILLA_URL : contentSpec.getBugzillaURL());
 		try
 		{
 			files.put(BOOK_LOCALE_FOLDER + escapedTitle + ".ent", entFile.getBytes("UTF-8"));
@@ -1868,6 +1875,71 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		}
 
 		return basicBook;
+	}
+
+	/**
+	 * Adds the Publican Common_Content files specified by the brand,
+	 * locale and directory location build options . If the Common_Content
+	 * files don't exist at the directory, brand and locale specified then
+	 * the "common" brand will be used instead. If the file still don't exist
+	 * then the files are skipped and will rely on XML XI Include Fallbacks.
+	 *
+	 * @param contentSpec The Content Spec that is used to build the book.
+	 * @param commonContentLocale The Common_Content Locale to be used.
+	 * @param commonContentDirectory The Common_Content directory.
+	 * @param files The Mapping of file names to file contents to be used to build
+	 * the ZIP archive.
+	 */
+	protected void addPublicanCommonContentToBook(final ContentSpec contentSpec, final String commonContentLocale,
+			final String commonContentDirectory, final Map<String, byte[]> files)
+	{
+		final String brand = contentSpec.getBrand() == null ? BuilderConstants.BRAND_DEFAULT : contentSpec.getBrand();
+		
+		final String brandDir = commonContentDirectory + (commonContentDirectory.endsWith("/") ? "" : "/")
+				+ brand + File.separator + commonContentLocale + File.separator;
+		final String commonBrandDir = commonContentDirectory + (commonContentDirectory.endsWith("/") ? "" : "/")
+				+ BuilderConstants.BRAND_DEFAULT + File.separator + commonContentLocale + File.separator;
+		
+		/*
+		 * We need to pull the Conventions.xml, Feedback.xml & Legal_Notice.xml
+		 * from the publican Common_Content directory. First we need to check if
+		 * the files exist for the brand, if they don't then we need to check the
+		 * common directory.
+		 */
+		
+		for (final String fileName : BuilderConstants.COMMON_CONTENT_FILES)
+		{
+			final File brandFile = new File(brandDir + fileName);
+			
+			try
+			{
+				if (brandFile.exists() && brandFile.isFile())
+				{
+					final String file = FileUtilities.readFileContents(brandFile);
+					if (file != null)
+					{
+						files.put(BOOK_LOCALE_FOLDER + fileName, file.getBytes("UTF-8"));
+					}
+				}
+				else
+				{
+					final File commonBrandFile = new File(commonBrandDir + fileName);
+					if (commonBrandFile.exists() && commonBrandFile.isFile())
+					{
+						final String file = FileUtilities.readFileContents(commonBrandFile);
+						if (file != null)
+						{
+							files.put(BOOK_LOCALE_FOLDER + fileName, file.getBytes("UTF-8"));
+						}
+					}
+				}
+			}
+			catch (UnsupportedEncodingException e)
+			{
+				log.debug(e.getMessage());
+			}
+		}
+		
 	}
 
 	/**
