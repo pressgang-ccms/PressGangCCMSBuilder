@@ -8,6 +8,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.jboss.pressgangccms.utils.common.XMLUtilities;
 import org.junit.Test;
 import org.w3c.dom.CDATASection;
 import org.w3c.dom.Document;
@@ -18,7 +19,6 @@ import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
 
 import com.redhat.contentspec.builder.constants.BuilderConstants;
-import com.redhat.contentspec.builder.utils.XMLUtilities;
 
 public class XMLUtilitiesTestCase {
 
