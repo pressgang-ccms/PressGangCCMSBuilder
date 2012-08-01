@@ -2256,7 +2256,15 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						final String expandString = mapper.writeValueAsString(expand);
 						//final String expandEncodedString = URLEncoder.encode(expandString, "UTF-8");
 
-						final RESTImageV1 imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(imageID), expandString);
+						final RESTImageV1 imageFile;
+						if (imageLocation.getRevision() == null)
+						{
+							imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(imageID), expandString);
+						}
+						else
+						{
+							imageFile = restManager.getRESTClient().getJSONImageRevision(Integer.parseInt(imageID), imageLocation.getRevision(), expandString);
+						}
 
 						/* Find the image that matches this locale. If the locale isn't found then use the default locale */
 						RESTLanguageImageV1 langaugeImageFile = null;
@@ -2905,7 +2913,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 							fileRefAttribute.setNodeValue("images/" + fileRefAttribute.getNodeValue());
 						}
 
-						imageLocations.add(new TopicImageData<T, U>(topic, fileRefAttribute.getNodeValue()));
+						if (specTopic.getRevision() == null)
+						{
+							imageLocations.add(new TopicImageData<T, U>(topic, fileRefAttribute.getNodeValue()));
+						}
+						else
+						{
+							imageLocations.add(new TopicImageData<T, U>(topic, fileRefAttribute.getNodeValue(), specTopic.getRevision()));
+						}
 					}
 				}
 			}
