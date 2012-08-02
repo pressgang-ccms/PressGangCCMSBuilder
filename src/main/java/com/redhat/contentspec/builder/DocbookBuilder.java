@@ -2851,7 +2851,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		/* Create the Report Tables */
 		reportChapter += ReportUtilities.buildReportTable(noContentTopics, "Topics that have no Content", showEditorLinks, zanataDetails);
 
-		reportChapter += ReportUtilities.buildReportTable(invalidContentTopics, "Topics that haven Invalid XML Content", showEditorLinks, zanataDetails);
+		reportChapter += ReportUtilities.buildReportTable(invalidContentTopics, "Topics that have Invalid XML Content", showEditorLinks, zanataDetails);
 
 		reportChapter += ReportUtilities.buildReportTable(invalidInjectionTopics, "Topics that have Invalid Injection points in the XML", showEditorLinks, zanataDetails);
 
@@ -3066,13 +3066,15 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 * Sets the XML of the topic in the content spec to the
 	 * error template provided.
 	 *
-	 * @param topic TODO
+	 * @param specTopic TODO
 	 * @param template TODO
 	 * @param useFixedUrls TODO
 	 */
 	@SuppressWarnings("unchecked")
-	private void setSpecTopicXMLForError(final SpecTopic topic, final String template, final boolean useFixedUrls)
+	private void setSpecTopicXMLForError(final SpecTopic specTopic, final String template, final boolean useFixedUrls)
 	{
+		final T topic = (T) specTopic.getTopic();
+		
 		Document doc = null;
 		try
 		{
@@ -3084,9 +3086,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			log.debug(ExceptionUtilities.getStackTrace(ex));
 			System.exit(-1);
 		}
-		topic.setXmlDocument(doc);
+		specTopic.setXmlDocument(doc);
 		DocBookUtilities.setSectionTitle(topic.getTitle(), doc);
-		processTopicID((T) topic.getTopic(), doc, useFixedUrls);
+		processTopicID(topic, doc, useFixedUrls);
 	}
 
 	/**
