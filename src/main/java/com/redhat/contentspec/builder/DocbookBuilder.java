@@ -9,6 +9,7 @@ import java.net.URLEncoder;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -1106,6 +1107,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 
 			if (doc != null)
 			{
+				/* process the conditional statements */
+				final String condition = specTopic.getConditionStatement(true);
+				processConditionalStatements(condition, doc);
+				
 				/* process the injection points */
 				if (injectionOptions.isInjectionAllowed())
 				{
@@ -1316,6 +1321,83 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				 * by setting any duplicates with a post fixed number.
 				 */
 				setUniqueIds(specTopic, specTopic.getXmlDocument(), usedIdAttributes);
+			}
+		}
+	}
+
+	/**
+	 * Collects any nodes that have the "condition" attribute in the
+	 * passed node or any of it's children nodes.
+	 *
+	 * @param node The node to collect condition elements from.
+	 * @param conditionalNodes A mapping of nodes to their conditions
+	 */
+	protected void collectConditionalStatements(final Node node, final Map<Node, List<String>> conditionalNodes)
+	{
+		final NamedNodeMap attributes = node.getAttributes();
+		if (attributes != null)
+		{
+			final Node attr = attributes.getNamedItem("condition");
+			
+			if (attr != null)
+			{
+				final String conditionStatement = attr.getNodeValue();
+				
+				final String[] conditions = conditionStatement.split(",");
+
+				conditionalNodes.put(node, Arrays.asList(conditions));
+			}
+		}
+
+		final NodeList elements = node.getChildNodes();
+		for (int i = 0; i < elements.getLength(); ++i)
+		{
+			collectConditionalStatements(elements.item(i), conditionalNodes);
+		}
+	}
+
+	/**
+	 * Check the XML Document and it's children for condition
+	 * statements. If any are found then check if the condition
+	 * matches the passed condition string. If they don't match
+	 * then remove the nodes.
+	 *
+	 * @param condition The condition regex to be tested against.
+	 * @param doc The Document to check for conditional statements.
+	 */
+	protected void processConditionalStatements(final String condition, final Document doc)
+	{
+		final Map<Node, List<String>> conditionalNodes = new HashMap<Node, List<String>>();
+		collectConditionalStatements(doc.getDocumentElement(), conditionalNodes);
+		
+		// Loop through each condition found and see if it matches
+		for (final Node node : conditionalNodes.keySet())
+		{
+			boolean matched = false;
+			
+			final List<String> nodeConditions = conditionalNodes.get(node);
+			
+			// Check to see if the condition matches
+			for (final String nodeCondition : nodeConditions)
+			{
+				if (condition != null && nodeCondition.matches(condition))
+				{
+					matched = true;
+				}
+				else if (condition == null && nodeCondition.matches(BuilderConstants.DEFAULT_CONDITION))
+				{
+					matched = true;
+				}
+			}
+			
+			// If there was no match then remove the node
+			if (!matched)
+			{
+				final Node parentNode = node.getParentNode();
+				if (parentNode != null)
+				{
+					parentNode.removeChild(node);
+				}
 			}
 		}
 	}
@@ -2220,6 +2302,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 
 			final int extensionIndex = imageLocation.getImageName().lastIndexOf(".");
 			final int pathIndex = imageLocation.getImageName().lastIndexOf("/");
+			final int hypenIndex = imageLocation.getImageName().lastIndexOf("-");
 
 			if (/* characters were found */
 					extensionIndex != -1 && pathIndex != -1
@@ -2232,7 +2315,15 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					 * The file name minus the extension should be an integer
 					 * that references an ImageFile record ID.
 					 */
-					final String imageID = imageLocation.getImageName().substring(pathIndex + 1, extensionIndex);
+					final String imageID;
+					if (hypenIndex != -1)
+					{
+						imageID = imageLocation.getImageName().substring(pathIndex + 1, Math.min(extensionIndex, hypenIndex));
+					}
+					else
+					{
+						imageID = imageLocation.getImageName().substring(pathIndex + 1, extensionIndex);
+					}
 
 					/*
 					 * If the image is the failpenguin the that means that an error has
@@ -2908,17 +2999,37 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					}
 					else if (fileRefAttribute != null)
 					{
-						if (fileRefAttribute != null && !fileRefAttribute.getNodeValue().startsWith("images/"))
-						{
-							fileRefAttribute.setNodeValue("images/" + fileRefAttribute.getNodeValue());
-						}
-
 						if (specTopic.getRevision() == null)
 						{
+							if (fileRefAttribute != null && !fileRefAttribute.getNodeValue().startsWith("images/"))
+							{
+								fileRefAttribute.setNodeValue("images/" + fileRefAttribute.getNodeValue());
+							}
+							
 							imageLocations.add(new TopicImageData<T, U>(topic, fileRefAttribute.getNodeValue()));
 						}
 						else
 						{
+							if (fileRefAttribute != null && !fileRefAttribute.getNodeValue().startsWith("images/"))
+							{
+								fileRefAttribute.setNodeValue("images/" + fileRefAttribute.getNodeValue());
+							}
+							
+							/* Add the revision number to the name */
+							final String imageFileRef = fileRefAttribute.getNodeValue();
+							final int extensionIndex = imageFileRef.lastIndexOf(".");
+							final String fixedImageFileRef;
+							if (extensionIndex != -1)
+							{
+								fixedImageFileRef = imageFileRef.substring(0, extensionIndex) + "-" + specTopic.getRevision() + imageFileRef.substring(extensionIndex);
+							}
+							else
+							{
+								fixedImageFileRef = imageFileRef + "-" + specTopic.getRevision();
+							}
+							
+							fileRefAttribute.setNodeValue(fixedImageFileRef);
+							
 							imageLocations.add(new TopicImageData<T, U>(topic, fileRefAttribute.getNodeValue(), specTopic.getRevision()));
 						}
 					}

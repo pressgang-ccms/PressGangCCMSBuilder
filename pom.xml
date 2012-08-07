@@ -38,5 +38,32 @@
 		<version>0.0.2-SNAPSHOT</version>
 		<scope>provided</scope>
 	</dependency>
+	
+	<!-- RESTEasy Libraries -->
+    <dependency>
+            <groupId>org.jboss.resteasy</groupId>
+            <artifactId>resteasy-atom-provider</artifactId>
+            <version>2.3.4.Final</version>
+            <scope>provided</scope>
+    </dependency>
+    <dependency>
+            <groupId>org.jboss.resteasy</groupId>
+            <artifactId>resteasy-jackson-provider</artifactId>
+            <version>2.3.4.Final</version>
+            <scope>provided</scope>
+    </dependency>
+    <dependency>
+            <groupId>org.jboss.resteasy</groupId>
+            <artifactId>resteasy-jaxrs</artifactId>
+            <version>2.3.4.Final</version>
+            <scope>provided</scope>
+    </dependency>
+    <dependency>
+            <groupId>javax.ws.rs</groupId>
+            <artifactId>javax.ws.rs-api</artifactId>
+            <version>2.0-m04</version>
+            <scope>provided</scope>
+    </dependency>
+	
   </dependencies>
 </project>
