@@ -53,7 +53,7 @@ public class BuilderConstants
 	public static final String AUTHOR_EMAIL_REGEX		= "<!-- Inject authorInformation\\.email -->";
 	
 	// Common Content File Names
-	public static final String[] COMMON_CONTENT_FILES = new String[] {"Conventions.xml", "Feedback.xml", "Legal_Notice.xml"}; 
+	public static final String[] COMMON_CONTENT_FILES = new String[] {"Conventions.xml", "Program_Listing.xml", "Feedback.xml", "Legal_Notice.xml"}; 
 
 	public static final String INVALID_UTF8_CHARACTER 	= "Invalid UTF-8 character found! You may have issues building the content specification if not fixed";
 	public static final String BUILT_MSG				= "Built from Content Specification: %d, Revision: %d";
@@ -76,15 +76,6 @@ public class BuilderConstants
 			"\t\t\tA brief paragraph describing this book. This will be used as the description for the rpm package.\n" +
 			"\t\t</para>\n" +
 			"\t</abstract>\n";
-
-	// XML formatting constants
-	public static final String VERBATIM_XML_ELEMENTS	= "screen,programlisting,literallayout,synopsis,address";
-	public static final String INLINE_XML_ELEMENTS	= "code,prompt,command,firstterm,ulink,guilabel,filename,replaceable,parameter,literal,classname,sgmltag," 
-			+ "guibutton,guimenuitem,guimenu,menuchoice,citetitle,revnumber,application,systemitem,acronym,keycap,emphasis,package,quote,trademark,abbrev,phrase,"
-			+ "anchor,citation,glossterm,link,xref,markup,tag,keycode,keycombo,accel,guisubmenu,keysym,shortcut,mousebutton,constant,errorcode,errorname,errortype,"
-			+ "function,msgtext,property,returnvalue,symbol,token,varname,database,email,hardware,option,optional,type,methodname,interfacename,uri,productname,"
-			+ "productversion,firstname,surname,orgname,orgdiv";
-	public static final String CONTENTS_INLINE_XML_ELEMENTS = "title,term";
 
 	public static final String CS_NAME_ENT_FILE = "<!ENTITY PRODUCT \"<<contentSpec.product>>\">\n" +
 												"<!ENTITY BOOKID \"<<contentSpec.escapedTitle>>\">\n" +
