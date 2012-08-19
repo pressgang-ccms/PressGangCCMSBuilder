@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
@@ -37,6 +38,7 @@ import org.jboss.pressgangccms.contentspec.enums.LevelType;
 import org.jboss.pressgangccms.contentspec.interfaces.ShutdownAbleApp;
 import org.jboss.pressgangccms.contentspec.rest.RESTManager;
 import org.jboss.pressgangccms.contentspec.rest.RESTReader;
+import org.jboss.pressgangccms.contentspec.sort.AuthorInformationComparator;
 import org.jboss.pressgangccms.docbook.constants.DocbookBuilderConstants;
 import org.jboss.pressgangccms.docbook.processing.XMLPreProcessor;
 import org.jboss.pressgangccms.docbook.structures.TocTopicDatabase;
@@ -2462,7 +2464,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			log.debug(ExceptionUtilities.getStackTrace(ex));
 			System.exit(-1);
 		}
-		final LinkedHashMap<Integer, RESTTagV1> authors = new LinkedHashMap<Integer, RESTTagV1>();
+		final LinkedHashMap<Integer, AuthorInformation> authorIDtoAuthor = new LinkedHashMap<Integer, AuthorInformation>();
 
 		// Check if the app should be shutdown
 		if (isShuttingDown.get())
@@ -2487,11 +2489,26 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			{
 				for (final RESTTagV1 author : authorTags)
 				{
-					if (!authors.containsKey(author.getId()))
+					if (!authorIDtoAuthor.containsKey(author.getId()))
 					{
-						authors.put(author.getId(), author);
+						final AuthorInformation authorInfo = reader.getAuthorInformation(author.getId());
+						if (authorInfo != null)
+						{
+							authorIDtoAuthor.put(author.getId(), authorInfo);
+						}
 					}
 				}
+			}
+		}
+
+		/* Sort and make sure duplicate authors don't exist */
+		final Set<AuthorInformation> authors = new TreeSet<AuthorInformation>(new AuthorInformationComparator());
+		for (final Integer authorId : authorIDtoAuthor.keySet())
+		{
+			final AuthorInformation authorInfo = authorIDtoAuthor.get(authorId);
+			if (authorInfo != null)
+			{
+				authors.add(authorInfo);
 			}
 		}
 
@@ -2509,9 +2526,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			boolean insertedAuthor = false;
 
 			// For each author attempt to find the author information records and populate Author_Group.xml.
-			for (final Integer authorId : authors.keySet())
+			for (final AuthorInformation authorInfo : authors)
 			{
-
 				// Check if the app should be shutdown
 				if (isShuttingDown.get())
 				{
@@ -2519,11 +2535,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					return;
 				}
 
-				final AuthorInformation authorInfo = reader.getAuthorInformation(authorId);
-				if (authorInfo == null)
-				{
-					continue;
-				}
 				final Element authorEle = authorDoc.createElement("author");
 				final Element firstNameEle = authorDoc.createElement("firstname");
 				firstNameEle.setTextContent(authorInfo.getFirstName());
@@ -2560,6 +2571,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			}
 
 			// If no authors were inserted then use a default value
+			// Note: This should never happen but is used as a safety measure
 			if (!insertedAuthor && contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT))
 			{
 				// Use the author "Skynet Alpha Build System"
