@@ -2355,7 +2355,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					}
 					else
 					{
-						/* Expand the Langauge Images */
+						/* Expand the Language Images */
 						final ExpandDataTrunk expand = new ExpandDataTrunk();
 						final ExpandDataTrunk expandLanguages = new ExpandDataTrunk(new ExpandDataDetails(RESTImageV1.LANGUAGEIMAGES_NAME));
 
