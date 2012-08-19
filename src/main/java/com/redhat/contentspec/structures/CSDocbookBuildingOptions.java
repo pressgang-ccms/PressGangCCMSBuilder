@@ -5,15 +5,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.redhat.ecs.services.docbookcompiling.DocbookBuildingOptions;
+import org.jboss.pressgangccms.docbook.compiling.DocbookBuildingOptions;
 
-public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
-
+public class CSDocbookBuildingOptions extends DocbookBuildingOptions
+{
 	private List<String> injectionTypes = new ArrayList<String>();
 	private Boolean injection = true;
 	private Map<String, String> overrides = new HashMap<String, String>();
 	private Boolean allowEmptySections = false;
 	private Boolean showReportPage = false;
+	private String commonContentLocale = null;
+	private String commonContentDirectory = null;
 	
 	public CSDocbookBuildingOptions()
 	{
@@ -94,5 +96,25 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
 	public void setShowReportPage(final Boolean showReportPage)
 	{
 		this.showReportPage = showReportPage;
+	}
+
+	public String getCommonContentLocale()
+	{
+		return commonContentLocale;
+	}
+
+	public void setCommonContentLocale(final String commonContentLocale)
+	{
+		this.commonContentLocale = commonContentLocale;
+	}
+
+	public String getCommonContentDirectory()
+	{
+		return commonContentDirectory;
+	}
+
+	public void setCommonContentDirectory(final String commonContentDirectory)
+	{
+		this.commonContentDirectory = commonContentDirectory;
 	}
 }

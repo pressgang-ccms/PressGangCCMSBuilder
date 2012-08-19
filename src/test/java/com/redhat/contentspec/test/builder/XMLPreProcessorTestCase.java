@@ -7,6 +7,22 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 
+import org.jboss.pressgangccms.contentspec.SpecTopic;
+import org.jboss.pressgangccms.contentspec.entities.BugzillaOptions;
+import org.jboss.pressgangccms.docbook.compiling.DocbookBuildingOptions;
+import org.jboss.pressgangccms.docbook.processing.XMLPreProcessor;
+import org.jboss.pressgangccms.rest.v1.collections.RESTPropertyTagCollectionV1;
+import org.jboss.pressgangccms.rest.v1.collections.RESTTagCollectionV1;
+import org.jboss.pressgangccms.rest.v1.collections.RESTTopicCollectionV1;
+import org.jboss.pressgangccms.rest.v1.collections.RESTTranslatedTopicCollectionV1;
+import org.jboss.pressgangccms.rest.v1.components.ComponentTopicV1;
+import org.jboss.pressgangccms.rest.v1.components.ComponentTranslatedTopicV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTPropertyTagV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTTagV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTTopicV1;
+import org.jboss.pressgangccms.rest.v1.entities.RESTTranslatedTopicV1;
+import org.jboss.pressgangccms.utils.common.XMLUtilities;
+import org.jboss.pressgangccms.utils.constants.CommonConstants;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -14,23 +30,7 @@ import static org.junit.Assert.*;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 
-import com.redhat.contentspec.SpecTopic;
-import com.redhat.contentspec.builder.XMLPreProcessor;
 import com.redhat.contentspec.builder.constants.BuilderConstants;
-import com.redhat.contentspec.builder.utils.XMLUtilities;
-import com.redhat.contentspec.entities.BugzillaOptions;
-import com.redhat.ecs.constants.CommonConstants;
-import com.redhat.ecs.services.docbookcompiling.DocbookBuildingOptions;
-import com.redhat.topicindex.rest.collections.RESTPropertyTagCollectionV1;
-import com.redhat.topicindex.rest.collections.RESTTagCollectionV1;
-import com.redhat.topicindex.rest.collections.RESTTopicCollectionV1;
-import com.redhat.topicindex.rest.collections.RESTTranslatedTopicCollectionV1;
-import com.redhat.topicindex.rest.entities.ComponentTopicV1;
-import com.redhat.topicindex.rest.entities.ComponentTranslatedTopicV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTPropertyTagV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTTagV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTTopicV1;
-import com.redhat.topicindex.rest.entities.interfaces.RESTTranslatedTopicV1;
 
 public class XMLPreProcessorTestCase
 {
@@ -122,18 +122,18 @@ public class XMLPreProcessorTestCase
 		}
 	}
 
-	@Test
+	/*@Test
 	public void testSkynetBugzillaInjection() throws UnsupportedEncodingException
 	{
-		/* Setup the building options */
+		// Setup the building options
 		final DocbookBuildingOptions docbookBuildingOptions = new DocbookBuildingOptions();
-		docbookBuildingOptions.setInsertBugzillaLinks(true);
+		docbookBuildingOptions.setInsertBugzillaLinks(true);*/
 		
 		/* 
 		 * Create the basic information that will be built by the processTopicBugzillaLink method.
 		 * This information will be used later to compare the output
 		 */
-		final DateFormat formatter = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
+		/*final DateFormat formatter = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
 		final Date buildDate = new Date();
 		final String buildDateString = URLEncoder.encode(formatter.format(buildDate), "UTF-8");
 		final String buildName = "Test Build Name";
@@ -143,28 +143,28 @@ public class XMLPreProcessorTestCase
 		final String bugzillaBuildID = URLEncoder.encode(ComponentTopicV1.returnBugzillaBuildId(topic), "UTF-8");
 		final String translatedBugzillaBuildID = URLEncoder.encode(ComponentTranslatedTopicV1.returnBugzillaBuildId(translatedTopic), "UTF-8");
 		
-		/* Create the XML Documents to modify */
+		// Create the XML Documents to modify
 		final Document topicDoc = (Document) baseDocument.cloneNode(true);
 		final Document translatedTopicDoc = (Document) baseDocument.cloneNode(true);
 		
-		/* Do the processing on the translation and normal topic */
+		// Do the processing on the translation and normal topic
 		topicPreProcessor.processTopicBugzillaLink(specTopic, topicDoc, null, docbookBuildingOptions, null, searchTagsUrl, buildDate);
 		translatedTopicPreProcessor.processTopicBugzillaLink(specTranslatedTopic, translatedTopicDoc, null, docbookBuildingOptions, buildName, null, buildDate);
 	
-		/* Convert the document to a string so that it can be compared */
+		// Convert the document to a string so that it can be compared
 		final String topicXml = XMLUtilities.convertNodeToString(topicDoc, Arrays.asList(BuilderConstants.VERBATIM_XML_ELEMENTS.split(",")), Arrays.asList(BuilderConstants.INLINE_XML_ELEMENTS.split(",")),
 				Arrays.asList(BuilderConstants.CONTENTS_INLINE_XML_ELEMENTS.split(",")), true);
 		
-		/* Compare the processed topic XML to the expected XML output */
+		// Compare the processed topic XML to the expected XML output
 		assertEquals(topicXml, "<section>\n\t<title>Test Topic</title>\n\t<para>\n\t\tThis is a Test Paragraph\n\t</para>\n\t<simplesect>\n" +
 					"\t\t<title/>\n\t\t<para role=\"RoleCreateBugPara\">\n" +
 					"\t\t\t<ulink url=\"https://bugzilla.redhat.com/enter_bug.cgi?cf_environment=Instance+Name%3A+Not+Defined%0ABuild%3A+null%0ABuild+Filter%3A+CSProcessor+Builder+Version+1.3%0ABuild+Name%3A+%0ABuild+Date%3A+" + buildDateString + "&amp;cf_build_id=" + bugzillaBuildID + "&amp;assigned_to=lnewson%40redhat.com&amp;product=JBoss+Enterprise+Application+Platform&amp;component=documentation&amp;version=6.0&amp;keywords=Documentation\">Report a bug</ulink>\n\t\t</para>\n\t</simplesect>\n</section>");
 		
-		/* Convert the translated document to a string so that it can be compared */
+		// Convert the translated document to a string so that it can be compared
 		final String translatedTopicXml = XMLUtilities.convertNodeToString(translatedTopicDoc, Arrays.asList(BuilderConstants.VERBATIM_XML_ELEMENTS.split(",")), Arrays.asList(BuilderConstants.INLINE_XML_ELEMENTS.split(",")),
 				Arrays.asList(BuilderConstants.CONTENTS_INLINE_XML_ELEMENTS.split(",")), true);
 		
-		/* Compare the processed translated topic XML to the expected XML output */
+		// Compare the processed translated topic XML to the expected XML output
 		assertEquals(translatedTopicXml, "<section>\n\t<title>Test Topic</title>\n\t<para>\n\t\tThis is a Test Paragraph\n\t</para>\n\t<simplesect>\n" +
 				"\t\t<title/>\n\t\t<para role=\"RoleCreateBugPara\">\n" +
 				"\t\t\t<ulink url=\"https://bugzilla.redhat.com/enter_bug.cgi?cf_environment=Instance+Name%3A+Not+Defined%0ABuild%3A+" + buildNameString + "%0ABuild+Filter%3A+null%0ABuild+Name%3A+%0ABuild+Date%3A+" + buildDateString + "&amp;cf_build_id=" + translatedBugzillaBuildID + "&amp;assigned_to=lnewson%40redhat.com&amp;product=JBoss+Enterprise+Application+Platform&amp;component=documentation&amp;version=6.0&amp;keywords=Documentation\">Report a bug</ulink>\n\t\t</para>\n\t</simplesect>\n</section>");
@@ -173,20 +173,20 @@ public class XMLPreProcessorTestCase
 	@Test
 	public void testCSPBugzillaInjection() throws UnsupportedEncodingException
 	{
-		/* Setup the building options */
+		// Setup the building options
 		final DocbookBuildingOptions docbookBuildingOptions = new DocbookBuildingOptions();
 		docbookBuildingOptions.setInsertBugzillaLinks(true);
 		
 		final BugzillaOptions bzOptions = new BugzillaOptions();
 		bzOptions.setProduct("JBoss Enterprise SOA Platform");
 		bzOptions.setComponent("Documentation");
-		bzOptions.setVersion("5.3.2");
+		bzOptions.setVersion("5.3.2");*/
 		
 		/* 
 		 * Create the basic information that will be built by the processTopicBugzillaLink method.
 		 * This information will be used later to compare the output
 		 */
-		final DateFormat formatter = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
+		/*final DateFormat formatter = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
 		final Date buildDate = new Date();
 		final String buildDateString = URLEncoder.encode(formatter.format(buildDate), "UTF-8");
 		final String buildName = "Test Build Name";
@@ -199,26 +199,26 @@ public class XMLPreProcessorTestCase
 		final Document topicDoc = (Document) baseDocument.cloneNode(true);
 		final Document translatedTopicDoc = (Document) baseDocument.cloneNode(true);
 		
-		/* Do the processing on the translation and normal topic */
+		// Do the processing on the translation and normal topic
 		topicPreProcessor.processTopicBugzillaLink(specTopic, topicDoc, bzOptions, docbookBuildingOptions, null, searchTagsUrl, buildDate);
 		translatedTopicPreProcessor.processTopicBugzillaLink(specTranslatedTopic, translatedTopicDoc, bzOptions, docbookBuildingOptions, buildName, null, buildDate);
 	
-		/* Convert the document to a string so that it can be compared */
+		// Convert the document to a string so that it can be compared
 		final String topicXml = XMLUtilities.convertNodeToString(topicDoc, Arrays.asList(BuilderConstants.VERBATIM_XML_ELEMENTS.split(",")), Arrays.asList(BuilderConstants.INLINE_XML_ELEMENTS.split(",")),
 				Arrays.asList(BuilderConstants.CONTENTS_INLINE_XML_ELEMENTS.split(",")), true);
 		
-		/* Compare the processed topic XML to the expected XML output */
+		// Compare the processed topic XML to the expected XML output
 		assertEquals(topicXml, "<section>\n\t<title>Test Topic</title>\n\t<para>\n\t\tThis is a Test Paragraph\n\t</para>\n\t<simplesect>\n" +
 					"\t\t<title/>\n\t\t<para role=\"RoleCreateBugPara\">\n" +
 					"\t\t\t<ulink url=\"https://bugzilla.redhat.com/enter_bug.cgi?cf_environment=Instance+Name%3A+Not+Defined%0ABuild%3A+null%0ABuild+Filter%3A+CSProcessor+Builder+Version+1.3%0ABuild+Name%3A+%0ABuild+Date%3A+" + buildDateString + "&amp;cf_build_id=" + bugzillaBuildID + "&amp;assigned_to=lnewson%40redhat.com&amp;product=JBoss+Enterprise+SOA+Platform&amp;component=Documentation&amp;version=5.3.2\">Report a bug</ulink>\n\t\t</para>\n\t</simplesect>\n</section>");
 		
-		/* Convert the document to a string so that it can be compared */
+		// Convert the document to a string so that it can be compared
 		final String translatedTopicXml = XMLUtilities.convertNodeToString(translatedTopicDoc, Arrays.asList(BuilderConstants.VERBATIM_XML_ELEMENTS.split(",")), Arrays.asList(BuilderConstants.INLINE_XML_ELEMENTS.split(",")),
 				Arrays.asList(BuilderConstants.CONTENTS_INLINE_XML_ELEMENTS.split(",")), true);
 		
-		/* Compare the processed translated topic XML to the expected XML output */
+		// Compare the processed translated topic XML to the expected XML output
 		assertEquals(translatedTopicXml, "<section>\n\t<title>Test Topic</title>\n\t<para>\n\t\tThis is a Test Paragraph\n\t</para>\n\t<simplesect>\n" +
 				"\t\t<title/>\n\t\t<para role=\"RoleCreateBugPara\">\n" +
 				"\t\t\t<ulink url=\"https://bugzilla.redhat.com/enter_bug.cgi?cf_environment=Instance+Name%3A+Not+Defined%0ABuild%3A+" + buildNameString + "%0ABuild+Filter%3A+null%0ABuild+Name%3A+%0ABuild+Date%3A+" + buildDateString + "&amp;cf_build_id=" + translatedBugzillaBuildID + "&amp;assigned_to=lnewson%40redhat.com&amp;product=JBoss+Enterprise+SOA+Platform&amp;component=Documentation&amp;version=5.3.2\">Report a bug</ulink>\n\t\t</para>\n\t</simplesect>\n</section>");
-	}
+	}*/
 }
