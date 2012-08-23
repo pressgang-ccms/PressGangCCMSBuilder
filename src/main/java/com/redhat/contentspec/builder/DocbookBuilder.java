@@ -1483,7 +1483,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			{
 				final String conditionStatement = attr.getNodeValue();
 				
-				final String[] conditions = conditionStatement.split(",");
+				final String[] conditions = conditionStatement.split("\\s*,\\s*");
 
 				conditionalNodes.put(node, Arrays.asList(conditions));
 			}
