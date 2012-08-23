@@ -114,22 +114,36 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	private final String defaultLocale;
 	private final ZanataDetails zanataDetails;
 
+	/** The StringConstant that holds the error template for a topic with no content. */
 	private final RESTStringConstantV1 errorEmptyTopic;
+	/** The StringConstant that holds the error template for a topic with invalid injection references. */
 	private final RESTStringConstantV1 errorInvalidInjectionTopic;
+	/** The StringConstant that holds the error template for a topic that failed validation. */
 	private final RESTStringConstantV1 errorInvalidValidationTopic;
+	/** The StringConstant that holds the formatting XML element properties file. */
 	private final RESTStringConstantV1 xmlElementsProperties;
 
+	/** The Docbook/Formatting Building Options to be used when building. */
 	private CSDocbookBuildingOptions docbookBuildingOptions;
+	/** The options that specify what injections are allowed when building. */
 	private InjectionOptions injectionOptions;
+	/** The date of this build. */
 	private Date buildDate;
 
+	/** The escaped version of the books title. */
 	private String escapedTitle;
+	/** The locale the book is to be built in. */
 	private String locale;
 
+	/** The root path for the books storage. */
 	private String BOOK_FOLDER;
+	/** The locale path for the books storage. eg. /{@code<TITLE>}/en-US/ */
 	private String BOOK_LOCALE_FOLDER;
+	/** The path where topics are to be stored in the books storage. eg. /{@code<TITLE>}/en-US/topics/ */
 	private String BOOK_TOPICS_FOLDER;
+	/** The path where images are to be stored in the books storage. eg. /{@code<TITLE>}/en-US/images/ */
 	private String BOOK_IMAGES_FOLDER;
+	/** The path where generic files are to be stored in the books storage. eg. /{@code<TITLE>}/en-US/files/ */
 	private String BOOK_FILES_FOLDER;
 
 	/** Jackson object mapper. */
@@ -152,6 +166,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 */
 	private final ArrayList<TopicImageData<T, U>> imageLocations = new ArrayList<TopicImageData<T, U>>();
 
+	/** The Topic class to be used for building. (RESTTranslatedTopicV1 or RESTTopicV1) */
 	private Class<T> clazz;
 
 	public DocbookBuilder(final RESTManager restManager, final RESTBlobConstantV1 rocbookDtd, final String defaultLocale) throws InvalidParameterException, InternalProcessingException
@@ -245,14 +260,17 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	}
 
 	/**
-	 * TODO
+	 * Builds a Docbook Formatted Book using a Content Specification to define
+	 * the structure and contents of the book.
 	 *
-	 * @param contentSpec TODO
-	 * @param requester TODO
-	 * @param buildingOptions TODO
-	 * @param searchTagsUrl TODO
-	 * @return TODO
-	 * @throws Exception TODO
+	 * @param contentSpec The content specification to build from.
+	 * @param requester The user who requested the build.
+	 * @param buildingOptions The options to be used when building.
+	 * @param searchTagsUrl The search URL that lists the topics (used mainly from
+	 * 		skynet builds).
+	 * @return Returns a mapping of file names/locations to files. This HashMap can be used
+	 * to build a ZIP archive.
+	 * @throws Exception Any unexpected errors.
 	 */
 	@SuppressWarnings("unchecked")
 	public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final RESTUserV1 requester,
@@ -505,7 +523,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 * It also adds the equivalent real topics to each SpecTopic.
 	 *
 	 * @param contentSpec The content spec to populate the database from.
-	 * @param usedIdAttributes TODO
+	 * @param usedIdAttributes The set of Used ID Attributes that should be added to.
 	 * @return True if the database was populated successfully otherwise false.
 	 */
 	@SuppressWarnings("unchecked")
@@ -567,7 +585,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			/*
 			 * assign fixed urls property tags to the topics. If
 			 * fixedUrlsSuccess is true, the id of the topic sections,
-			 * xfref injection points and file names in the zip file
+			 * xref injection points and file names in the zip file
 			 * will be taken from the fixed url property tag, defaulting
 			 * back to the TopicID## format if for some reason that
 			 * property tag does not exist.
@@ -578,64 +596,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		}
 		else
 		{
-			final RESTTranslatedTopicCollectionV1 translatedTopics;
-
-			/* Ensure that the collection doesn't equal null */
-			final RESTTranslatedTopicCollectionV1 topicCollection = reader.getTranslatedTopicsByTopicIds(CollectionUtilities.toArrayList(topicIds), contentSpec.getLocale());
-			if (topicCollection == null)
-			{
-				translatedTopics = new RESTTranslatedTopicCollectionV1();
-			}
-			else
-			{
-				translatedTopics = topicCollection;
-			}
-			
-			/*
-			 * Populate the dummy topic ids using the latest topics.
-			 * We will remove the topics that exist a little later.
-			 */
-			final Set<Integer> dummyTopicIds = new HashSet<Integer>(topicIds);
-			
-			/* Remove any topic ids for translated topics that were found */
-			if (translatedTopics != null && translatedTopics.getItems() != null)
-			{
-				for (final RESTTranslatedTopicV1 topic : translatedTopics.getItems())
-				{
-					// Check if the app should be shutdown
-					if (isShuttingDown.get())
-					{
-						return false;
-					}
-
-					dummyTopicIds.remove(topic.getTopicId());
-				}
-			}
-
-			/*
-			 * Fetch each topic that is a revision separately since this
-			 * functionality isn't offered by the REST API.
-			 */
-			final Set<Pair<Integer, Integer>> dummyTopicRevisionIds = new HashSet<Pair<Integer, Integer>>();
-			for (final Pair<Integer, Integer> topicToRevision : topicRevisions)
-			{
-				final RESTTranslatedTopicV1 topicRevision = reader.getClosestTranslatedTopicByTopicId(topicToRevision.getFirst(), topicToRevision.getSecond(), contentSpec.getLocale(), true);
-				if (topicRevision != null)
-				{
-					translatedTopics.addItem(topicRevision);
-				}
-				else
-				{
-					dummyTopicRevisionIds.add(topicToRevision);
-				}
-			}
-
-			/* Create the dummy translated topics */
-			if (!dummyTopicIds.isEmpty() || !dummyTopicRevisionIds.isEmpty())
-			{
-				populateDummyTranslatedTopicsPass(translatedTopics, dummyTopicIds, dummyTopicRevisionIds);
-			}
-
 			/*
 			 * Translations should reference an existing historical topic with
 			 * the fixed urls set, so we assume this to be the case
@@ -643,8 +603,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			fixedUrlsSuccess = true;
 
 			/* set the topics variable now all initialisation is done */
-			topics = (BaseRestCollectionV1<T, U>) translatedTopics;
+			topics = (BaseRestCollectionV1<T, U>) getTranslatedTopics(contentSpec, topicIds, topicRevisions);
 		}
+
+		// Check if the app should be shutdown
+        if (isShuttingDown.get())
+        {
+            return false;
+        }
 
 		/* Add all the levels and topics to the database first */
 		addLevelAndTopicsToDatabase(contentSpec.getBaseLevel(), fixedUrlsSuccess);
@@ -675,13 +641,166 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 
 		return fixedUrlsSuccess;
 	}
+	
+	/**
+	 * Gets the translated topics from the REST Interface and also creates any dummy translations
+	 * for topics that have yet to be translated.
+	 * 
+	 * @param contentSpec The ContentSpec object used to build the book.
+	 * @param topicIds A Set of topic id's that are to be used to get the latest translations.
+	 * @param topicRevisions A Set of topic id's to revisions, used to get translations closest to
+	 * specific revisions.
+	 * @return A collection of TranslatedTopics or null if a shutdown was requested.
+	 */
+	private RESTTranslatedTopicCollectionV1 getTranslatedTopics(final ContentSpec contentSpec, final Set<Integer> topicIds, final Set<Pair<Integer, Integer>> topicRevisions)
+	{
+	    final RESTTranslatedTopicCollectionV1 translatedTopics = new RESTTranslatedTopicCollectionV1();
+
+        /* Ensure that the collection doesn't equal null */
+        final RESTTopicCollectionV1 topicCollection = reader.getTopicsByIds(CollectionUtilities.toArrayList(topicIds), true);
+
+        /*
+         * Populate the dummy topic ids using the latest topics.
+         * We will remove the topics that exist a little later.
+         */
+        final Set<Integer> dummyTopicIds = new HashSet<Integer>(topicIds);
+        
+        /* Remove any topic ids for translated topics that were found */
+        if (topicCollection != null)
+        {
+            if (topicCollection != null && topicCollection.getItems() != null)
+            {
+                for (final RESTTopicV1 topic : topicCollection.getItems())
+                {
+                    // Check if the app should be shutdown
+                    if (isShuttingDown.get())
+                    {
+                        return null;
+                    }
+
+                    // Get the matching latest translated topic and pushed translated topics
+                    final Pair<RESTTranslatedTopicV1, RESTTranslatedTopicV1> lastestTranslations = getLatestTranslations(topic, null);
+                    final RESTTranslatedTopicV1 latestTranslatedTopic = lastestTranslations.getFirst();
+                    final RESTTranslatedTopicV1 latestPushedTranslatedTopic = lastestTranslations.getSecond();
+
+                    // If the latest translation and latest pushed topic matches, then use that if not a dummy topic should be created
+                    if (latestTranslatedTopic != null && latestPushedTranslatedTopic != null
+                            && latestPushedTranslatedTopic.getTopicRevision().equals(latestTranslatedTopic.getTopicRevision()))
+                    {
+                        final RESTTranslatedTopicV1 translatedTopic = reader.getTranslatedTopicById(latestTranslatedTopic.getId());
+                        if (translatedTopic != null)
+                        {
+                            dummyTopicIds.remove(topic.getId());
+                            translatedTopics.addItem(translatedTopic);
+                        }
+                    }
+                }
+            }
+        }
+
+        /*
+         * Fetch each topic that is a revision separately since this
+         * functionality isn't offered by the REST API.
+         */
+        final Set<Pair<Integer, Integer>> dummyTopicRevisionIds = new HashSet<Pair<Integer, Integer>>();
+        for (final Pair<Integer, Integer> topicToRevision : topicRevisions)
+        {   
+            // Check if the app should be shutdown
+            if (isShuttingDown.get())
+            {
+                return null;
+            }
+            
+            final RESTTopicV1 topic = reader.getTopicById(topicToRevision.getFirst(), topicToRevision.getSecond(), true);
+
+            if (topic != null)
+            {
+                // Get the matching latest translated topic and pushed translated topics
+                final Pair<RESTTranslatedTopicV1, RESTTranslatedTopicV1> lastestTranslations = getLatestTranslations(topic, topicToRevision.getSecond());
+                final RESTTranslatedTopicV1 latestTranslatedTopic = lastestTranslations.getFirst();
+                final RESTTranslatedTopicV1 latestPushedTranslatedTopic = lastestTranslations.getSecond();
+    
+                // If the latest translation and latest pushed topic matches, then use that if not a dummy topic should be created
+                if (latestTranslatedTopic != null && latestPushedTranslatedTopic != null
+                        && latestPushedTranslatedTopic.getTopicRevision().equals(latestTranslatedTopic.getTopicRevision()))
+                {
+                    final RESTTranslatedTopicV1 translatedTopic = reader.getTranslatedTopicById(latestTranslatedTopic.getId());
+                    if (translatedTopic != null)
+                    {
+                        translatedTopics.addItem(translatedTopic);
+                    }
+                    else
+                    {
+                        dummyTopicRevisionIds.add(topicToRevision);
+                    }
+                }
+                else
+                {
+                    dummyTopicRevisionIds.add(topicToRevision);
+                }
+            }
+            else
+            {
+                dummyTopicRevisionIds.add(topicToRevision);
+            }
+        }
+
+        /* Create the dummy translated topics */
+        if (!dummyTopicIds.isEmpty() || !dummyTopicRevisionIds.isEmpty())
+        {
+            populateDummyTranslatedTopicsPass(translatedTopics, dummyTopicIds, dummyTopicRevisionIds);
+        }
+        
+        return translatedTopics;
+	}
+	
+	/**
+     * Find the latest pushed and translated topics for a topic. We need to do this since translations are
+     * only added when some content is added in Zanata. So if the latest translated topic doesn't match
+     * the topic revision of the latest pushed then we will need to create a dummy topic for the latest
+     * pushed topic.
+     * 
+     * @param topic The topic to find the latest translated topic and pushed translation.
+     * @param rev The revision for the topic as specified in the ContentSpec.
+     * @return A Pair whose first element is the Latest Translated Topic and second element is the Latest
+     * Pushed Translation.
+     */
+	private Pair<RESTTranslatedTopicV1, RESTTranslatedTopicV1> getLatestTranslations(final RESTTopicV1 topic, final Integer rev)
+	{
+        RESTTranslatedTopicV1 latestTranslatedTopic = null;
+        RESTTranslatedTopicV1 latestPushedTranslatedTopic = null;
+        if (topic.getTranslatedTopics_OTM() != null && topic.getTranslatedTopics_OTM().getItems() != null)
+        {
+            for (final RESTTranslatedTopicV1 tempTopic : topic.getTranslatedTopics_OTM().getItems())
+            {
+                // Find the Latest Translated Topic
+                if (locale.equals(tempTopic.getLocale())
+                        && (latestTranslatedTopic == null || latestTranslatedTopic.getTopicRevision() < tempTopic.getTopicRevision())
+                        && (rev == null || tempTopic.getTopicRevision() <= rev))
+                {
+                    latestTranslatedTopic = tempTopic;
+                }
+                
+                // Find the Latest Pushed Topic
+                if (topic.getLocale().equals(tempTopic.getLocale())
+                        && (latestPushedTranslatedTopic == null || latestPushedTranslatedTopic.getTopicRevision() < tempTopic.getTopicRevision())
+                        && (rev == null || tempTopic.getTopicRevision() <= rev))
+                {
+                    latestPushedTranslatedTopic = tempTopic;
+                }
+            }
+        }
+        
+        return new Pair<RESTTranslatedTopicV1, RESTTranslatedTopicV1>(latestTranslatedTopic, latestPushedTranslatedTopic);
+	}
 
 	/**
 	 * Adds the levels and topics in the provided Level object
 	 * to the local content spec database.
 	 *
-	 * @param level TODO
-	 * @param useFixedUrls TODO
+	 * @param level The content spec level to be added to the database.
+	 * @param useFixedUrls Whether fixed URL's are to be used for the level ID
+	 * attributes.
 	 */
 	private void addLevelAndTopicsToDatabase(final Level level, final boolean useFixedUrls)
 	{
@@ -718,7 +837,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 * Spec Topic.
 	 *
 	 * @param level The level to scan for topics.
-	 * @return TODO
+	 * @return A Set of Topic ID/Revision Pairs that represent the topics in the level.
 	 */
 	private Set<Pair<Integer, Integer>> getTopicIdsFromLevel(final Level level)
 	{
@@ -831,11 +950,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 * can be built using the same relationships as a
 	 * normal build.
 	 *
-	 * @param translatedTopicsMap A map of topic ids to translated topics
-	 * @param topic The topic to create the dummy topic from
-	 * @param expandRelationships Whether the relationships should be expanded for the dummy topic
-	 * @param locale TODO
-	 * @return The dummy translated topic
+	 * @param translatedTopicsMap A map of topic ids to translated topics.
+	 * @param topic The topic to create the dummy topic from.
+	 * @param expandRelationships Whether the relationships should be expanded for the dummy topic.
+	 * @param locale The locale to build the dummy translations for.
+	 * @return The dummy translated topic.
 	 */
 	private RESTTranslatedTopicV1 createDummyTranslatedTopic(final Map<Integer, RESTTranslatedTopicV1> translatedTopicsMap,
 			final RESTTopicV1 topic, final boolean expandRelationships, final String locale)
@@ -941,11 +1060,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	}
 
 	/**
-	 * TODO
+	 * Do the first topic pass on the database and check if the base XML
+	 * is valid and set the Document Object's for each spec topic. Also
+	 * collect the ID Attributes that are used within the topics.
 	 *
-	 * @param topics TODO
-	 * @param useFixedUrls TODO
-	 * @param usedIdAttributes TODO
+	 * @param topics The list of topics to be checked and added to the database.
+	 * @param useFixedUrls Whether the Fixed URL Properties should be used for the
+	 * topic ID attributes.
+	 * @param usedIdAttributes The set of Used ID Attributes that should be added to.
 	 */
 	private void doTopicPass(final BaseRestCollectionV1<T, U> topics, final boolean useFixedUrls, final Map<Integer, Set<String>> usedIdAttributes)
 	{
@@ -1076,11 +1198,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 * Loops through each of the spec topics in the database and sets the injections and unique ids for
 	 * each id attribute in the Topics XML.
 	 *
-	 * @param contentSpec TODO
-	 * @param searchTagsUrl TODO
+	 * @param contentSpec The content specification used to build the book.
+	 * @param searchTagsUrl The URL for the search to list the topics in the book.
 	 * @param usedIdAttributes The set of ids that have been used in the set of topics in the content spec.
 	 * @param useFixedUrls If during processing the fixed urls should be used.
-	 * @param buildName TODO
+	 * @param buildName A specific name for the build to be used in bug links.
 	 */
 	@SuppressWarnings("unchecked")
 	private void doSpecTopicPass(final ContentSpec contentSpec, final String searchTagsUrl, final Map<Integer, Set<String>> usedIdAttributes,
@@ -1556,8 +1678,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 *            The current node being processed (will be the document root to
 	 *            start with, and then all the children as this function is
 	 *            recursively called)
-	 * @param topicId TODO
-	 * @param usedIdAttributes TODO
+	 * @param topicId The ID of the topic that we are collecting attribute ID's for.
+	 * @param usedIdAttributes The set of Used ID Attributes that should be added to.
 	 */
 	private void collectIdAttributes(final Integer topicId, final Node node, final Map<Integer, Set<String>> usedIdAttributes)
 	{
@@ -1698,8 +1820,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 * @param files The mapping of file names/locations to files that will be packaged into the ZIP
 	 * archive.
 	 * @return A Document object to be used in generating the book.xml
-	 * @throws InternalProcessingException TODO
-	 * @throws InvalidParameterException TODO
+	 * @throws InternalProcessingException If an error occurred during the REST API call.
+	 * @throws InvalidParameterException If an error occurred during the REST API call.
 	 */
 	private String buildBookBase(final ContentSpec contentSpec, final RESTUserV1 requester, final Map<String, byte[]> files)
 			throws InvalidParameterException, InternalProcessingException
@@ -1731,7 +1853,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		// Setup publican.cfg
 		String fixedPublicanCfg = publicanCfg.replaceAll(BuilderConstants.BRAND_REGEX, brand);
 		fixedPublicanCfg = fixedPublicanCfg.replaceFirst(BuilderConstants.BOOK_TYPE_REGEX, contentSpec.getBookType().toString());
-		fixedPublicanCfg = fixedPublicanCfg.replaceFirst("xml_lang\\: .*(\\r\\n|\\n)", "xml_lang: " + locale + "\n");
+		fixedPublicanCfg = fixedPublicanCfg.replaceAll("xml_lang\\: .*?($|\\r\\n|\\n)", "xml_lang: " + locale + "\n");
 
 		// Remove the image width for CSP output
 		if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT))
@@ -2046,10 +2168,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	/**
 	 * Creates all the chapters/appendixes for a book and generates the section/topic data inside of each chapter.
 	 *
-	 * @param files TODO
+	 * @param files The mapping of File Names/Locations to actual file content.
 	 * @param bookXIncludes The string based list of XIncludes to be used in the book.xml
 	 * @param level The level to build the chapter from.
-	 * @param useFixedUrls TODO
+	 * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
 	 */
 	protected void createRootElementXML(final Map<String, byte[]> files, final StringBuffer bookXIncludes, final Level level, final boolean useFixedUrls)
 	{
@@ -2104,14 +2226,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 * Creates all the chapters/appendixes for a book that are contained within another part/chapter/appendix
 	 * and generates the section/topic data inside of each chapter.
 	 *
-	 * @param files TODO
-	 * @param doc TODO
-	 * @param parentNode TODO
+	 * @param files The mapping of File Names/Locations to actual file content.
+	 * @param doc The document object to add the child level content to.
+	 * @param parentNode The node of the parent in the document to add to.
 	 * @param level The level to build the chapter from.
-	 * @param fixedUrlsSuccess TODO
+	 * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
 	 */
 	protected void createSubRootElementXML(final Map<String, byte[]> files, final Document doc, final Node parentNode,
-			final Level level, final boolean fixedUrlsSuccess)
+			final Level level, final boolean useFixedUrls)
 	{
 		// Check if the app should be shutdown
 		if (isShuttingDown.get())
@@ -2135,7 +2257,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		}
 
 		// Create the title
-		final String chapterName = level.getUniqueLinkId(fixedUrlsSuccess) + ".xml";
+		final String chapterName = level.getUniqueLinkId(useFixedUrls) + ".xml";
 
 		// Add to the list of XIncludes that will get set in the book.xml
 		final Element xiInclude = doc.createElement("xi:include");
@@ -2147,8 +2269,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		final Element titleNode = chapter.createElement("title");
 		titleNode.setTextContent(level.getTitle());
 		chapter.getDocumentElement().appendChild(titleNode);
-		chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(fixedUrlsSuccess));
-		createSectionXML(files, level, chapter, chapter.getDocumentElement(), fixedUrlsSuccess, elementName);
+		chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
+		createSectionXML(files, level, chapter, chapter.getDocumentElement(), useFixedUrls, elementName);
 
 		// Add the boiler plate text and add the chapter to the book
 		final String chapterString = DocBookUtilities.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", elementName);
@@ -2166,16 +2288,16 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	/**
 	 * Creates the section component of a chapter.xml for a specific ContentLevel.
 	 *
-	 * @param files TODO
-	 * @param level TODO
+	 * @param files The mapping of File Names/Locations to actual file content.
+	 * @param level The section level object to get content from.
 	 * @param chapter The chapter document object that this section is to be added to.
 	 * @param parentNode The parent XML node of this section.
-	 * @param fixedUrlsSuccess TODO
-	 * @param rootElementName TODO
+	 * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
+	 * @param rootElementName The root element name for this section (ie chapter, section, appendix).
 	 */
 	@SuppressWarnings("unchecked")
 	protected void createSectionXML(final Map<String, byte[]> files, final Level level, final Document chapter, final Element parentNode,
-			final boolean fixedUrlsSuccess, final String rootElementName)
+			final boolean useFixedUrls, final String rootElementName)
 	{
 		final LinkedList<org.jboss.pressgangccms.contentspec.Node> levelData = level.getChildNodes();
 
@@ -2194,7 +2316,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				final Level childLevel = (Level) node;
 
 				// Create a new file for the Chapter/Appendix
-				createSubRootElementXML(files, chapter, parentNode, childLevel, fixedUrlsSuccess);
+				createSubRootElementXML(files, chapter, parentNode, childLevel, useFixedUrls);
 			}
 			else if (node instanceof Level)
 			{
@@ -2205,7 +2327,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				final Element sectionTitleNode = chapter.createElement("title");
 				sectionTitleNode.setTextContent(childLevel.getTitle());
 				sectionNode.appendChild(sectionTitleNode);
-				sectionNode.setAttribute("id", childLevel.getUniqueLinkId(fixedUrlsSuccess));
+				sectionNode.setAttribute("id", childLevel.getUniqueLinkId(useFixedUrls));
 
 				// Ignore sections that have no spec topics
 				if (!childLevel.hasSpecTopics())
@@ -2224,7 +2346,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				else
 				{
 					// Add this sections child sections/topics
-					createSectionXML(files, childLevel, chapter, sectionNode, fixedUrlsSuccess, rootElementName);
+					createSectionXML(files, childLevel, chapter, sectionNode, useFixedUrls, rootElementName);
 				}
 
 				parentNode.appendChild(sectionNode);
@@ -2239,7 +2361,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 				{
 					if (topic instanceof RESTTranslatedTopicV1)
 					{
-						if (fixedUrlsSuccess)
+						if (useFixedUrls)
 						{
 							topicFileName = ComponentTranslatedTopicV1.returnXrefPropertyOrId((RESTTranslatedTopicV1) topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
 						}
@@ -2250,7 +2372,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					}
 					else
 					{
-						if (fixedUrlsSuccess)
+						if (useFixedUrls)
 						{
 							topicFileName = ComponentTopicV1.returnXrefPropertyOrId((RESTTopicV1) topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
 						}
@@ -2291,10 +2413,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 * Adds all the images found using the {@link #processImageLocations()} method
 	 * to the files map that will alter be turned into a ZIP archive.
 	 *
-	 * @param files TODO
-	 * @param locale TODO
-	 * @throws InvalidParameterException TODO
-	 * @throws InternalProcessingException TODO
+	 * @param files The mapping of File Names/Locations to actual file content.
+	 * @param locale The locale for the book.
+	 * @throws InvalidParameterException If an error occurred during a REST API call.
+	 * @throws InternalProcessingException If an error occurred during a REST API call.
 	 */
 	private void addImagesToBook(final HashMap<String, byte[]> files, final String locale)
 			throws InvalidParameterException, InternalProcessingException
@@ -2363,17 +2485,17 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						expand.setBranches(CollectionUtilities.toArrayList(expandLanguages));
 
 						final String expandString = mapper.writeValueAsString(expand);
-						//final String expandEncodedString = URLEncoder.encode(expandString, "UTF-8");
 
 						final RESTImageV1 imageFile;
-						if (imageLocation.getRevision() == null)
+						imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(imageID), expandString);
+						/*if (imageLocation.getRevision() == null)
 						{
 							imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(imageID), expandString);
 						}
 						else
 						{
 							imageFile = restManager.getRESTClient().getJSONImageRevision(Integer.parseInt(imageID), imageLocation.getRevision(), expandString);
-						}
+						}*/
 
 						/* Find the image that matches this locale. If the locale isn't found then use the default locale */
 						RESTLanguageImageV1 langaugeImageFile = null;
@@ -2439,10 +2561,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 * Builds the Author_Group.xml using the assigned writers for topics inside
 	 * of the content specification.
 	 *
-	 * @param contentSpec TODO
-	 * @param files TODO
-	 * @throws InvalidParameterException TODO
-	 * @throws InternalProcessingException TODO
+	 * @param contentSpec The content spec used to build the book.
+	 * @param files The mapping of File Names/Locations to actual file content.
+	 * @throws InvalidParameterException If an error occurred during a REST API call.
+	 * @throws InternalProcessingException If an error occurred during a REST API call.
 	 */
 	@SuppressWarnings("unchecked")
 	private void buildAuthorGroup(final ContentSpec contentSpec, final Map<String, byte[]> files)
@@ -2624,11 +2746,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	/**
 	 * Builds the revision history using the requester of the build.
 	 *
-	 * @param requester The user who requested the build action
-	 * @param contentSpec TODO
-	 * @param files TODO
-	 * @throws InternalProcessingException TODO
-	 * @throws InvalidParameterException TODO
+	 * @param requester The user who requested the build action.
+	 * @param contentSpec The content spec object used to build the book.
+	 * @param files The mapping of File Names/Locations to actual file content.
+	 * @throws InternalProcessingException If an error occurred during a REST API call.
+	 * @throws InvalidParameterException If an error occurred during a REST API call.
 	 */
 	private void buildRevisionHistory(final ContentSpec contentSpec, final RESTUserV1 requester, final Map<String, byte[]> files)
 			throws InvalidParameterException, InternalProcessingException
@@ -2755,10 +2877,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	}
 
 	/**
-	 * TODO
+	 * Builds the Error Chapter that contains all warnings and
+	 * errors. It also builds a glossary to define most of the
+	 * error messages.
 	 *
-	 * @param locale TODO
-	 * @return TODO
+	 * @param locale The locale of the book.
+	 * @return A docbook formatted string representation of the
+	 * error chapter.
 	 */
 	private String buildErrorChapter(final String locale)
 	{
@@ -2854,9 +2979,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	}
 	
 	/**
+	 * Builds the Glossary used in the Error Chapter.
 	 * 
-	 * @param title
-	 * @return
+	 * @param The title for the glossary.
+	 * @return A docbook formatted string representation of the
+	 * glossary.
 	 */
 	private String buildErrorChapterGlossary(final String title)
 	{
@@ -3103,7 +3230,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 *
 	 * @param specTopic The topic that is being validated.
 	 * @param topicDoc A Document object that holds the Topic's XML
-	 * @param useFixedUrls TODO
+	 * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
 	 * @return The validate document or a template if it failed validation.
 	 */
 	@SuppressWarnings("unchecked")
@@ -3178,12 +3305,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	/**
 	 * Sets the XML of the topic to the specified error template.
 	 *
-	 * @param topic TODO
-	 * @param template TODO
-	 * @param fixedUrlsSuccess TODO
-	 * @return TODO
+	 * @param topic The topic to be updated as having an error.
+	 * @param template The template for the Error Message.
+	 * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
+	 * @return The Document Object that is intialised using the topic and error template.
 	 */
-	private Document setTopicXMLForError(final T topic, final String template, final boolean fixedUrlsSuccess)
+	private Document setTopicXMLForError(final T topic, final String template, final boolean useFixedUrls)
 	{
 		Document doc = null;
 		try
@@ -3197,7 +3324,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			System.exit(-1);
 		}
 		DocBookUtilities.setSectionTitle(topic.getTitle(), doc);
-		processTopicID(topic, doc, fixedUrlsSuccess);
+		processTopicID(topic, doc, useFixedUrls);
 		return doc;
 	}
 
@@ -3205,9 +3332,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	 * Sets the XML of the topic in the content spec to the
 	 * error template provided.
 	 *
-	 * @param specTopic TODO
-	 * @param template TODO
-	 * @param useFixedUrls TODO
+	 * @param specTopic The spec topic to be updated as having an error.
+	 * @param template The template for the Error Message.
+	 * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
 	 */
 	@SuppressWarnings("unchecked")
 	private void setSpecTopicXMLForError(final SpecTopic specTopic, final String template, final boolean useFixedUrls)
@@ -3233,9 +3360,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 	/**
 	 * Sets the topic xref id to the topic database id.
 	 *
-	 * @param topic TODO
-	 * @param doc TODO
-	 * @param useFixedUrls TODO
+	 * @param topic The topic to be used to set the id attribute.
+	 * @param doc The document object for the topics XML.
+	 * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
 	 */
 	private void processTopicID(final T topic, final Document doc, final boolean useFixedUrls)
 	{
