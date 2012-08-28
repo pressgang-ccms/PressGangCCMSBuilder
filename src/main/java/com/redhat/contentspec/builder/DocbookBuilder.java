@@ -1401,10 +1401,18 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						{
 							errorDatabase.addWarning(topic, ErrorType.NOT_PUSHED_FOR_TRANSLATION, BuilderConstants.WARNING_NONPUSHED_TOPIC);
 						}
-						/* Check if the topic's content isn't fully translated */
-						else if (((RESTTranslatedTopicV1) topic).getTranslationPercentage() < 100)
+						else
 						{
-							errorDatabase.addWarning(topic, ErrorType.INCOMPLETE_TRANSLATION, BuilderConstants.WARNING_INCOMPLETE_TRANSLATION);
+						    /* Check if the topic's content isn't fully translated */
+						    if (((RESTTranslatedTopicV1) topic).getTranslationPercentage() < 100)
+						    {
+						        errorDatabase.addWarning(topic, ErrorType.INCOMPLETE_TRANSLATION, BuilderConstants.WARNING_INCOMPLETE_TRANSLATION);
+						    }
+						    
+						    if (((RESTTranslatedTopicV1) topic).getContainsFuzzyTranslation())
+						    {
+						        errorDatabase.addError(topic, ErrorType.FUZZY_TRANSLATION, BuilderConstants.WARNING_FUZZY_TRANSLATION);
+						    }
 						}
 					}
 				}
@@ -3026,6 +3034,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_INCOMPLETE_TRANSLATION + "\""),
 					DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_INCOMPLETE_TRANSLATED_TOPIC_DEFINTIION)));
 			
+			// Fuzzy translation warning
+            glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_FUZZY_TRANSLATION + "\""),
+                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_FUZZY_TRANSLATED_TOPIC_DEFINTIION)));
+			
 			// Untranslated Content warning
 			glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_UNTRANSLATED_TOPIC + "\""),
 					DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_UNTRANSLATED_TOPIC_DEFINTIION)));
@@ -3069,6 +3081,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		final List<TopicErrorData<T, U>> invalidImageTopics = errorDatabase.getErrorsOfType(locale, ErrorType.INVALID_IMAGES);
 		final List<TopicErrorData<T, U>> untranslatedTopics = errorDatabase.getErrorsOfType(locale, ErrorType.UNTRANSLATED);
 		final List<TopicErrorData<T, U>> incompleteTranslatedTopics = errorDatabase.getErrorsOfType(locale, ErrorType.INCOMPLETE_TRANSLATION);
+		final List<TopicErrorData<T, U>> fuzzyTranslatedTopics = errorDatabase.getErrorsOfType(locale, ErrorType.FUZZY_TRANSLATION);
 		final List<TopicErrorData<T, U>> notPushedTranslatedTopics = errorDatabase.getErrorsOfType(locale, ErrorType.NOT_PUSHED_FOR_TRANSLATION);
 		final List<TopicErrorData<T, U>> oldTranslatedTopics = errorDatabase.getErrorsOfType(locale, ErrorType.OLD_TRANSLATION);
 		final List<TopicErrorData<T, U>> oldUntranslatedTopics = errorDatabase.getErrorsOfType(locale, ErrorType.OLD_UNTRANSLATED);
@@ -3086,6 +3099,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been pushed for Translation: " + notPushedTranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been Translated: " + untranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that have incomplete Translations: " + incompleteTranslatedTopics.size()));
+			list.add(DocBookUtilities.buildListItem("Number of Topics that have fuzzy Translations: " + fuzzyTranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been Translated but are using previous revisions: " + oldUntranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that have been Translated using a previous revision: " + oldTranslatedTopics.size()));
 		}
@@ -3110,6 +3124,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			reportChapter += ReportUtilities.buildReportTable(untranslatedTopics, "Topics that haven't been Translated", showEditorLinks, zanataDetails);
 
 			reportChapter += ReportUtilities.buildReportTable(incompleteTranslatedTopics, "Topics that have Incomplete Translations", showEditorLinks, zanataDetails);
+			
+			reportChapter += ReportUtilities.buildReportTable(fuzzyTranslatedTopics, "Topics that have fuzzy Translations", showEditorLinks, zanataDetails);
 			
 			reportChapter += ReportUtilities.buildReportTable(oldUntranslatedTopics, "Topics that haven't been Translated but are using previous revisions", showEditorLinks, zanataDetails);
 			
