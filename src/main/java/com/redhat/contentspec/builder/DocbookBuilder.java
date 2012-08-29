@@ -1411,7 +1411,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						    
 						    if (((RESTTranslatedTopicV1) topic).getContainsFuzzyTranslation())
 						    {
-						        errorDatabase.addError(topic, ErrorType.FUZZY_TRANSLATION, BuilderConstants.WARNING_FUZZY_TRANSLATION);
+						        errorDatabase.addWarning(topic, ErrorType.FUZZY_TRANSLATION, BuilderConstants.WARNING_FUZZY_TRANSLATION);
 						    }
 						}
 					}
