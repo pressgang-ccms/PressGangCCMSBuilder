@@ -3593,34 +3593,37 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 							 * we also have to copy the fixed urls into the
 							 * related topics
 							 */
-							for (final RESTTopicV1 relatedTopic : topic.getOutgoingRelationships().getItems())
+							if (topic.getOutgoingRelationships() != null && topic.getOutgoingRelationships().getItems() != null)
 							{
-								if (topicWithFixedUrl.getId().equals(relatedTopic.getId()))
-								{
-									RESTPropertyTagCollectionV1 relatedTopicProperties = relatedTopic.getProperties();
-									if (relatedTopicProperties == null)
-									{
-										relatedTopicProperties = new RESTPropertyTagCollectionV1();
-									}
-									else if (relatedTopicProperties.getItems() != null)
-									{
-										// remove any current url's
-										final List<RESTPropertyTagV1> relatedTopicPropertyTags = new ArrayList<RESTPropertyTagV1>(relatedTopicProperties.getItems());
-										for (final RESTPropertyTagV1 prop : relatedTopicPropertyTags)
-										{
-											if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID))
-											{
-												relatedTopicProperties.getItems().remove(prop);
-											}
-										}
-									}
-
-									if (fixedUrlProp != null)
-									{
-										relatedTopicProperties.addItem(fixedUrlProp);
-									}
-								}
-							}
+    							for (final RESTTopicV1 relatedTopic : topic.getOutgoingRelationships().getItems())
+    							{
+    								if (topicWithFixedUrl.getId().equals(relatedTopic.getId()))
+    								{
+    									RESTPropertyTagCollectionV1 relatedTopicProperties = relatedTopic.getProperties();
+    									if (relatedTopicProperties == null)
+    									{
+    										relatedTopicProperties = new RESTPropertyTagCollectionV1();
+    									}
+    									else if (relatedTopicProperties.getItems() != null)
+    									{
+    										// remove any current url's
+    										final List<RESTPropertyTagV1> relatedTopicPropertyTags = new ArrayList<RESTPropertyTagV1>(relatedTopicProperties.getItems());
+    										for (final RESTPropertyTagV1 prop : relatedTopicPropertyTags)
+    										{
+    											if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID))
+    											{
+    												relatedTopicProperties.getItems().remove(prop);
+    											}
+    										}
+    									}
+    
+    									if (fixedUrlProp != null)
+    									{
+    										relatedTopicProperties.addItem(fixedUrlProp);
+    									}
+    								}
+    							}
+    						}
 						}
 					}
 				}
