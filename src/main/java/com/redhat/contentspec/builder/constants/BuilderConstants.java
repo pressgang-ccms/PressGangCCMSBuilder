@@ -100,6 +100,7 @@ public class BuilderConstants
 	public static final String WARNING_OLD_TRANSLATED_TOPIC		= "This topic's translated content is older than the specfied topic's content.";
 	public static final String WARNING_INCOMPLETE_TRANSLATION	= "This topic hasn't been fully translated.";
 	public static final String WARNING_EMPTY_TOPIC_XML			= "This topic has no XML data";
+	public static final String WARNING_FUZZY_TRANSLATION        = "This topic contains strings that are marked as \"fuzzy\".";
 
 	// Error compiler output messages.
 	public static final String ERROR_INVALID_XML_CONTENT 		= "This topic contains an invalid element that can't be converted into a DOM Element.";
@@ -135,6 +136,13 @@ public class BuilderConstants
 				"To fix this warning, please contact the Translator(s) responsible for translating the topics in this locale."
 			}
 		);
+	
+	public static final List<String> WARNING_FUZZY_TRANSLATED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(new String[]
+            {
+                "The topic hasn't finished being translated by the Translator(s) yet, as such the topic will be displayed using translated content that may not be 100% correct.",
+                "To fix this warning, please contact the Translator(s) responsible for translating the topics in this locale."
+            }
+        );
 
 	public static final List<String> WARNING_OLD_UNTRANSLATED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(new String[]
 			{
