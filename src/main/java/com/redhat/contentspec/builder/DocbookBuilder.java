@@ -698,36 +698,43 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
             }
         }
 
-        /*
-         * Fetch each topic that is a revision separately since this
-         * functionality isn't offered by the REST API.
-         */
         final Set<Pair<Integer, Integer>> dummyTopicRevisionIds = new HashSet<Pair<Integer, Integer>>();
-        for (final Pair<Integer, Integer> topicToRevision : topicRevisions)
-        {   
-            // Check if the app should be shutdown
-            if (isShuttingDown.get())
-            {
-                return null;
-            }
-            
-            final RESTTopicV1 topic = reader.getTopicById(topicToRevision.getFirst(), topicToRevision.getSecond(), true);
-
-            if (topic != null)
-            {
-                // Get the matching latest translated topic and pushed translated topics
-                final Pair<RESTTranslatedTopicV1, RESTTranslatedTopicV1> lastestTranslations = getLatestTranslations(topic, topicToRevision.getSecond());
-                final RESTTranslatedTopicV1 latestTranslatedTopic = lastestTranslations.getFirst();
-                final RESTTranslatedTopicV1 latestPushedTranslatedTopic = lastestTranslations.getSecond();
-    
-                // If the latest translation and latest pushed topic matches, then use that if not a dummy topic should be created
-                if (latestTranslatedTopic != null && latestPushedTranslatedTopic != null
-                        && latestPushedTranslatedTopic.getTopicRevision().equals(latestTranslatedTopic.getTopicRevision()))
+        if (topicRevisions != null)
+        {
+            /*
+             * Fetch each topic that is a revision separately since this
+             * functionality isn't offered by the REST API.
+             */
+            for (final Pair<Integer, Integer> topicToRevision : topicRevisions)
+            {   
+                // Check if the app should be shutdown
+                if (isShuttingDown.get())
                 {
-                    final RESTTranslatedTopicV1 translatedTopic = reader.getTranslatedTopicById(latestTranslatedTopic.getId());
-                    if (translatedTopic != null)
+                    return null;
+                }
+                
+                final RESTTopicV1 topic = reader.getTopicById(topicToRevision.getFirst(), topicToRevision.getSecond(), true);
+    
+                if (topic != null)
+                {
+                    // Get the matching latest translated topic and pushed translated topics
+                    final Pair<RESTTranslatedTopicV1, RESTTranslatedTopicV1> lastestTranslations = getLatestTranslations(topic, topicToRevision.getSecond());
+                    final RESTTranslatedTopicV1 latestTranslatedTopic = lastestTranslations.getFirst();
+                    final RESTTranslatedTopicV1 latestPushedTranslatedTopic = lastestTranslations.getSecond();
+        
+                    // If the latest translation and latest pushed topic matches, then use that if not a dummy topic should be created
+                    if (latestTranslatedTopic != null && latestPushedTranslatedTopic != null
+                            && latestPushedTranslatedTopic.getTopicRevision().equals(latestTranslatedTopic.getTopicRevision()))
                     {
-                        translatedTopics.addItem(translatedTopic);
+                        final RESTTranslatedTopicV1 translatedTopic = reader.getTranslatedTopicById(latestTranslatedTopic.getId());
+                        if (translatedTopic != null)
+                        {
+                            translatedTopics.addItem(translatedTopic);
+                        }
+                        else
+                        {
+                            dummyTopicRevisionIds.add(topicToRevision);
+                        }
                     }
                     else
                     {
@@ -738,10 +745,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
                 {
                     dummyTopicRevisionIds.add(topicToRevision);
                 }
-            }
-            else
-            {
-                dummyTopicRevisionIds.add(topicToRevision);
             }
         }
 
@@ -1288,9 +1291,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						genericInjectionErrors = new ArrayList<Integer>();
 					}
 
-					final List<Integer> topicContentFragmentsErrors = xmlPreProcessor.processTopicContentFragments(specTopic, doc, docbookBuildingOptions);
-					final List<Integer> topicTitleFragmentsErrors = xmlPreProcessor.processTopicTitleFragments(specTopic, doc, docbookBuildingOptions);
-
 					// Check if the app should be shutdown
 					if (isShuttingDown.get())
 					{
@@ -1317,36 +1317,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					{
 						final String message = "Topic has related Topic(s) " + CollectionUtilities.toSeperatedString(CollectionUtilities.toAbsIntegerList(genericInjectionErrors))
 								+ " that were not included in the filter used to build this book.";
-						if (docbookBuildingOptions.getIgnoreMissingCustomInjections())
-						{
-							errorDatabase.addWarning(topic, ErrorType.INVALID_INJECTION, message);
-						}
-						else
-						{
-							errorDatabase.addError(topic, ErrorType.INVALID_INJECTION, message);
-							valid = false;
-						}
-					}
-
-					if (!topicContentFragmentsErrors.isEmpty())
-					{
-						final String message = "Topic has injected content from Topic(s) " + CollectionUtilities.toSeperatedString(topicContentFragmentsErrors)
-								+ " that were not related.";
-						if (docbookBuildingOptions.getIgnoreMissingCustomInjections())
-						{
-							errorDatabase.addWarning(topic, ErrorType.INVALID_INJECTION, message);
-						}
-						else
-						{
-							errorDatabase.addError(topic, ErrorType.INVALID_INJECTION, message);
-							valid = false;
-						}
-					}
-
-					if (!topicTitleFragmentsErrors.isEmpty())
-					{
-						final String message = "Topic has injected a title from Topic(s) " + CollectionUtilities.toSeperatedString(topicTitleFragmentsErrors)
-								+ " that were not related.";
 						if (docbookBuildingOptions.getIgnoreMissingCustomInjections())
 						{
 							errorDatabase.addWarning(topic, ErrorType.INVALID_INJECTION, message);
@@ -1409,10 +1379,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 						        errorDatabase.addWarning(topic, ErrorType.INCOMPLETE_TRANSLATION, BuilderConstants.WARNING_INCOMPLETE_TRANSLATION);
 						    }
 						    
-						    if (((RESTTranslatedTopicV1) topic).getContainsFuzzyTranslation())
+						    /*if (((RESTTranslatedTopicV1) topic).getContainsFuzzyTranslation())
 						    {
 						        errorDatabase.addWarning(topic, ErrorType.FUZZY_TRANSLATION, BuilderConstants.WARNING_FUZZY_TRANSLATION);
-						    }
+						    }*/
 						}
 					}
 				}
@@ -1767,6 +1737,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					bookXIncludes.append(DocBookUtilities.wrapInPara("No Content"));
 				}
 			}
+		}
+		
+		if (docbookBuildingOptions.getInsertEditorLinks() && clazz == RESTTranslatedTopicV1.class)
+		{
+    		final String translateLinkChapter = DocBookUtilities.addXMLBoilerplate(buildTranslateCSChapter(contentSpec, locale), this.escapedTitle + ".ent", "chapter");
+            files.put(BOOK_LOCALE_FOLDER + "Translate.xml", StringUtilities.getStringBytes(StringUtilities.cleanTextForXML(translateLinkChapter == null ? "" : translateLinkChapter)));
+            bookXIncludes.append("  <xi:include href=\"Translate.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
 		}
 
 		/* add any compiler errors */
@@ -2883,6 +2860,41 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 		simplelist.appendChild(listMemberEle);
 		return doc;
 	}
+	
+	/**
+	 * Builds a Chapter with a single paragraph, that contains a link to translate the Content Specification.
+	 * 
+	 * @param contentSpec The content spec that was used to build the book.
+	 * @param locale The locale the book was built in.
+	 * @return The Chapter represented as Docbook markup.
+	 */
+	private String buildTranslateCSChapter(final ContentSpec contentSpec, final String locale)
+    {
+	    
+	    final RESTTranslatedTopicCollectionV1 translatedTopics = this.getTranslatedTopics(contentSpec, new HashSet<Integer>(CollectionUtilities.toArrayList(contentSpec.getId())), null);
+        
+        final String para;
+        if (translatedTopics != null && translatedTopics.getItems() != null && !translatedTopics.getItems().isEmpty())
+        {
+            final RESTTranslatedTopicV1 translatedContentSpec = translatedTopics.getItems().get(0);
+            final String url = ComponentTranslatedTopicV1.returnEditorURL(translatedContentSpec, zanataDetails);
+            
+            if (url != null)
+            {
+                para = DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(url, "Translate this Content Spec"));
+            }
+            else
+            {
+                para = DocBookUtilities.wrapInPara("No editor link available as this Content Specification hasn't been pushed for Translation.");
+            }
+        }
+        else
+        {
+            para = DocBookUtilities.wrapInPara("No editor link available as this Content Specification hasn't been pushed for Translation.");
+        }
+        
+        return DocBookUtilities.buildChapter(para, "Content Specification");
+    }
 
 	/**
 	 * Builds the Error Chapter that contains all warnings and
@@ -3035,8 +3047,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 					DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_INCOMPLETE_TRANSLATED_TOPIC_DEFINTIION)));
 			
 			// Fuzzy translation warning
-            glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_FUZZY_TRANSLATION + "\""),
-                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_FUZZY_TRANSLATED_TOPIC_DEFINTIION)));
+            /*glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_FUZZY_TRANSLATION + "\""),
+                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_FUZZY_TRANSLATED_TOPIC_DEFINTIION)));*/
 			
 			// Untranslated Content warning
 			glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_UNTRANSLATED_TOPIC + "\""),
@@ -3099,7 +3111,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been pushed for Translation: " + notPushedTranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been Translated: " + untranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that have incomplete Translations: " + incompleteTranslatedTopics.size()));
-			list.add(DocBookUtilities.buildListItem("Number of Topics that have fuzzy Translations: " + fuzzyTranslatedTopics.size()));
+			//list.add(DocBookUtilities.buildListItem("Number of Topics that have fuzzy Translations: " + fuzzyTranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been Translated but are using previous revisions: " + oldUntranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that have been Translated using a previous revision: " + oldTranslatedTopics.size()));
 		}
@@ -3125,7 +3137,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 
 			reportChapter += ReportUtilities.buildReportTable(incompleteTranslatedTopics, "Topics that have Incomplete Translations", showEditorLinks, zanataDetails);
 			
-			reportChapter += ReportUtilities.buildReportTable(fuzzyTranslatedTopics, "Topics that have fuzzy Translations", showEditorLinks, zanataDetails);
+			//reportChapter += ReportUtilities.buildReportTable(fuzzyTranslatedTopics, "Topics that have fuzzy Translations", showEditorLinks, zanataDetails);
 			
 			reportChapter += ReportUtilities.buildReportTable(oldUntranslatedTopics, "Topics that haven't been Translated but are using previous revisions", showEditorLinks, zanataDetails);
 			
@@ -3469,7 +3481,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U>, U extends BaseRestC
 
 						for (int uniqueCount = 1; uniqueCount <= BuilderConstants.MAXIMUM_SET_PROP_TAG_NAME_RETRY; ++uniqueCount)
 						{
-							final String query = "query;propertyTag1=" + CommonConstants.FIXED_URL_PROP_TAG_ID + URLEncoder.encode(" " + baseUrlName + postFix, "UTF-8");
+							final String query = "query;propertyTag" + CommonConstants.FIXED_URL_PROP_TAG_ID + "=" + URLEncoder.encode(baseUrlName + postFix, "UTF-8");
 							final RESTTopicCollectionV1 queryTopics = restManager.getRESTClient().getJSONTopicsWithQuery(new PathSegmentImpl(query, false), "");
 
 							if (queryTopics.getSize() != 0)
