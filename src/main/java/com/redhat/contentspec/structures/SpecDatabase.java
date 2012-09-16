@@ -10,7 +10,6 @@ import java.util.Set;
 
 import org.jboss.pressgangccms.contentspec.Level;
 import org.jboss.pressgangccms.contentspec.SpecTopic;
-import org.jboss.pressgangccms.rest.v1.collections.base.BaseRestCollectionV1;
 import org.jboss.pressgangccms.rest.v1.entities.base.RESTBaseTopicV1;
 import org.jboss.pressgangccms.utils.common.CollectionUtilities;
 
@@ -58,7 +57,7 @@ public class SpecDatabase
 		specLevels.get(escapedTitle).add(level);
 	}
 	
-	public void setDatabaseDulicateIds()
+	public void setDatabaseDulicateIds(final Map<Integer, Set<String>> usedIdAttributes)
 	{
 		/* Topics */
 		for (final String topicTitle: specTopicsTitles.keySet())
@@ -66,10 +65,27 @@ public class SpecDatabase
 			final List<SpecTopic> specTopics = specTopicsTitles.get(topicTitle);
 			for (int i = 0; i < specTopics.size(); i++)
 			{
-				if (i != 0)
-					specTopics.get(i).setDuplicateId(Integer.toString(i));
-				else
-					specTopics.get(i).setDuplicateId(null);
+			    final SpecTopic specTopic = specTopics.get(i);
+			    String fixedIdAttributeValue = null;
+			    
+			    if (i != 0)
+			    {
+			        fixedIdAttributeValue = Integer.toString(i);
+			    }
+
+			    if (!isUniqueAttributeId(topicTitle, specTopic.getDBId(), usedIdAttributes))
+                {
+			        if (fixedIdAttributeValue == null)
+			        {
+			            fixedIdAttributeValue = Integer.toString(specTopic.getStep());
+			        }
+			        else
+			        {
+			            fixedIdAttributeValue += "-" + specTopic.getStep();
+			        }
+                }
+
+				specTopic.setDuplicateId(fixedIdAttributeValue);
 			}
 		}
 		
@@ -157,7 +173,7 @@ public class SpecDatabase
 	}
 	
 	@SuppressWarnings("unchecked")
-	public <T extends RESTBaseTopicV1<T, U>, U extends BaseRestCollectionV1<T, U>> List<T> getAllTopics()
+	public <T extends RESTBaseTopicV1<T, ?, ?>> List<T> getAllTopics()
 	{
 		final List<T> topics = new ArrayList<T>();
 		for (final Integer topicId : specTopics.keySet())
@@ -167,4 +183,38 @@ public class SpecDatabase
 		}
 		return topics;
 	}
+	
+	/**
+     * Checks to see if a supplied attribute id is unique within this book, based
+     * upon the used id attributes that were calculated earlier.
+     *
+     * @param id The Attribute id to be checked
+     * @param topicId The id of the topic the attribute id was found in
+     * @param usedIdAttributes The set of used ids calculated earlier
+     * @return True if the id is unique otherwise false.
+     */
+    private boolean isUniqueAttributeId(final String id, final Integer topicId, final Map<Integer, Set<String>> usedIdAttributes)
+    {
+        boolean retValue = true;
+
+        if (usedIdAttributes.containsKey(topicId))
+        {
+            for (final Integer topicId2 : usedIdAttributes.keySet())
+            {
+                if (topicId2.equals(topicId))
+                {
+                    continue;
+                }
+
+                final Set<String> ids2 = usedIdAttributes.get(topicId2);
+
+                if (ids2.contains(id))
+                {
+                    retValue = false;
+                }
+            }
+        }
+
+        return retValue;
+    }
 }

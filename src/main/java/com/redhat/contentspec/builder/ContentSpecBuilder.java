@@ -38,7 +38,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp
 	@SuppressWarnings("unused")
 	private final RESTReader reader;
 	private final RESTBlobConstantV1 rocbookdtd;
-	private final RESTManager restManager;	
+	private final RESTManager restManager;
 	private DocbookBuilder<?, ?> docbookBuilder;
 
 	public ContentSpecBuilder(final RESTManager restManager)

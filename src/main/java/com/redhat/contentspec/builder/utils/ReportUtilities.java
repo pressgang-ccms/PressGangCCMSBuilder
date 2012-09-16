@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import org.jboss.pressgangccms.docbook.structures.TopicErrorData;
-import org.jboss.pressgangccms.rest.v1.collections.base.BaseRestCollectionV1;
 import org.jboss.pressgangccms.rest.v1.components.ComponentBaseTopicV1;
 import org.jboss.pressgangccms.rest.v1.components.ComponentTopicV1;
 import org.jboss.pressgangccms.rest.v1.components.ComponentTranslatedTopicV1;
@@ -34,13 +33,13 @@ public class ReportUtilities
 	 * @param tableTitle The title for the table.
 	 * @return The table as a String.
 	 */
-	public static <T extends RESTBaseTopicV1<T, U>, U extends BaseRestCollectionV1<T, U>> String buildReportTable(final List<TopicErrorData<T, U>> topicErrorDatas, final String tableTitle, final boolean showEditorLink, final ZanataDetails zanataDetails)
+	public static <T extends RESTBaseTopicV1<T, ?, ?>> String buildReportTable(final List<TopicErrorData<T>> topicErrorDatas, final String tableTitle, final boolean showEditorLink, final ZanataDetails zanataDetails)
 	{
 		final List<String> tableHeaders = CollectionUtilities.toArrayList(new String[]{"Topic Link", "Topic Title", "Topic Tags"});
 
 		// Put the details into different tables
 		final List<List<String>> rows = new ArrayList<List<String>>();
-		for (final TopicErrorData<T, U> topicErrorData : topicErrorDatas)
+		for (final TopicErrorData<T> topicErrorData : topicErrorDatas)
 		{
 			final T topic = topicErrorData.getTopic();
 			final List<String> topicTitles;
@@ -72,7 +71,7 @@ public class ReportUtilities
 		return rows.size() > 0 ? DocBookUtilities.wrapInTable(tableTitle, tableHeaders, rows) : "";
 	}
 	
-	private static <T extends RESTBaseTopicV1<T, U>, U extends BaseRestCollectionV1<T, U>> String createTopicTableLinks(final T topic, final boolean showEditorLink, final ZanataDetails zanataDetails)
+	private static <T extends RESTBaseTopicV1<T, ?, ?>> String createTopicTableLinks(final T topic, final boolean showEditorLink, final ZanataDetails zanataDetails)
 	{
 		final List<String> topicIdUrls = new ArrayList<String>();
 		final String url;
@@ -138,7 +137,7 @@ public class ReportUtilities
 		return DocBookUtilities.wrapListItems(topicIdUrls);
 	}
 	
-	private static <T extends RESTBaseTopicV1<T, U>, U extends BaseRestCollectionV1<T, U>> String buildItemizedTopicTagList(final T topic)
+	private static <T extends RESTBaseTopicV1<T, ?, ?>> String buildItemizedTopicTagList(final T topic)
 	{
 		final TreeMap<NameIDSortMap, ArrayList<RESTTagV1>> tags = ComponentBaseTopicV1.getCategoriesMappedToTags(topic);
 
