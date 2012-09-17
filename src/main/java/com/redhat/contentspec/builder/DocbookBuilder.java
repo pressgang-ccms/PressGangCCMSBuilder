@@ -595,15 +595,22 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 				}
 			}
 
-			/*
-			 * assign fixed urls property tags to the topics. If
-			 * fixedUrlsSuccess is true, the id of the topic sections,
-			 * xref injection points and file names in the zip file
-			 * will be taken from the fixed url property tag, defaulting
-			 * back to the TopicID## format if for some reason that
-			 * property tag does not exist.
-			 */
-			fixedUrlsSuccess = setFixedURLsPass(normalTopics);
+			if (topicCollection != null && topicCollection.getItems() != null)
+			{
+    			/*
+    			 * assign fixed urls property tags to the topics. If
+    			 * fixedUrlsSuccess is true, the id of the topic sections,
+    			 * xref injection points and file names in the zip file
+    			 * will be taken from the fixed url property tag, defaulting
+    			 * back to the TopicID## format if for some reason that
+    			 * property tag does not exist.
+    			 */
+    			fixedUrlsSuccess = setFixedURLsPass(topicCollection);
+			}
+			else
+			{
+			    fixedUrlsSuccess = true;
+			}
 
 			topics = (U) normalTopics;
 		}
@@ -1401,10 +1408,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 						        errorDatabase.addWarning(topic, ErrorType.INCOMPLETE_TRANSLATION, BuilderConstants.WARNING_INCOMPLETE_TRANSLATION);
 						    }
 						    
-						    /*if (((RESTTranslatedTopicV1) topic).getContainsFuzzyTranslation())
+						    if (((RESTTranslatedTopicV1) topic).getContainsFuzzyTranslation())
 						    {
 						        errorDatabase.addWarning(topic, ErrorType.FUZZY_TRANSLATION, BuilderConstants.WARNING_FUZZY_TRANSLATION);
-						    }*/
+						    }
 						}
 					}
 				}
@@ -1867,14 +1874,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		}
 
 		// Setup Book_Info.xml
-		final String pubsNumber = overrides.containsKey("pubsnumber") ? overrides.get("pubsnumber") : (contentSpec.getPubsNumber() == null ? BuilderConstants.PUBSNUMBER_DEFAULT : contentSpec.getPubsNumber().toString());
 		String fixedBookInfo = bookInfo.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.TITLE_REGEX, contentSpec.getTitle());
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX, contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : contentSpec.getSubtitle());
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.EDITION_REGEX, contentSpec.getEdition() == null ? BuilderConstants.EDITION_DEFAULT : contentSpec.getEdition());
-		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.PUBSNUMBER_REGEX, pubsNumber);
 
 		if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT))
 		{
@@ -2455,6 +2460,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 
 						final RESTImageV1 imageFile;
 						imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(imageID), expandString);
+						// TODO Uncomment this once Image Revisions are fixed.
 						/*if (imageLocation.getRevision() == null)
 						{
 							imageFile = restManager.getRESTClient().getJSONImage(Integer.parseInt(imageID), expandString);
@@ -2728,12 +2734,15 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		log.info("\tBuilding Revision_History.xml");
 
 		final DateFormat dateFormatter = new SimpleDateFormat(BuilderConstants.REV_DATE_STRING_FORMAT);
+		
+		final String overrideRevnumber = this.docbookBuildingOptions.getOverrides().get(CSConstants.REVNUMBER_OVERRIDE);
 
 		// Replace the basic injection data inside the revision history
 		final String revisionHistoryXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.REVISION_HISTORY_XML_ID, "").getValue();
 		String fixedRevisionHistoryXml = revisionHistoryXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
 		fixedRevisionHistoryXml = fixedRevisionHistoryXml.replaceAll(BuilderConstants.REV_DATE_FORMAT_REGEX, dateFormatter.format(buildDate));
-
+		fixedRevisionHistoryXml = fixedRevisionHistoryXml.replaceAll(BuilderConstants.REVNUMBER_REGEX, (overrideRevnumber == null ? BuilderConstants.DEFAULT_REVNUMBER : overrideRevnumber));
+		
 		final List<RESTTagV1> authorList = requester == null ? new ArrayList<RESTTagV1>() : reader.getTagsByName(requester.getName());
 		final Document revHistoryDoc;
 
@@ -2836,7 +2845,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 
 		if (contentSpec.getId() > 0)
 		{
-			listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(), reader.getLatestCSRevById(contentSpec.getId())) + (authorInfo.getAuthorId() > 0 ? (" by " + requester.getName()) : ""));
+		    if (contentSpec.getRevision() == null)
+		    {
+		        listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(), reader.getLatestCSRevById(contentSpec.getId())) + (authorInfo.getAuthorId() > 0 ? (" by " + requester.getName()) : ""));
+		    }
+		    else
+		    {
+		        listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(), contentSpec.getRevision()) + (authorInfo.getAuthorId() > 0 ? (" by " + requester.getName()) : ""));
+		    }
 		}
 		else
 		{
@@ -3033,8 +3049,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 					DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_INCOMPLETE_TRANSLATED_TOPIC_DEFINTIION)));
 			
 			// Fuzzy translation warning
-            /*glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_FUZZY_TRANSLATION + "\""),
-                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_FUZZY_TRANSLATED_TOPIC_DEFINTIION)));*/
+            glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_FUZZY_TRANSLATION + "\""),
+                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_FUZZY_TRANSLATED_TOPIC_DEFINTIION)));
 			
 			// Untranslated Content warning
 			glossary.append(DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_UNTRANSLATED_TOPIC + "\""),
@@ -3097,7 +3113,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been pushed for Translation: " + notPushedTranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been Translated: " + untranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that have incomplete Translations: " + incompleteTranslatedTopics.size()));
-			//list.add(DocBookUtilities.buildListItem("Number of Topics that have fuzzy Translations: " + fuzzyTranslatedTopics.size()));
+			list.add(DocBookUtilities.buildListItem("Number of Topics that have fuzzy Translations: " + fuzzyTranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that haven't been Translated but are using previous revisions: " + oldUntranslatedTopics.size()));
 			list.add(DocBookUtilities.buildListItem("Number of Topics that have been Translated using a previous revision: " + oldTranslatedTopics.size()));
 		}
@@ -3122,8 +3138,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 			reportChapter += ReportUtilities.buildReportTable(untranslatedTopics, "Topics that haven't been Translated", showEditorLinks, zanataDetails);
 
 			reportChapter += ReportUtilities.buildReportTable(incompleteTranslatedTopics, "Topics that have Incomplete Translations", showEditorLinks, zanataDetails);
-			
-			//reportChapter += ReportUtilities.buildReportTable(fuzzyTranslatedTopics, "Topics that have fuzzy Translations", showEditorLinks, zanataDetails);
+
+			reportChapter += ReportUtilities.buildReportTable(fuzzyTranslatedTopics, "Topics that have fuzzy Translations", showEditorLinks, zanataDetails);
 			
 			reportChapter += ReportUtilities.buildReportTable(oldUntranslatedTopics, "Topics that haven't been Translated but are using previous revisions", showEditorLinks, zanataDetails);
 			

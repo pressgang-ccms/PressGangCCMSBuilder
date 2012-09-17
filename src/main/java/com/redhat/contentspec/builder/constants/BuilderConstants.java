@@ -51,6 +51,7 @@ public class BuilderConstants
 	public static final String AUTHOR_FIRST_NAME_REGEX	= "<!-- Inject authorInformation\\.firstName -->";
 	public static final String AUTHOR_SURNAME_REGEX		= "<!-- Inject authorInformation\\.lastName -->";
 	public static final String AUTHOR_EMAIL_REGEX		= "<!-- Inject authorInformation\\.email -->";
+	public static final String REVNUMBER_REGEX          = "<!-- Inject revnumber -->";
 	
 	// Common Content File Names
 	public static final String[] COMMON_CONTENT_FILES = new String[] {"Conventions.xml", "Program_Listing.xml", "Feedback.xml", "Legal_Notice.xml"}; 
@@ -71,6 +72,7 @@ public class BuilderConstants
 	public static final String DEFAULT_AUTHOR_FIRSTNAME	= "CS Builder";
 	public static final String DEFAULT_AUTHOR_LASTNAME	= "Robot";
 	public static final String DEFAULT_EMAIL			= "robot@dev.null.com";
+	public static final String DEFAULT_REVNUMBER        = "0.0-0";
 
 	public static final String DEFAULT_ABSTRACT			= 	"<abstract>\n\t\t<para>\n" +
 			"\t\t\tA brief paragraph describing this book. This will be used as the description for the rpm package.\n" +
