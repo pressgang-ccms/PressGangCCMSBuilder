@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import org.jboss.pressgangccms.docbook.structures.TopicErrorData;
@@ -146,11 +147,13 @@ public class ReportUtilities
 		 * we need to regroup the mapping.
 		 */
 		final Map<String, List<RESTTagV1>> catToTags = new TreeMap<String, List<RESTTagV1>>();
-		for (final NameIDSortMap key : tags.keySet())
+		for (final Entry<NameIDSortMap, ArrayList<RESTTagV1>> entry : tags.entrySet())
 		{
+		    final NameIDSortMap key = entry.getKey();
+		    
 			// sort alphabetically
-			Collections.sort(tags.get(key), new TagV1NameComparator());
-			
+			Collections.sort(entry.getValue(), new TagV1NameComparator());
+
 			final String categoryName = key.getName();
 			
 			if (!catToTags.containsKey(categoryName))
@@ -161,19 +164,19 @@ public class ReportUtilities
 		
 		/* Build the list of items to be used in the itemized lists */
 		final List<String> items = new ArrayList<String>();
-		for (final String catName : catToTags.keySet())
+		for (final Entry<String, List<RESTTagV1>> catEntry : catToTags.entrySet())
 		{
-			String thisTagList = "";
+			final StringBuilder thisTagList = new StringBuilder("");
 
-			for (final RESTTagV1 tag : catToTags.get(catName))
+			for (final RESTTagV1 tag : catEntry.getValue())
 			{
 				if (thisTagList.length() != 0)
-					thisTagList += ", ";
+					thisTagList.append(", ");
 
-				thisTagList += tag.getName();
+				thisTagList.append(tag.getName());
 			}
 			
-			items.add(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara("<emphasis role=\"bold\">" + catName + ":</emphasis> " + thisTagList)));
+			items.add(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara("<emphasis role=\"bold\">" + catEntry.getKey() + ":</emphasis> " + thisTagList)));
 		}
 		
 		/* Check that some tags exist, otherwise add a message about there being no tags */

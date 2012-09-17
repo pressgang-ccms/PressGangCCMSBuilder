@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.jboss.pressgangccms.contentspec.Level;
@@ -32,11 +33,6 @@ public class SpecDatabase
 		
 		if (specTopics.get(topicId).size() > 0 || specTopicsTitles.get(escapedTitle).size() > 0)
 		{
-			int duplicateId = specTopics.get(topicId).size();
-			
-			if (specTopicsTitles.get(escapedTitle).size() > duplicateId)
-				duplicateId = specTopicsTitles.get(escapedTitle).size();
-			
 			topic.setDuplicateId(Integer.toString(specTopics.get(topicId).size()));
 		}
 		
@@ -199,14 +195,15 @@ public class SpecDatabase
 
         if (usedIdAttributes.containsKey(topicId))
         {
-            for (final Integer topicId2 : usedIdAttributes.keySet())
+            for (final Entry<Integer, Set<String>> entry : usedIdAttributes.entrySet())
             {
+                final Integer topicId2 = entry.getKey();
                 if (topicId2.equals(topicId))
                 {
                     continue;
                 }
 
-                final Set<String> ids2 = usedIdAttributes.get(topicId2);
+                final Set<String> ids2 = entry.getValue();
 
                 if (ids2.contains(id))
                 {
