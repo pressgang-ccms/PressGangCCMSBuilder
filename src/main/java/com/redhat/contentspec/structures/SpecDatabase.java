@@ -9,10 +9,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import org.jboss.pressgangccms.contentspec.Level;
-import org.jboss.pressgangccms.contentspec.SpecTopic;
-import org.jboss.pressgangccms.rest.v1.entities.base.RESTBaseTopicV1;
-import org.jboss.pressgangccms.utils.common.CollectionUtilities;
+import org.jboss.pressgang.ccms.contentspec.Level;
+import org.jboss.pressgang.ccms.contentspec.SpecTopic;
+import org.jboss.pressgang.ccms.rest.v1.entities.base.RESTBaseTopicV1;
+import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 
 public class SpecDatabase
 {

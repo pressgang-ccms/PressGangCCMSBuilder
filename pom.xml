@@ -8,7 +8,7 @@
   </parent>
   <groupId>com.redhat.contentspec</groupId>
   <artifactId>csbuilder</artifactId>
-  <version>0.1.6-SNAPSHOT</version>
+  <version>0.1.7-SNAPSHOT</version>
   <name>Content Specification Builder</name>
   
   <dependencies>
@@ -24,14 +24,6 @@
      	<artifactId>log4j</artifactId>
      	<version>1.2.16</version>
    	</dependency>
-   	
-   	<!-- Named-Regexp Library -->
-	<dependency>
-		<groupId>com.google.code.regexp</groupId>
-		<artifactId>named-regexp</artifactId>
-		<version>0.0.2-SNAPSHOT</version>
-		<scope>provided</scope>
-	</dependency>
 	
 	<!-- RESTEasy Libraries -->
     <dependency>

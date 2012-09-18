@@ -28,57 +28,60 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
-import org.jboss.pressgangccms.contentspec.ContentSpec;
-import org.jboss.pressgangccms.contentspec.Level;
-import org.jboss.pressgangccms.contentspec.SpecTopic;
-import org.jboss.pressgangccms.contentspec.constants.CSConstants;
-import org.jboss.pressgangccms.contentspec.entities.AuthorInformation;
-import org.jboss.pressgangccms.contentspec.entities.InjectionOptions;
-import org.jboss.pressgangccms.contentspec.enums.BookType;
-import org.jboss.pressgangccms.contentspec.enums.LevelType;
-import org.jboss.pressgangccms.contentspec.interfaces.ShutdownAbleApp;
-import org.jboss.pressgangccms.contentspec.rest.RESTManager;
-import org.jboss.pressgangccms.contentspec.rest.RESTReader;
-import org.jboss.pressgangccms.contentspec.sort.AuthorInformationComparator;
-import org.jboss.pressgangccms.docbook.constants.DocbookBuilderConstants;
-import org.jboss.pressgangccms.docbook.processing.XMLPreProcessor;
-import org.jboss.pressgangccms.docbook.structures.TocTopicDatabase;
-import org.jboss.pressgangccms.docbook.structures.TopicErrorData;
-import org.jboss.pressgangccms.docbook.structures.TopicErrorDatabase;
-import org.jboss.pressgangccms.docbook.structures.TopicErrorDatabase.ErrorLevel;
-import org.jboss.pressgangccms.docbook.structures.TopicErrorDatabase.ErrorType;
-import org.jboss.pressgangccms.docbook.structures.TopicImageData;
-import org.jboss.pressgangccms.rest.v1.collections.RESTTagCollectionV1;
-import org.jboss.pressgangccms.rest.v1.collections.RESTTopicCollectionV1;
-import org.jboss.pressgangccms.rest.v1.collections.RESTTranslatedTopicCollectionV1;
-import org.jboss.pressgangccms.rest.v1.collections.base.RESTBaseCollectionV1;
-import org.jboss.pressgangccms.rest.v1.collections.join.RESTAssignedPropertyTagCollectionV1;
-import org.jboss.pressgangccms.rest.v1.components.ComponentTagV1;
-import org.jboss.pressgangccms.rest.v1.components.ComponentTopicV1;
-import org.jboss.pressgangccms.rest.v1.components.ComponentTranslatedTopicV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTBlobConstantV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTImageV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTLanguageImageV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTStringConstantV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTagV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTopicV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTranslatedTopicV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTUserV1;
-import org.jboss.pressgangccms.rest.v1.entities.base.RESTBaseTopicV1;
-import org.jboss.pressgangccms.rest.v1.entities.join.RESTAssignedPropertyTagV1;
-import org.jboss.pressgangccms.rest.v1.exceptions.InternalProcessingException;
-import org.jboss.pressgangccms.rest.v1.exceptions.InvalidParameterException;
-import org.jboss.pressgangccms.rest.v1.expansion.ExpandDataDetails;
-import org.jboss.pressgangccms.rest.v1.expansion.ExpandDataTrunk;
-import org.jboss.pressgangccms.utils.common.CollectionUtilities;
-import org.jboss.pressgangccms.utils.common.DocBookUtilities;
-import org.jboss.pressgangccms.utils.common.ExceptionUtilities;
-import org.jboss.pressgangccms.utils.common.FileUtilities;
-import org.jboss.pressgangccms.utils.common.StringUtilities;
-import org.jboss.pressgangccms.utils.common.XMLUtilities;
-import org.jboss.pressgangccms.utils.constants.CommonConstants;
-import org.jboss.pressgangccms.utils.structures.Pair;
-import org.jboss.pressgangccms.zanata.ZanataDetails;
+import org.jboss.pressgang.ccms.contentspec.ContentSpec;
+import org.jboss.pressgang.ccms.contentspec.Level;
+import org.jboss.pressgang.ccms.contentspec.SpecTopic;
+import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
+import org.jboss.pressgang.ccms.contentspec.entities.AuthorInformation;
+import org.jboss.pressgang.ccms.contentspec.entities.InjectionOptions;
+import org.jboss.pressgang.ccms.contentspec.enums.BookType;
+import org.jboss.pressgang.ccms.contentspec.enums.LevelType;
+import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
+import org.jboss.pressgang.ccms.contentspec.rest.RESTManager;
+import org.jboss.pressgang.ccms.contentspec.rest.RESTReader;
+import org.jboss.pressgang.ccms.contentspec.sort.AuthorInformationComparator;
+import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
+import org.jboss.pressgang.ccms.docbook.constants.DocbookBuilderConstants;
+import org.jboss.pressgang.ccms.docbook.processing.XMLPreProcessor;
+import org.jboss.pressgang.ccms.docbook.structures.TocTopicDatabase;
+import org.jboss.pressgang.ccms.docbook.structures.TopicErrorData;
+import org.jboss.pressgang.ccms.docbook.structures.TopicErrorDatabase;
+import org.jboss.pressgang.ccms.docbook.structures.TopicImageData;
+import org.jboss.pressgang.ccms.docbook.structures.TopicErrorDatabase.ErrorLevel;
+import org.jboss.pressgang.ccms.docbook.structures.TopicErrorDatabase.ErrorType;
+import org.jboss.pressgang.ccms.rest.v1.collections.RESTTagCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.RESTTopicCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.RESTTranslatedTopicCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.RESTTranslatedTopicStringCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.base.RESTBaseCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.join.RESTAssignedPropertyTagCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.components.ComponentTagV1;
+import org.jboss.pressgang.ccms.rest.v1.components.ComponentTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.components.ComponentTranslatedTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTBlobConstantV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTImageV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTLanguageImageV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTStringConstantV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTagV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTranslatedTopicStringV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTranslatedTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTUserV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.base.RESTBaseTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.join.RESTAssignedPropertyTagV1;
+import org.jboss.pressgang.ccms.rest.v1.exceptions.InternalProcessingException;
+import org.jboss.pressgang.ccms.rest.v1.exceptions.InvalidParameterException;
+import org.jboss.pressgang.ccms.rest.v1.expansion.ExpandDataDetails;
+import org.jboss.pressgang.ccms.rest.v1.expansion.ExpandDataTrunk;
+import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
+import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
+import org.jboss.pressgang.ccms.utils.common.ExceptionUtilities;
+import org.jboss.pressgang.ccms.utils.common.FileUtilities;
+import org.jboss.pressgang.ccms.utils.common.StringUtilities;
+import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
+import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
+import org.jboss.pressgang.ccms.utils.structures.Pair;
+import org.jboss.pressgang.ccms.zanata.ZanataDetails;
 import org.jboss.resteasy.specimpl.PathSegmentImpl;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -119,7 +122,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 	private final RESTManager restManager;
 	private final RESTBlobConstantV1 rocbookdtd;
 	private final String defaultLocale;
-	private final ZanataDetails zanataDetails;
+	private final String translationLocale;
+	
+	private ZanataDetails zanataDetails;
+	private String originalTitle;
+	private String originalProduct;
 
 	/** The StringConstant that holds the error template for a topic with no content. */
 	private final RESTStringConstantV1 errorEmptyTopic;
@@ -178,11 +185,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 
 	public DocbookBuilder(final RESTManager restManager, final RESTBlobConstantV1 rocbookDtd, final String defaultLocale) throws InvalidParameterException, InternalProcessingException, BuilderCreationException
 	{
-		this(restManager, rocbookDtd, defaultLocale, new ZanataDetails());
+		this(restManager, rocbookDtd, defaultLocale, null);
 	}
 
-	public DocbookBuilder(final RESTManager restManager, final RESTBlobConstantV1 rocbookDtd, final String defaultLocale, final ZanataDetails zanataDetails) throws InvalidParameterException, InternalProcessingException, BuilderCreationException
-	{
+	public DocbookBuilder(final RESTManager restManager, final RESTBlobConstantV1 rocbookDtd, final String defaultLocale, final String translationLocale) throws InvalidParameterException, InternalProcessingException, BuilderCreationException
+    {
 		reader = restManager.getReader();
 		this.restManager = restManager;
 		this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
@@ -192,7 +199,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		this.xmlElementsProperties = restManager.getRESTClient().getJSONStringConstant(CommonConstants.XML_ELEMENTS_STRING_CONSTANT_ID, "");
 
 		this.defaultLocale = defaultLocale;
-		this.zanataDetails = zanataDetails;
+		this.translationLocale = translationLocale;
 
 		/*
 		 * Get the XML formatting details. These are used to pretty-print
@@ -283,16 +290,42 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 	 * variables.
 	 * @throws Exception Any other unexpected errors.
 	 */
-	@SuppressWarnings("unchecked")
 	public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final RESTUserV1 requester,
 			final CSDocbookBuildingOptions buildingOptions, final String searchTagsUrl)
 			throws BuilderCreationException, BuildProcessingException, Exception
 	{
+	    return this.buildBook(contentSpec, requester, buildingOptions, searchTagsUrl, new ZanataDetails());
+	}
+	
+	/**
+     * Builds a Docbook Formatted Book using a Content Specification to define
+     * the structure and contents of the book.
+     *
+     * @param contentSpec The content specification to build from.
+     * @param requester The user who requested the build.
+     * @param buildingOptions The options to be used when building.
+     * @param searchTagsUrl The search URL that lists the topics (used mainly from
+     *      skynet builds).
+     * @return Returns a mapping of file names/locations to files. This HashMap can be used
+     * to build a ZIP archive.
+     * @throws BuildProcessingException Thrown if an unexpected Error occurs during processing. eg.
+     *     A template file doesn't contain valid XML.
+     * @throws BuilderCreationException Thrown if the builder is unable to start due to incorrect passed
+     * variables.
+     * @throws Exception Any other unexpected errors.
+     */
+    @SuppressWarnings("unchecked")
+    public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final RESTUserV1 requester,
+            final CSDocbookBuildingOptions buildingOptions, final String searchTagsUrl, final ZanataDetails zanataDetails)
+            throws BuilderCreationException, BuildProcessingException, Exception
+    {
 		if (contentSpec == null)
 		{
 			throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
 		}
 
+		this.zanataDetails = zanataDetails;
+		
 		errorDatabase = new TopicErrorDatabase<T>();
 		specDatabase = new SpecDatabase();
 
@@ -307,7 +340,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 
 		// Setup the constants
 		escapedTitle = DocBookUtilities.escapeTitle(contentSpec.getTitle());
-		locale = contentSpec.getLocale() == null ? defaultLocale : contentSpec.getLocale();
+		locale = translationLocale == null ? defaultLocale : translationLocale;
+		originalTitle = contentSpec.getTitle();
+		originalProduct = contentSpec.getProduct();
+		
 		BOOK_FOLDER = escapedTitle + "/";
 		BOOK_LOCALE_FOLDER = BOOK_FOLDER + locale + "/";
 		BOOK_TOPICS_FOLDER = BOOK_LOCALE_FOLDER + "topics/";
@@ -375,6 +411,19 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 			shutdown.set(true);
 			return null;
 		}
+		
+		// Get the translations
+		if (translationLocale != null)
+		{
+		    pullTranslations(contentSpec);
+		}
+		
+		// Check if the app should be shutdown
+        if (isShuttingDown.get())
+        {
+            shutdown.set(true);
+            return null;
+        }
 
 		final Map<Integer, Set<String>> usedIdAttributes = new HashMap<Integer, Set<String>>();
 		final boolean fixedUrlsSuccess = doPopulateDatabasePass(contentSpec, usedIdAttributes);
@@ -420,6 +469,30 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 
 		return doBuildZipPass(contentSpec, requester, fixedUrlsSuccess);
 	}
+    
+    /**
+     * Get the translations from the REST API and replace the original strings with the values downloaded.
+     * 
+     * @param contentSpec The Content Spec to get and replace the translations for.
+     */
+    protected void pullTranslations(final ContentSpec contentSpec)
+    {
+        final RESTTranslatedTopicStringCollectionV1 translatedStrings = reader.getTranslatedTopicStringsByTopicId(contentSpec.getId(), contentSpec.getRevision(), translationLocale);
+        
+        if (translatedStrings != null && translatedStrings.getItems() != null)
+        {
+            final Map<String, String> translations = new HashMap<String, String>();
+            
+            final List<RESTTranslatedTopicStringV1> translatedTopicStringItems = translatedStrings.returnItems();
+            for (final RESTTranslatedTopicStringV1 translatedTopicString : translatedTopicStringItems)
+            {
+                if (translatedTopicString.getOriginalString() != null && translatedTopicString.getTranslatedString() != null)
+                    translations.put(translatedTopicString.getOriginalString(), translatedTopicString.getTranslatedString());
+            }
+            
+            ContentSpecUtilities.replaceTranslatedStrings(contentSpec, translations);
+        }
+    }
 
 	/**
 	 * Validate all the book links in the each topic to ensure that
@@ -1698,10 +1771,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		/* add the images to the book */
 		addImagesToBook(files, locale);
 
-		final LinkedList<org.jboss.pressgangccms.contentspec.Node> levelData = contentSpec.getBaseLevel().getChildNodes();
+		final LinkedList<org.jboss.pressgang.ccms.contentspec.Node> levelData = contentSpec.getBaseLevel().getChildNodes();
 
 		// Loop through and create each chapter and the topics inside those chapters
-		for (final org.jboss.pressgangccms.contentspec.Node node : levelData)
+		for (final org.jboss.pressgang.ccms.contentspec.Node node : levelData)
 		{
 			// Check if the app should be shutdown
 			if (isShuttingDown.get())
@@ -1825,6 +1898,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		String fixedPublicanCfg = publicanCfg.replaceAll(BuilderConstants.BRAND_REGEX, brand);
 		fixedPublicanCfg = fixedPublicanCfg.replaceFirst(BuilderConstants.BOOK_TYPE_REGEX, contentSpec.getBookType().toString());
 		fixedPublicanCfg = fixedPublicanCfg.replaceAll("xml_lang\\: .*?($|\\r\\n|\\n)", "xml_lang: " + locale + "\n");
+		if (!fixedPublicanCfg.matches(".*\n$"))
+		{
+		    fixedPublicanCfg += "\n";
+		}
 
 		// Remove the image width for CSP output
 		if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT))
@@ -1842,6 +1919,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 			}
 			fixedPublicanCfg += contentSpec.getPublicanCfg();
 		}
+		
+		fixedPublicanCfg += "docname: " + escapedTitle.replaceAll("_", " ") + "\n";
+        fixedPublicanCfg += "product: " + originalProduct + "\n";
 
 		if (docbookBuildingOptions.getPublicanShowRemarks())
 		{
@@ -2009,10 +2089,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		// Setup the <<contentSpec.title>>.ent file
 		String entFile = bookEnt.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
 		entFile = entFile.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
-		entFile = entFile.replaceAll(BuilderConstants.TITLE_REGEX, contentSpec.getTitle());
+		entFile = entFile.replaceAll(BuilderConstants.TITLE_REGEX, originalTitle);
 		entFile = entFile.replaceAll(BuilderConstants.YEAR_FORMAT_REGEX, Integer.toString(Calendar.getInstance().get(Calendar.YEAR)));
 		entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_COPYRIGHT_REGEX, contentSpec.getCopyrightHolder());
-		entFile = entFile.replaceAll(BuilderConstants.BZPRODUCT_REGEX, contentSpec.getBugzillaProduct() == null ? contentSpec.getProduct() : contentSpec.getBugzillaProduct());
+		entFile = entFile.replaceAll(BuilderConstants.BZPRODUCT_REGEX, contentSpec.getBugzillaProduct() == null ? originalProduct : contentSpec.getBugzillaProduct());
 		entFile = entFile.replaceAll(BuilderConstants.BZCOMPONENT_REGEX, contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec.getBugzillaComponent());
 		entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, contentSpec.getBugzillaURL() == null ? BuilderConstants.DEFAULT_BUGZILLA_URL : contentSpec.getBugzillaURL());
 		try
@@ -2271,10 +2351,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 	protected void createSectionXML(final Map<String, byte[]> files, final Level level, final Document chapter, final Element parentNode,
 			final boolean useFixedUrls, final String rootElementName) throws BuildProcessingException
 	{
-		final LinkedList<org.jboss.pressgangccms.contentspec.Node> levelData = level.getChildNodes();
+		final LinkedList<org.jboss.pressgang.ccms.contentspec.Node> levelData = level.getChildNodes();
 
 		// Add the section and topics for this level to the chapter.xml
-		for (final org.jboss.pressgangccms.contentspec.Node node : levelData)
+		for (final org.jboss.pressgang.ccms.contentspec.Node node : levelData)
 		{
 
 			// Check if the app should be shutdown

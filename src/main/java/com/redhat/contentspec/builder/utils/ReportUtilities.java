@@ -8,19 +8,19 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
-import org.jboss.pressgangccms.docbook.structures.TopicErrorData;
-import org.jboss.pressgangccms.rest.v1.components.ComponentBaseTopicV1;
-import org.jboss.pressgangccms.rest.v1.components.ComponentTopicV1;
-import org.jboss.pressgangccms.rest.v1.components.ComponentTranslatedTopicV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTagV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTopicV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTranslatedTopicV1;
-import org.jboss.pressgangccms.rest.v1.entities.base.RESTBaseTopicV1;
-import org.jboss.pressgangccms.rest.v1.sort.TagV1NameComparator;
-import org.jboss.pressgangccms.utils.common.CollectionUtilities;
-import org.jboss.pressgangccms.utils.common.DocBookUtilities;
-import org.jboss.pressgangccms.utils.structures.NameIDSortMap;
-import org.jboss.pressgangccms.zanata.ZanataDetails;
+import org.jboss.pressgang.ccms.docbook.structures.TopicErrorData;
+import org.jboss.pressgang.ccms.rest.v1.components.ComponentBaseTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.components.ComponentTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.components.ComponentTranslatedTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTagV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTranslatedTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.base.RESTBaseTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.sort.TagV1NameComparator;
+import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
+import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
+import org.jboss.pressgang.ccms.utils.structures.NameIDSortMap;
+import org.jboss.pressgang.ccms.zanata.ZanataDetails;
 
 public class ReportUtilities
 {

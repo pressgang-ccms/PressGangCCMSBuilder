@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.jboss.pressgangccms.docbook.compiling.DocbookBuildingOptions;
+import org.jboss.pressgang.ccms.docbook.compiling.DocbookBuildingOptions;
 
 public class CSDocbookBuildingOptions extends DocbookBuildingOptions
 {

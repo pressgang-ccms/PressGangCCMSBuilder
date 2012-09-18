@@ -2,20 +2,20 @@ package com.redhat.contentspec.test.builder;
 
 import java.util.Date;
 
-import org.jboss.pressgangccms.contentspec.SpecTopic;
-import org.jboss.pressgangccms.docbook.processing.XMLPreProcessor;
-import org.jboss.pressgangccms.rest.v1.collections.RESTTagCollectionV1;
-import org.jboss.pressgangccms.rest.v1.collections.RESTTopicCollectionV1;
-import org.jboss.pressgangccms.rest.v1.collections.RESTTranslatedTopicCollectionV1;
-import org.jboss.pressgangccms.rest.v1.collections.items.RESTTopicCollectionItemV1;
-import org.jboss.pressgangccms.rest.v1.collections.items.RESTTranslatedTopicCollectionItemV1;
-import org.jboss.pressgangccms.rest.v1.collections.join.RESTAssignedPropertyTagCollectionV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTagV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTopicV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTranslatedTopicV1;
-import org.jboss.pressgangccms.rest.v1.entities.join.RESTAssignedPropertyTagV1;
-import org.jboss.pressgangccms.utils.common.XMLUtilities;
-import org.jboss.pressgangccms.utils.constants.CommonConstants;
+import org.jboss.pressgang.ccms.contentspec.SpecTopic;
+import org.jboss.pressgang.ccms.docbook.processing.XMLPreProcessor;
+import org.jboss.pressgang.ccms.rest.v1.collections.RESTTagCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.RESTTopicCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.RESTTranslatedTopicCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.items.RESTTopicCollectionItemV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.items.RESTTranslatedTopicCollectionItemV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.join.RESTAssignedPropertyTagCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTagV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTranslatedTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.join.RESTAssignedPropertyTagV1;
+import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
+import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
 import org.junit.BeforeClass;
 import static org.junit.Assert.*;
 
