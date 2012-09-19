@@ -366,6 +366,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		{
 			docbookBuildingOptions.setInsertBugzillaLinks(contentSpec.isInjectBugLinks());
 		}
+		if (!docbookBuildingOptions.getDraft())
+        {
+		    if (contentSpec.getBookType() == BookType.ARTICLE_DRAFT || contentSpec.getBookType() == BookType.BOOK_DRAFT)
+		    {
+		        docbookBuildingOptions.setDraft(true);
+		    }
+        }
 
 		// Add the options that were passed to the builder
 		injectionOptions = new InjectionOptions();
@@ -1893,6 +1900,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		String basicBook = bookXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
 		basicBook = basicBook.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
 		basicBook = basicBook.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
+		basicBook = basicBook.replaceAll(BuilderConstants.DRAFT_REGEX, docbookBuildingOptions.getDraft() ? "status=\"draft\"" : "");
+
 
 		// Setup publican.cfg
 		String fixedPublicanCfg = publicanCfg.replaceAll(BuilderConstants.BRAND_REGEX, brand);
@@ -1906,8 +1915,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		// Remove the image width for CSP output
 		if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT))
 		{
-			fixedPublicanCfg = fixedPublicanCfg.replaceFirst("max_image_width:[\\s]*\\d+(\\r)?\\n", "");
-			fixedPublicanCfg = fixedPublicanCfg.replaceFirst("toc_section_depth:[\\s]*\\d+(\\r)?\\n", "");
+			fixedPublicanCfg = fixedPublicanCfg.replaceFirst("max_image_width:\\s*\\d+\\s*(\\r)?\\n", "");
+			fixedPublicanCfg = fixedPublicanCfg.replaceFirst("toc_section_depth:\\s*\\d+\\s*(\\r)?\\n", "");
 		}
 
 		if (contentSpec.getPublicanCfg() != null)
@@ -1915,22 +1924,32 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 			/* Remove the git_branch if the content spec contains a git_branch */
 			if (contentSpec.getPublicanCfg().indexOf("git_branch") != -1)
 			{
-				fixedPublicanCfg = fixedPublicanCfg.replaceFirst("git_branch:[ ]*.*(\\r)?(\\n)?", "");
+				fixedPublicanCfg = fixedPublicanCfg.replaceFirst("git_branch:\\s*.*(\\r)?(\\n)?", "");
 			}
 			fixedPublicanCfg += contentSpec.getPublicanCfg();
+			
+			if (!fixedPublicanCfg.matches(".*\n$"))
+	        {
+	            fixedPublicanCfg += "\n";
+	        }
+		}
+		
+		if (docbookBuildingOptions.getPublicanShowRemarks())
+		{
+		    /* Remove any current show_remarks definitions */
+		    if (fixedPublicanCfg.indexOf("show_remarks") != -1)
+            {
+		        fixedPublicanCfg = fixedPublicanCfg.replaceAll("show_remarks:\\s*\\d+\\s*(\\r)?(\\n)?", "");
+            }
+		    fixedPublicanCfg += "show_remarks: 1\n";
 		}
 		
 		fixedPublicanCfg += "docname: " + escapedTitle.replaceAll("_", " ") + "\n";
         fixedPublicanCfg += "product: " + originalProduct + "\n";
 
-		if (docbookBuildingOptions.getPublicanShowRemarks())
-		{
-			fixedPublicanCfg += "\nshow_remarks: 1";
-		}
-
 		if (docbookBuildingOptions.getCvsPkgOption() != null)
 		{
-			fixedPublicanCfg += "\ncvs_pkg: " + docbookBuildingOptions.getCvsPkgOption();
+			fixedPublicanCfg += "cvs_pkg: " + docbookBuildingOptions.getCvsPkgOption() + "\n";
 		}
 
 		try
@@ -1960,7 +1979,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.EDITION_REGEX, contentSpec.getEdition() == null ? BuilderConstants.EDITION_DEFAULT : contentSpec.getEdition());
-
+		
 		if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT))
 		{
 			fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX, contentSpec.getAbstract() == null ? BuilderConstants.DEFAULT_ABSTRACT :
@@ -2254,7 +2273,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 
 		//Create the chapter.xml
 		final Element titleNode = chapter.createElement("title");
-		titleNode.setTextContent(level.getTitle());
+		if (clazz == RESTTranslatedTopicV1.class)
+            titleNode.setTextContent(level.getTranslatedTitle());
+        else
+            titleNode.setTextContent(level.getTitle());
 		chapter.getDocumentElement().appendChild(titleNode);
 		chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
 		createSectionXML(files, level, chapter, chapter.getDocumentElement(), useFixedUrls, elementName);
@@ -2318,7 +2340,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 
 		//Create the chapter.xml
 		final Element titleNode = chapter.createElement("title");
-		titleNode.setTextContent(level.getTitle());
+		if (clazz == RESTTranslatedTopicV1.class)
+		    titleNode.setTextContent(level.getTranslatedTitle());
+		else
+		    titleNode.setTextContent(level.getTitle());
 		chapter.getDocumentElement().appendChild(titleNode);
 		chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
 		createSectionXML(files, level, chapter, chapter.getDocumentElement(), useFixedUrls, elementName);
@@ -2377,7 +2402,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 				// Create the section and its title
 				final Element sectionNode = chapter.createElement("section");
 				final Element sectionTitleNode = chapter.createElement("title");
-				sectionTitleNode.setTextContent(childLevel.getTitle());
+				if (clazz == RESTTranslatedTopicV1.class)
+				    sectionTitleNode.setTextContent(level.getTranslatedTitle());
+		        else
+		            sectionTitleNode.setTextContent(level.getTitle());
 				sectionNode.appendChild(sectionTitleNode);
 				sectionNode.setAttribute("id", childLevel.getUniqueLinkId(useFixedUrls));
 

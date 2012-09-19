@@ -16,6 +16,7 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions
 	private Boolean showReportPage = false;
 	private String commonContentLocale = null;
 	private String commonContentDirectory = null;
+	private Boolean draft = false;
 	
 	public CSDocbookBuildingOptions()
 	{
@@ -117,4 +118,14 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions
 	{
 		this.commonContentDirectory = commonContentDirectory;
 	}
+
+    public Boolean getDraft()
+    {
+        return draft;
+    }
+
+    public void setDraft(final Boolean draft)
+    {
+        this.draft = draft;
+    }
 }
