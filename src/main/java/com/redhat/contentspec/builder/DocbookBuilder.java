@@ -1806,6 +1806,16 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 					bookXIncludes.append(DocBookUtilities.wrapInPara("No Content"));
 				}
 			}
+			else if (node instanceof SpecTopic)
+			{
+			    final SpecTopic specTopic = (SpecTopic) node;
+			    final String topicFileName = createTopicXMLFile(files, specTopic, useFixedUrls);
+			    
+			    if (topicFileName != null)
+			    {
+			        bookXIncludes.append("\t<xi:include href=\"topics/" + topicFileName + "\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
+			    }
+			}
 		}
 		
 		if (docbookBuildingOptions.getInsertEditorLinks() && clazz == RESTTranslatedTopicV1.class)
@@ -1893,7 +1903,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 
 		// Setup the basic book.xml
 		final String bookXml;
-		if (contentSpec.getBookType() == BookType.ARTICLE)
+		if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT)
 		{
 			bookXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ARTICLE_XML_ID, "").getValue();
 		}
@@ -1909,8 +1919,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 
 		// Setup publican.cfg
 		String fixedPublicanCfg = publicanCfg.replaceAll(BuilderConstants.BRAND_REGEX, brand);
-		fixedPublicanCfg = fixedPublicanCfg.replaceFirst(BuilderConstants.BOOK_TYPE_REGEX, contentSpec.getBookType().toString());
-		fixedPublicanCfg = fixedPublicanCfg.replaceAll("xml_lang\\: .*?($|\\r\\n|\\n)", "xml_lang: " + locale + "\n");
+		fixedPublicanCfg = fixedPublicanCfg.replaceFirst("type\\:\\s*.*($|\\r\\n|\\n)", "type: " + contentSpec.getBookType().toString().replaceAll("-Draft", "") + "\n");
+		fixedPublicanCfg = fixedPublicanCfg.replaceAll("xml_lang\\:\\s*.*?($|\\r\\n|\\n)", "xml_lang: " + locale + "\n");
 		if (!fixedPublicanCfg.matches(".*\n$"))
 		{
 		    fixedPublicanCfg += "\n";
@@ -1967,7 +1977,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		}
 		
 		final String bookInfo;
-		if (contentSpec.getBookType() == BookType.ARTICLE)
+		if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT)
 		{
 			bookInfo = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ARTICLE_INFO_XML_ID, "").getValue();
 		}
@@ -1993,7 +2003,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 
 		try
 		{
-			if (contentSpec.getBookType() == BookType.ARTICLE)
+			if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT)
 			{
 				files.put(BOOK_LOCALE_FOLDER + "Article_Info.xml", fixedBookInfo.getBytes("UTF-8"));
 			}
@@ -2283,7 +2293,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
             titleNode.setTextContent(level.getTitle());
 		chapter.getDocumentElement().appendChild(titleNode);
 		chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
-		createSectionXML(files, level, chapter, chapter.getDocumentElement(), useFixedUrls, elementName);
+		createSectionXML(files, level, chapter, chapter.getDocumentElement(), useFixedUrls);
 
 		// Add the boiler plate text and add the chapter to the book
 		final String chapterString = DocBookUtilities.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", elementName);
@@ -2306,6 +2316,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 	 * @param doc The document object to add the child level content to.
 	 * @param level The level to build the chapter from.
 	 * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
+	 * @return The Element that specifies the XiInclude for the chapter/appendix in the files.
 	 * @throws BuildProcessingException 
 	 */
 	protected Element createSubRootElementXML(final Map<String, byte[]> files, final Document doc,
@@ -2343,7 +2354,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		    titleNode.setTextContent(level.getTitle());
 		chapter.getDocumentElement().appendChild(titleNode);
 		chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
-		createSectionXML(files, level, chapter, chapter.getDocumentElement(), useFixedUrls, elementName);
+		createSectionXML(files, level, chapter, chapter.getDocumentElement(), useFixedUrls);
 
 		// Add the boiler plate text and add the chapter to the book
 		final String chapterString = DocBookUtilities.addXMLBoilerplate(XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", elementName);
@@ -2374,11 +2385,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 	 * @param parentNode The parent XML node of this section.
 	 * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
 	 * @param rootElementName The root element name for this section (ie chapter, section, appendix).
-	 * @throws BuildProcessingException 
+	 * @throws BuildProcessingException
 	 */
-	@SuppressWarnings("unchecked")
 	protected void createSectionXML(final Map<String, byte[]> files, final Level level, final Document chapter, final Element parentNode,
-			final boolean useFixedUrls, final String rootElementName) throws BuildProcessingException
+			final boolean useFixedUrls) throws BuildProcessingException
 	{
 		final LinkedList<org.jboss.pressgang.ccms.contentspec.Node> levelData = level.getChildNodes();
 		
@@ -2441,73 +2451,32 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 				else
 				{
 					// Add this sections child sections/topics
-					createSectionXML(files, childLevel, chapter, sectionNode, useFixedUrls, rootElementName);
+					createSectionXML(files, childLevel, chapter, sectionNode, useFixedUrls);
 				}
 
 				childNodes.add(sectionNode);
 			}
 			else if (node instanceof SpecTopic)
 			{
-				final SpecTopic specTopic = (SpecTopic) node;
-				String topicFileName;
-
-				final T topic = (T) specTopic.getTopic();
-				if (topic != null)
-				{
-					if (topic instanceof RESTTranslatedTopicV1)
-					{
-						if (useFixedUrls)
-						{
-							topicFileName = ComponentTranslatedTopicV1.returnXrefPropertyOrId((RESTTranslatedTopicV1) topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
-						}
-						else
-						{
-							topicFileName = ComponentTranslatedTopicV1.returnXRefID((RESTTranslatedTopicV1) topic);
-						}
-					}
-					else
-					{
-						if (useFixedUrls)
-						{
-							topicFileName = ComponentTopicV1.returnXrefPropertyOrId((RESTTopicV1) topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
-						}
-						else
-						{
-							topicFileName = ComponentTopicV1.returnXRefID((RESTTopicV1) topic);
-						}
-					}
-
-					if (specTopic.getDuplicateId() != null)
-					{
-						topicFileName += "-" + specTopic.getDuplicateId();
-					}
-
-					topicFileName += ".xml";
-
-					final Element topicNode = chapter.createElement("xi:include");
-					topicNode.setAttribute("href", "topics/" + topicFileName);
-					topicNode.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
-					
-					if (specTopic.getParent() != null && specTopic.getParent().getType() == LevelType.PART)
-					{
-					    intro.appendChild(topicNode);
-					}
-					else
-					{
-					    childNodes.add(topicNode);
-					}
-
-					final String topicXML = DocBookUtilities.addXMLBoilerplate(XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", rootElementName);
-					try
-					{
-						files.put(BOOK_TOPICS_FOLDER + topicFileName, topicXML.getBytes("UTF-8"));
-					}
-					catch (UnsupportedEncodingException e)
-					{
-						/* UTF-8 is a valid format so this should exception should never get thrown */
-						log.error(e.getMessage());
-					}
-				}
+			    final SpecTopic specTopic = (SpecTopic) node;
+			    
+			    final String topicFileName = createTopicXMLFile(files, specTopic, useFixedUrls);
+			    
+			    if (topicFileName != null)
+			    {
+			        final Element topicNode = chapter.createElement("xi:include");
+		            topicNode.setAttribute("href", "topics/" + topicFileName);
+		            topicNode.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
+			        
+                    if (specTopic.getParent() != null && specTopic.getParent().getType() == LevelType.PART)
+                    {
+                        intro.appendChild(topicNode);
+                    }
+                    else
+                    {
+                        childNodes.add(topicNode);
+                    }
+			    }
 			}
 		}
 		
@@ -2521,6 +2490,69 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		{
 		    parentNode.appendChild(node);
 		}
+	}
+	
+	/**
+     * Creates the Topic component of a chapter.xml for a specific SpecTopic.
+     *
+     * @param files The mapping of File Names/Locations to actual file content.
+     * @param specTopic The SpecTopic object to get content from.
+     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
+     * @return The filename of the new topic XML file.
+     */
+	@SuppressWarnings("unchecked")
+    protected String createTopicXMLFile(final Map<String, byte[]> files, final SpecTopic specTopic, final boolean useFixedUrls)
+	{
+        String topicFileName;
+        final T topic = (T) specTopic.getTopic();
+        
+        if (topic != null)
+        {
+            if (topic instanceof RESTTranslatedTopicV1)
+            {
+                if (useFixedUrls)
+                {
+                    topicFileName = ComponentTranslatedTopicV1.returnXrefPropertyOrId((RESTTranslatedTopicV1) topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
+                }
+                else
+                {
+                    topicFileName = ComponentTranslatedTopicV1.returnXRefID((RESTTranslatedTopicV1) topic);
+                }
+            }
+            else
+            {
+                if (useFixedUrls)
+                {
+                    topicFileName = ComponentTopicV1.returnXrefPropertyOrId((RESTTopicV1) topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
+                }
+                else
+                {
+                    topicFileName = ComponentTopicV1.returnXRefID((RESTTopicV1) topic);
+                }
+            }
+
+            if (specTopic.getDuplicateId() != null)
+            {
+                topicFileName += "-" + specTopic.getDuplicateId();
+            }
+
+            topicFileName += ".xml";
+
+            final String topicXML = DocBookUtilities.addXMLBoilerplate(XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", DocBookUtilities.TOPIC_ROOT_NODE_NAME);
+            try
+            {
+                files.put(BOOK_TOPICS_FOLDER + topicFileName, topicXML.getBytes("UTF-8"));
+            }
+            catch (UnsupportedEncodingException e)
+            {
+                /* UTF-8 is a valid format so this should exception should never get thrown */
+                log.error(e.getMessage());
+            }
+            
+            return topicFileName;
+        }
+        
+        return null;
 	}
 
 	/**
