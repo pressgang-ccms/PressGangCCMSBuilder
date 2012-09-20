@@ -366,6 +366,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		{
 			docbookBuildingOptions.setInsertBugzillaLinks(contentSpec.isInjectBugLinks());
 		}
+		if (docbookBuildingOptions.getBuildName() == null || docbookBuildingOptions.getBuildName().isEmpty())
+		{
+		    docbookBuildingOptions.setBuildName((contentSpec.getId() != 0 ? (contentSpec.getId() + " - ") : "") + contentSpec.getTitle());
+		}
 		if (!docbookBuildingOptions.getDraft())
         {
 		    if (contentSpec.getBookType() == BookType.ARTICLE_DRAFT || contentSpec.getBookType() == BookType.BOOK_DRAFT)
@@ -2300,18 +2304,17 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 	 *
 	 * @param files The mapping of File Names/Locations to actual file content.
 	 * @param doc The document object to add the child level content to.
-	 * @param parentNode The node of the parent in the document to add to.
 	 * @param level The level to build the chapter from.
 	 * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
 	 * @throws BuildProcessingException 
 	 */
-	protected void createSubRootElementXML(final Map<String, byte[]> files, final Document doc, final Node parentNode,
+	protected Element createSubRootElementXML(final Map<String, byte[]> files, final Document doc,
 			final Level level, final boolean useFixedUrls) throws BuildProcessingException
 	{
 		// Check if the app should be shutdown
 		if (isShuttingDown.get())
 		{
-			return;
+			return null;
 		}
 
 		/* Get the name of the element based on the type */
@@ -2331,12 +2334,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 
 		// Create the title
 		final String chapterName = level.getUniqueLinkId(useFixedUrls) + ".xml";
-
-		// Add to the list of XIncludes that will get set in the book.xml
-		final Element xiInclude = doc.createElement("xi:include");
-		xiInclude.setAttribute("href", chapterName);
-		xiInclude.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
-		parentNode.appendChild(xiInclude);
 
 		//Create the chapter.xml
 		final Element titleNode = chapter.createElement("title");
@@ -2359,6 +2356,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 			/* UTF-8 is a valid format so this should exception should never get thrown */
 			log.error(e.getMessage());
 		}
+		
+		// Create the XIncludes that will get set in the book.xml
+        final Element xiInclude = doc.createElement("xi:include");
+        xiInclude.setAttribute("href", chapterName);
+        xiInclude.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
+		
+		return xiInclude;
 	}
 
 	/**
@@ -2377,7 +2381,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 			final boolean useFixedUrls, final String rootElementName) throws BuildProcessingException
 	{
 		final LinkedList<org.jboss.pressgang.ccms.contentspec.Node> levelData = level.getChildNodes();
-
+		
+		/* Get the name of the element based on the type */
+        final String elementName = level.getType() == LevelType.PROCESS ? "chapter" : level.getType().getTitle().toLowerCase();
+		final Element intro = chapter.createElement(elementName + "intro");
+		
+		/* Storage container to hold the levels so they can be added in proper order with the intro */
+		final LinkedList<Node> childNodes = new LinkedList<Node>();
+		
 		// Add the section and topics for this level to the chapter.xml
 		for (final org.jboss.pressgang.ccms.contentspec.Node node : levelData)
 		{
@@ -2393,7 +2404,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 				final Level childLevel = (Level) node;
 
 				// Create a new file for the Chapter/Appendix
-				createSubRootElementXML(files, chapter, parentNode, childLevel, useFixedUrls);
+				final Element xiInclude = createSubRootElementXML(files, chapter, childLevel, useFixedUrls);
+				if (xiInclude != null)
+				{
+				    childNodes.add(xiInclude);
+				}
 			}
 			else if (node instanceof Level)
 			{
@@ -2429,7 +2444,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 					createSectionXML(files, childLevel, chapter, sectionNode, useFixedUrls, rootElementName);
 				}
 
-				parentNode.appendChild(sectionNode);
+				childNodes.add(sectionNode);
 			}
 			else if (node instanceof SpecTopic)
 			{
@@ -2472,7 +2487,15 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 					final Element topicNode = chapter.createElement("xi:include");
 					topicNode.setAttribute("href", "topics/" + topicFileName);
 					topicNode.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
-					parentNode.appendChild(topicNode);
+					
+					if (specTopic.getParent() != null && specTopic.getParent().getType() == LevelType.PART)
+					{
+					    intro.appendChild(topicNode);
+					}
+					else
+					{
+					    childNodes.add(topicNode);
+					}
 
 					final String topicXML = DocBookUtilities.addXMLBoilerplate(XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", rootElementName);
 					try
@@ -2486,6 +2509,17 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 					}
 				}
 			}
+		}
+		
+		/* Add the child nodes and intro to the parent */
+		if (intro.hasChildNodes())
+		{
+		    parentNode.appendChild(intro);
+		}
+		
+		for (final Node node : childNodes)
+		{
+		    parentNode.appendChild(node);
 		}
 	}
 
