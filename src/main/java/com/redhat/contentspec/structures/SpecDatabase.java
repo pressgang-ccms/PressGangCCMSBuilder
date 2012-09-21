@@ -6,13 +6,14 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.rest.v1.entities.base.RESTBaseTopicV1;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
+
+import com.redhat.contentspec.builder.utils.DocbookBuildUtilities;
 
 public class SpecDatabase
 {
@@ -69,7 +70,7 @@ public class SpecDatabase
 			        fixedIdAttributeValue = Integer.toString(i);
 			    }
 
-			    if (!isUniqueAttributeId(topicTitle, specTopic.getDBId(), usedIdAttributes))
+			    if (!DocbookBuildUtilities.isUniqueAttributeId(topicTitle, specTopic.getDBId(), usedIdAttributes))
                 {
 			        if (fixedIdAttributeValue == null)
 			        {
@@ -179,39 +180,4 @@ public class SpecDatabase
 		}
 		return topics;
 	}
-	
-	/**
-     * Checks to see if a supplied attribute id is unique within this book, based
-     * upon the used id attributes that were calculated earlier.
-     *
-     * @param id The Attribute id to be checked
-     * @param topicId The id of the topic the attribute id was found in
-     * @param usedIdAttributes The set of used ids calculated earlier
-     * @return True if the id is unique otherwise false.
-     */
-    private boolean isUniqueAttributeId(final String id, final Integer topicId, final Map<Integer, Set<String>> usedIdAttributes)
-    {
-        boolean retValue = true;
-
-        if (usedIdAttributes.containsKey(topicId))
-        {
-            for (final Entry<Integer, Set<String>> entry : usedIdAttributes.entrySet())
-            {
-                final Integer topicId2 = entry.getKey();
-                if (topicId2.equals(topicId))
-                {
-                    continue;
-                }
-
-                final Set<String> ids2 = entry.getValue();
-
-                if (ids2.contains(id))
-                {
-                    retValue = false;
-                }
-            }
-        }
-
-        return retValue;
-    }
 }
