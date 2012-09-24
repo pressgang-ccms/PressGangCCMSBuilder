@@ -436,9 +436,40 @@ public class DocbookBuildUtilities {
      * specification.
      * 
      * @param contentSpec the content specification to generate the revision number for.
-     * @return The generated revision number.
+     * @return The generated revnumber value.
      */
     public static String generateRevisionNumber(final ContentSpec contentSpec)
+    {
+        final StringBuilder rev = new StringBuilder();
+        
+        rev.append(generateRevision(contentSpec));
+        
+        // Add the separator
+        rev.append("-");
+        
+        // Build the pubsnumber part of the revision number.
+        final Integer pubsnum = contentSpec.getPubsNumber();
+        if (pubsnum == null)
+        {
+            rev.append(BuilderConstants.DEFAULT_PUBSNUMBER);
+        }
+        else
+        {
+            rev.append(pubsnum);
+        }
+        
+        return rev.toString();
+    }
+    
+    /**
+     * Generates the Revision component of a revnumber to be used in a Revision_History.xml
+     * file using the Book Version, Edition and Pubsnumber values from a content
+     * specification.
+     * 
+     * @param contentSpec the content specification to generate the revision number for.
+     * @return The generated revision number.
+     */
+    public static String generateRevision(final ContentSpec contentSpec)
     {
         final StringBuilder rev = new StringBuilder();
         
@@ -468,20 +499,6 @@ public class DocbookBuildUtilities {
         else
         {
             rev.append(bookVersion + ".0.0");
-        }
-        
-        // Add the separator
-        rev.append("-");
-        
-        // Build the pubsnumber part of the revision number.
-        final Integer pubsnum = contentSpec.getPubsNumber();
-        if (pubsnum == null)
-        {
-            rev.append(BuilderConstants.DEFAULT_PUBSNUMBER);
-        }
-        else
-        {
-            rev.append(pubsnum);
         }
         
         return rev.toString();
