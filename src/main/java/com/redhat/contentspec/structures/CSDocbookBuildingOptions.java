@@ -17,7 +17,8 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions
 	private String commonContentLocale = null;
 	private String commonContentDirectory = null;
 	private Boolean draft = false;
-	
+	private List<String> revisionMessages = null;
+
 	public CSDocbookBuildingOptions()
 	{
 		
@@ -127,5 +128,15 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions
     public void setDraft(final Boolean draft)
     {
         this.draft = draft;
+    }
+
+    public List<String> getRevisionMessages()
+    {
+        return revisionMessages;
+    }
+
+    public void setRevisionMessages(final List<String> revisionMessage)
+    {
+        this.revisionMessages = revisionMessage;
     }
 }

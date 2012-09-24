@@ -1738,7 +1738,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		final String bookEnt = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_ENT_ID, "").getValue();
 		final String prefaceXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.CSP_PREFACE_XML_ID, "").getValue();
 
-		final String brand = contentSpec.getBrand() == null ? BuilderConstants.BRAND_DEFAULT : contentSpec.getBrand();
+		final String brand = contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND : contentSpec.getBrand();
 
 		// Setup the basic book.xml
 		final String bookXml;
@@ -1831,7 +1831,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX, contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : contentSpec.getSubtitle());
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
 		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
-		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.EDITION_REGEX, contentSpec.getEdition() == null ? BuilderConstants.EDITION_DEFAULT : contentSpec.getEdition());
+		fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.EDITION_REGEX, contentSpec.getEdition() == null ? BuilderConstants.DEFAULT_EDITION : contentSpec.getEdition());
 		
 		if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT))
 		{
@@ -1920,8 +1920,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		{
 			addPublicanCommonContentToBook(contentSpec, docbookBuildingOptions.getCommonContentLocale(), docbookBuildingOptions.getCommonContentDirectory(), files);
 		}
-
-		// Setup Revision_History.xml
+		
+		// Replace the basic injection data inside the revision history
+        final String revisionHistoryXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.REVISION_HISTORY_XML_ID, "").getValue();
+        String fixedRevisionHistoryXml = revisionHistoryXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
+        
+        // Setup Revision_History.xml
 		if (overrides.containsKey(CSConstants.REVISION_HISTORY_OVERRIDE))
 		{
 			final File revHistory = new File(overrides.get(CSConstants.REVISION_HISTORY_OVERRIDE));
@@ -1938,24 +1942,33 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 						buffer.append(line + "\n");
 					}
 
-					// Add the parsed file to the book
-					files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", buffer.toString().getBytes("UTF-8"));
+					// Add a revision message to the Revision_History.xml
+					final String revHistoryOverride = buffer.toString();
+					final String docType = XMLUtilities.findDocumentType(revHistoryOverride);
+					if (docType != null)
+					{
+					    buildRevisionHistory(contentSpec, revHistoryOverride.replace(docType, ""), requester, files);
+					}
+					else
+					{
+					    buildRevisionHistory(contentSpec, revHistoryOverride, requester, files);
+					}
 				}
 				catch (Exception e)
 				{
 					log.error(e.getMessage());
-					buildRevisionHistory(contentSpec, requester, files);
+					buildRevisionHistory(contentSpec, fixedRevisionHistoryXml, requester, files);
 				}
 			}
 			else
 			{
 				log.error("Revision_History.xml override is an invalid file. Using the default Revision_History.xml instead.");
-				buildRevisionHistory(contentSpec, requester, files);
+				buildRevisionHistory(contentSpec, fixedRevisionHistoryXml, requester, files);
 			}
 		}
 		else
 		{
-			buildRevisionHistory(contentSpec, requester, files);
+			buildRevisionHistory(contentSpec, fixedRevisionHistoryXml, requester, files);
 		}
 
 		// Setup the <<contentSpec.title>>.ent file
@@ -2037,12 +2050,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 	protected void addPublicanCommonContentToBook(final ContentSpec contentSpec, final String commonContentLocale,
 			final String commonContentDirectory, final Map<String, byte[]> files)
 	{
-		final String brand = contentSpec.getBrand() == null ? BuilderConstants.BRAND_DEFAULT : contentSpec.getBrand();
+		final String brand = contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND : contentSpec.getBrand();
 		
 		final String brandDir = commonContentDirectory + (commonContentDirectory.endsWith("/") ? "" : "/")
 				+ brand + File.separator + commonContentLocale + File.separator;
 		final String commonBrandDir = commonContentDirectory + (commonContentDirectory.endsWith("/") ? "" : "/")
-				+ BuilderConstants.BRAND_DEFAULT + File.separator + commonContentLocale + File.separator;
+				+ BuilderConstants.DEFAULT_BRAND + File.separator + commonContentLocale + File.separator;
 		
 		/*
 		 * We need to pull the Conventions.xml, Feedback.xml & Legal_Notice.xml
@@ -2126,7 +2139,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 
 		//Create the chapter.xml
 		final Element titleNode = chapter.createElement("title");
-		if (clazz == RESTTranslatedTopicV1.class)
+		if (clazz == RESTTranslatedTopicV1.class && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty())
             titleNode.setTextContent(level.getTranslatedTitle());
         else
             titleNode.setTextContent(level.getTitle());
@@ -2187,7 +2200,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 
 		//Create the chapter.xml
 		final Element titleNode = chapter.createElement("title");
-		if (clazz == RESTTranslatedTopicV1.class)
+		if (clazz == RESTTranslatedTopicV1.class && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty())
 		    titleNode.setTextContent(level.getTranslatedTitle());
 		else
 		    titleNode.setTextContent(level.getTitle());
@@ -2266,7 +2279,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 				// Create the section and its title
 				final Element sectionNode = chapter.createElement("section");
 				final Element sectionTitleNode = chapter.createElement("title");
-				if (clazz == RESTTranslatedTopicV1.class)
+				if (clazz == RESTTranslatedTopicV1.class && childLevel.getTranslatedTitle() != null && !childLevel.getTranslatedTitle().isEmpty())
 				    sectionTitleNode.setTextContent(childLevel.getTranslatedTitle());
 		        else
 		            sectionTitleNode.setTextContent(childLevel.getTitle());
@@ -2735,29 +2748,51 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 	 * Builds the revision history using the requester of the build.
 	 *
 	 * @param requester The user who requested the build action.
+	 * @param revisionHistoryXml The Revision_History.xml file/template to add revision information to.
 	 * @param contentSpec The content spec object used to build the book.
 	 * @param files The mapping of File Names/Locations to actual file content.
 	 * @throws InternalProcessingException If an error occurred during a REST API call.
 	 * @throws InvalidParameterException If an error occurred during a REST API call.
 	 * @throws BuildProcessingException 
 	 */
-	private void buildRevisionHistory(final ContentSpec contentSpec, final RESTUserV1 requester, final Map<String, byte[]> files)
+	protected void buildRevisionHistory(final ContentSpec contentSpec, final String revisionHistoryXml, final RESTUserV1 requester, final Map<String, byte[]> files)
 			throws InvalidParameterException, InternalProcessingException, BuildProcessingException
 	{
 		log.info("\tBuilding Revision_History.xml");
-
-		final DateFormat dateFormatter = new SimpleDateFormat(BuilderConstants.REV_DATE_STRING_FORMAT);
 		
-		final String overrideRevnumber = this.docbookBuildingOptions.getOverrides().get(CSConstants.REVNUMBER_OVERRIDE);
-
-		// Replace the basic injection data inside the revision history
-		final String revisionHistoryXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.REVISION_HISTORY_XML_ID, "").getValue();
-		String fixedRevisionHistoryXml = revisionHistoryXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
-		fixedRevisionHistoryXml = fixedRevisionHistoryXml.replaceAll(BuilderConstants.REV_DATE_FORMAT_REGEX, dateFormatter.format(buildDate));
-		fixedRevisionHistoryXml = fixedRevisionHistoryXml.replaceAll(BuilderConstants.REVNUMBER_REGEX, (overrideRevnumber == null ? BuilderConstants.DEFAULT_REVNUMBER : overrideRevnumber));
+		Document revHistoryDoc;
+		try
+        {
+		    revHistoryDoc = XMLUtilities.convertStringToDocument(revisionHistoryXml);
+        }
+        catch (SAXException ex)
+        {
+            /* Exit since we shouldn't fail at converting the basic revision history */
+            log.debug(ExceptionUtilities.getStackTrace(ex));
+            throw new BuildProcessingException("Failed to convert the Revision_History.xml template into a DOM document");
+        }
+		
+		if (revHistoryDoc == null)
+		{
+		    throw new BuildProcessingException("Failed to convert the Revision_History.xml template into a DOM document");
+		}
+		
+		revHistoryDoc.getDocumentElement().setAttribute("id", "appe-" + escapedTitle + "-Revision_History");
+		
+		/* Find the revhistory node */
+		final Element revHistory;
+		final NodeList revHistories = revHistoryDoc.getElementsByTagName("revhistory");
+		if (revHistories.getLength() > 0)
+		{
+		    revHistory = (Element) revHistories.item(0);
+		}
+		else
+		{
+		    revHistory = null;
+		    throw new BuildProcessingException("Revision_History.xml Template has no revhistory block to add revisions to.");
+		}
 		
 		final List<RESTTagV1> authorList = requester == null ? new ArrayList<RESTTagV1>() : reader.getTagsByName(requester.getName());
-		final Document revHistoryDoc;
 
 		// Check if the app should be shutdown
 		if (isShuttingDown.get())
@@ -2771,24 +2806,30 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 			AuthorInformation authorInfo = reader.getAuthorInformation(authorList.get(0).getId());
 			if (authorInfo != null)
 			{
-				revHistoryDoc = generateRevision(contentSpec, fixedRevisionHistoryXml, authorInfo, requester);
+			    final Element revision = generateRevision(contentSpec, revHistoryDoc, authorInfo, requester);
+			    
+			    revHistory.appendChild(revision);
 			}
 			else
 			{
 				// No AuthorInformation so Use the default value
 				authorInfo = new AuthorInformation(-1, BuilderConstants.DEFAULT_AUTHOR_FIRSTNAME, BuilderConstants.DEFAULT_AUTHOR_LASTNAME, BuilderConstants.DEFAULT_EMAIL);
-				revHistoryDoc = generateRevision(contentSpec, fixedRevisionHistoryXml, authorInfo, requester);
+				final Element revision = generateRevision(contentSpec, revHistoryDoc, authorInfo, requester);
+				
+				revHistory.appendChild(revision);
 			}
 		}
 		// No assigned writer exists for the uploader so use default values
 		else
 		{
 			final AuthorInformation authorInfo = new AuthorInformation(-1, BuilderConstants.DEFAULT_AUTHOR_FIRSTNAME, BuilderConstants.DEFAULT_AUTHOR_LASTNAME, BuilderConstants.DEFAULT_EMAIL);
-			revHistoryDoc = generateRevision(contentSpec, fixedRevisionHistoryXml, authorInfo, requester);
+			final Element revision = generateRevision(contentSpec, revHistoryDoc, authorInfo, requester);
+			
+			revHistory.appendChild(revision);
 		}
 
 		// Add the revision history to the book
-		fixedRevisionHistoryXml = DocBookUtilities.addXMLBoilerplate(XMLUtilities.convertNodeToString(revHistoryDoc, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", "appendix");
+		final String fixedRevisionHistoryXml = DocBookUtilities.addXMLBoilerplate(XMLUtilities.convertNodeToString(revHistoryDoc, verbatimElements, inlineElements, contentsInlineElements, true), this.escapedTitle + ".ent", "appendix");
 		try
 		{
 			files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", fixedRevisionHistoryXml.getBytes("UTF-8"));
@@ -2804,57 +2845,89 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 	 * Fills in the information required inside of a revision tag, for the Revision_History.xml file.
 	 *
 	 * @param contentSpec The content spec to generate the revisions for.
-	 * @param xmlDocString An XML document represented as a string that contains key regex expressions.
+	 * @param xmlDoc An XML DOM document that contains key regex expressions.
 	 * @param authorInfo An AuthorInformation entity object containing the details for who requested the build.
 	 * @param requester The user object for the build request.
 	 * @throws BuildProcessingException 
 	 */
-	private Document generateRevision(final ContentSpec contentSpec, final String xmlDocString, final AuthorInformation authorInfo,
+	protected Element generateRevision(final ContentSpec contentSpec, final Document xmlDoc, final AuthorInformation authorInfo,
 			final RESTUserV1 requester) throws BuildProcessingException
 	{
 		if (authorInfo == null)
 		{
 			return null;
 		}
+		
+		// Build up the revision
+        final Element revision = xmlDoc.createElement("revision");
+        
+        final Element revnumberEle = xmlDoc.createElement("revnumber");
+        revision.appendChild(revnumberEle);
+        
+        final Element revDateEle = xmlDoc.createElement("date");
+        final DateFormat dateFormatter = new SimpleDateFormat(BuilderConstants.REV_DATE_STRING_FORMAT);
+        revDateEle.setTextContent(dateFormatter.format(buildDate));
+        revision.appendChild(revDateEle);
+        
+        /* 
+         * Determine the revnumber to use. If we have an override specified then use that directly.
+         * If not then build up the revision number using the Book Edition and Publication Number.
+         * The format to build it in is: <EDITION>-<PUBSNUMBER>. If Edition only specifies a x or x.y version
+         * (eg 5 or 5.1) then postfix the version so it matches the x.y.z format (eg 5.0.0).
+         */
+        final String overrideRevnumber = this.docbookBuildingOptions.getOverrides().get(CSConstants.REVNUMBER_OVERRIDE);
+        final String revnumber;
+        if (overrideRevnumber == null)
+        {
+            revnumber = DocbookBuildUtilities.generateRevisionNumber(contentSpec);
+        }
+        else
+        {
+            revnumber = overrideRevnumber;
+        }
+        
+        // Set the revision number in Revision_History.xml
+        revnumberEle.setTextContent(revnumber);
 
-		// Replace all of the regex inside the xml document
-		String tempXmlDocString = xmlDocString;
-		tempXmlDocString = xmlDocString.replaceAll(BuilderConstants.AUTHOR_FIRST_NAME_REGEX, authorInfo.getFirstName());
-		tempXmlDocString = xmlDocString.replaceAll(BuilderConstants.AUTHOR_SURNAME_REGEX, authorInfo.getLastName());
-		tempXmlDocString = xmlDocString.replaceAll(BuilderConstants.AUTHOR_EMAIL_REGEX, authorInfo.getEmail() == null ? BuilderConstants.DEFAULT_EMAIL : authorInfo.getEmail());
+		// Create the Author node
+        final Element author = xmlDoc.createElement("author");
+        revision.appendChild(author);
+        
+        final Element firstName = xmlDoc.createElement("firstname");
+        firstName.setTextContent(authorInfo.getFirstName());
+        author.appendChild(firstName);
+        
+        final Element lastName = xmlDoc.createElement("surname");
+        lastName.setTextContent(authorInfo.getLastName());
+        author.appendChild(lastName);
+        
+        if (authorInfo.getEmail() != null)
+        {
+            final Element email = xmlDoc.createElement("email");
+            email.setTextContent(authorInfo.getEmail());
+            author.appendChild(email);
+        }
 
-		// No regex should exist so now convert it to a Document object
-		Document doc = null;
-		try
-		{
-			doc = XMLUtilities.convertStringToDocument(tempXmlDocString);
-		}
-		catch (SAXException ex)
-		{
-			/* Exit since we shouldn't fail at converting the basic revision history */
-			log.debug(ExceptionUtilities.getStackTrace(ex));
-			throw new BuildProcessingException("Failed to convert the Revision_History.xml template into a DOM document");
-		}
-		doc.getDocumentElement().setAttribute("id", "appe-" + escapedTitle + "-Revision_History");
+        // Create the Revision Messages
+        final Element revDescription = xmlDoc.createElement("revdescription");
+        revision.appendChild(revDescription);
+        
+		final Element simplelist = xmlDoc.createElement("simplelist");
+		revDescription.appendChild(simplelist);
 
-		final NodeList simplelistList = doc.getDocumentElement().getElementsByTagName("simplelist");
-		final Element simplelist;
-
-		// Find the first simplelist
-		if (simplelistList.getLength() >= 1)
-		{
-			simplelist = (Element) simplelistList.item(0);
-		}
-		else
-		{
-			// The document should always have at least one revision tag inside of it.
-			final Element revision = (Element) doc.getDocumentElement().getElementsByTagName("revision").item(0);
-			simplelist = doc.createElement("simplelist");
-			revision.appendChild(simplelist);
-		}
+		// Add the custom revision messages if one or more exists.
+        if (docbookBuildingOptions.getRevisionMessages() != null && !docbookBuildingOptions.getRevisionMessages().isEmpty())
+        {
+            for (final String revMessage : docbookBuildingOptions.getRevisionMessages())
+            {
+                final Element revMemberEle = xmlDoc.createElement("member");
+                revMemberEle.setTextContent(revMessage);
+                simplelist.appendChild(revMemberEle);
+            }
+        }
 
 		// Add the revision information
-		final Element listMemberEle = doc.createElement("member");
+		final Element listMemberEle = xmlDoc.createElement("member");
 
 		if (contentSpec.getId() > 0)
 		{
@@ -2871,9 +2944,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		{
 			listMemberEle.setTextContent(BuilderConstants.BUILT_FILE_MSG + (authorInfo.getAuthorId() > 0 ? (" by " + requester.getName()) : ""));
 		}
-
+		
 		simplelist.appendChild(listMemberEle);
-		return doc;
+		
+		return revision;
 	}
 	
 	/**
@@ -3132,6 +3206,39 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		}
 
 		reportChapter += DocBookUtilities.wrapListItems(list, "Build Statistics");
+		
+		// Add a link to show the zanata statistics
+		if (clazz.equals(RESTTranslatedTopicV1.class))
+		{
+		    final String zanataServerUrl = zanataDetails == null ? null : zanataDetails.getServer();
+	        final String zanataProject = zanataDetails == null ? null : zanataDetails.getProject();
+	        final String zanataVersion = zanataDetails == null ? null : zanataDetails.getVersion();
+	        
+	        if (zanataServerUrl != null && !zanataServerUrl.isEmpty()
+	                && zanataProject != null && !zanataProject.isEmpty()
+	                && zanataVersion != null && !zanataVersion.isEmpty())
+	        {
+    		    final StringBuilder zanataUrl = new StringBuilder(zanataDetails.getServer());
+    		    
+    		    zanataUrl.append("webtrans/Application.html?project=" + zanataProject);
+    		    zanataUrl.append("&amp;");
+    		    zanataUrl.append("iteration=" + zanataVersion);
+    		    zanataUrl.append("&amp;");
+    		    zanataUrl.append("localeId=" + locale);
+    		    
+    		    // Add all the Topic Zanata Ids
+    		    final List<T> topics = specDatabase.getAllTopics();
+    		    for (final T topic : topics)
+    		    {
+    		        zanataUrl.append("&amp;");
+    		        zanataUrl.append("doc=" + ComponentTranslatedTopicV1.returnZanataId((RESTTranslatedTopicV1) topic));
+    		    }
+    		    
+                final String para = DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(zanataUrl.toString(), "View Topics and Statistics in Zanata"));
+                
+                reportChapter += para;
+	        }
+		}
 
 		final boolean showEditorLinks = this.docbookBuildingOptions.getInsertEditorLinks();
 

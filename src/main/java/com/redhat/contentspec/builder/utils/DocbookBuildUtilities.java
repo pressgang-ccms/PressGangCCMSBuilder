@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.rest.v1.components.ComponentTopicV1;
 import org.jboss.pressgang.ccms.rest.v1.components.ComponentTranslatedTopicV1;
@@ -427,5 +428,62 @@ public class DocbookBuildUtilities {
         }
         
         return true;
+    }
+    
+    /**
+     * Generates the Revision Number to be used in a Revision_History.xml
+     * file using the Book Version, Edition and Pubsnumber values from a content
+     * specification.
+     * 
+     * @param contentSpec the content specification to generate the revision number for.
+     * @return The generated revision number.
+     */
+    public static String generateRevisionNumber(final ContentSpec contentSpec)
+    {
+        final StringBuilder rev = new StringBuilder();
+        
+        // Build the BookVersion/Edition part of the revision number.
+        final String bookVersion;
+        if (contentSpec.getBookVersion() == null)
+        {
+            bookVersion = contentSpec.getEdition();
+        }
+        else
+        {
+            bookVersion = contentSpec.getBookVersion();
+        }
+        
+        if (bookVersion == null) 
+        {
+            rev.append(BuilderConstants.DEFAULT_EDITION + ".0");
+        }
+        else if (contentSpec.getEdition().matches("^[0-9]+\\.[0-9]+\\.[0-9]+$"))
+        {
+            rev.append(bookVersion);
+        }
+        else if (contentSpec.getEdition().matches("^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"))
+        {
+            rev.append(bookVersion + ".0");
+        }
+        else
+        {
+            rev.append(bookVersion + ".0.0");
+        }
+        
+        // Add the separator
+        rev.append("-");
+        
+        // Build the pubsnumber part of the revision number.
+        final Integer pubsnum = contentSpec.getPubsNumber();
+        if (pubsnum == null)
+        {
+            rev.append(BuilderConstants.DEFAULT_PUBSNUMBER);
+        }
+        else
+        {
+            rev.append(pubsnum);
+        }
+        
+        return rev.toString();
     }
 }
