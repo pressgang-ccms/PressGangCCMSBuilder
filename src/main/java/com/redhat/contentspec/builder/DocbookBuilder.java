@@ -3230,8 +3230,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
     		    final List<T> topics = specDatabase.getAllTopics();
     		    for (final T topic : topics)
     		    {
-    		        zanataUrl.append("&amp;");
-    		        zanataUrl.append("doc=" + ComponentTranslatedTopicV1.returnZanataId((RESTTranslatedTopicV1) topic));
+    		        // Check to make sure the topic has been pushed for translation
+    		        if (!ComponentTranslatedTopicV1.returnIsDummyTopic(topic) || ComponentTranslatedTopicV1.hasBeenPushedForTranslation((RESTTranslatedTopicV1) topic))
+    		        {
+        		        zanataUrl.append("&amp;");
+        		        zanataUrl.append("doc=" + ComponentTranslatedTopicV1.returnZanataId((RESTTranslatedTopicV1) topic));
+    		        }
     		    }
     		    
                 final String para = DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(zanataUrl.toString(), "View Topics and Statistics in Zanata"));
