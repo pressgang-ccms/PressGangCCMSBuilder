@@ -1,6 +1,5 @@
 package com.redhat.contentspec.builder.utils;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -186,38 +185,6 @@ public class DocbookBuildUtilities {
         {
             getTopicLinkIds(elements.item(i), linkIds);
         }
-    }
-    
-    /**
-     * @param node
-     *            The node to search for imagedata elements in
-     * @return Search any imagedata elements found in the supplied node
-     */
-    public static List<Node> getImages(final Node node)
-    {
-        final List<Node> images = new ArrayList<Node>();
-
-        /* Ensure that the node isn't null */
-        if (node == null)
-        {
-            return images;
-        }
-
-        final NodeList children = node.getChildNodes();
-        for (int i = 0; i < children.getLength(); ++i)
-        {
-            final Node child = children.item(i);
-
-            if (child.getNodeName().equals("imagedata"))
-            {
-                images.add(child);
-            }
-            else
-            {
-                images.addAll(getImages(child));
-            }
-        }
-        return images;
     }
 
     /**

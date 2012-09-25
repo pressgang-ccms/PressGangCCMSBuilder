@@ -3292,7 +3292,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 			 * through all the imagedata elements and fix up any reference to an
 			 * image that is not in the images folder.
 			 */
-			final List<Node> images = DocbookBuildUtilities.getImages(specTopic.getXmlDocument());
+			final List<Node> images = XMLUtilities.getNodes(specTopic.getXmlDocument(), "imagedata", "inlinegraphic");
 
 			for (final Node imageNode : images)
 			{
