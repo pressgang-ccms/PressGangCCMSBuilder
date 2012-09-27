@@ -1,41 +1,32 @@
 package com.redhat.contentspec.test.builder;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
 
-import org.jboss.pressgangccms.contentspec.SpecTopic;
-import org.jboss.pressgangccms.contentspec.entities.BugzillaOptions;
-import org.jboss.pressgangccms.docbook.compiling.DocbookBuildingOptions;
-import org.jboss.pressgangccms.docbook.processing.XMLPreProcessor;
-import org.jboss.pressgangccms.rest.v1.collections.RESTPropertyTagCollectionV1;
-import org.jboss.pressgangccms.rest.v1.collections.RESTTagCollectionV1;
-import org.jboss.pressgangccms.rest.v1.collections.RESTTopicCollectionV1;
-import org.jboss.pressgangccms.rest.v1.collections.RESTTranslatedTopicCollectionV1;
-import org.jboss.pressgangccms.rest.v1.components.ComponentTopicV1;
-import org.jboss.pressgangccms.rest.v1.components.ComponentTranslatedTopicV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTPropertyTagV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTagV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTopicV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTranslatedTopicV1;
-import org.jboss.pressgangccms.utils.common.XMLUtilities;
-import org.jboss.pressgangccms.utils.constants.CommonConstants;
+import org.jboss.pressgang.ccms.contentspec.SpecTopic;
+import org.jboss.pressgang.ccms.docbook.processing.XMLPreProcessor;
+import org.jboss.pressgang.ccms.rest.v1.collections.RESTTagCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.RESTTopicCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.RESTTranslatedTopicCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.items.RESTTopicCollectionItemV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.items.RESTTranslatedTopicCollectionItemV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.join.RESTAssignedPropertyTagCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTagV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTranslatedTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.join.RESTAssignedPropertyTagV1;
+import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
+import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
 import org.junit.BeforeClass;
-import org.junit.Test;
 import static org.junit.Assert.*;
 
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 
-import com.redhat.contentspec.builder.constants.BuilderConstants;
-
 public class XMLPreProcessorTestCase
 {
 	private static final XMLPreProcessor<RESTTopicV1, RESTTopicCollectionV1> topicPreProcessor = new XMLPreProcessor<RESTTopicV1, RESTTopicCollectionV1>();
-	private static final XMLPreProcessor<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1> translatedTopicPreProcessor = new XMLPreProcessor<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1>();
+	private static final XMLPreProcessor<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1> translatedTopicPreProcessor
+	        = new XMLPreProcessor<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1>();
 	private static SpecTopic specTopic;
 	private static SpecTopic specTranslatedTopic;
 	private static RESTTopicV1 topic;
@@ -68,31 +59,31 @@ public class XMLPreProcessorTestCase
 		specTranslatedTopic.setTopic(translatedTopic);
 		
 		/* Setup the property tags that will be used */
-		final RESTPropertyTagV1 bugzillaProduct = new RESTPropertyTagV1();
+		final RESTAssignedPropertyTagV1 bugzillaProduct = new RESTAssignedPropertyTagV1();
 		bugzillaProduct.setId(CommonConstants.BUGZILLA_PRODUCT_PROP_TAG_ID);
 		bugzillaProduct.setValue("JBoss Enterprise Application Platform");
 		
-		final RESTPropertyTagV1 bugzillaVersion = new RESTPropertyTagV1();
+		final RESTAssignedPropertyTagV1 bugzillaVersion = new RESTAssignedPropertyTagV1();
 		bugzillaVersion.setId(CommonConstants.BUGZILLA_VERSION_PROP_TAG_ID);
 		bugzillaVersion.setValue("6.0");
 		
-		final RESTPropertyTagV1 bugzillaComponent = new RESTPropertyTagV1();
+		final RESTAssignedPropertyTagV1 bugzillaComponent = new RESTAssignedPropertyTagV1();
 		bugzillaComponent.setId(CommonConstants.BUGZILLA_COMPONENT_PROP_TAG_ID);
 		bugzillaComponent.setValue("documentation");
 		
-		final RESTPropertyTagV1 bugzillaKeywords = new RESTPropertyTagV1();
+		final RESTAssignedPropertyTagV1 bugzillaKeywords = new RESTAssignedPropertyTagV1();
 		bugzillaKeywords.setId(CommonConstants.BUGZILLA_KEYWORDS_PROP_TAG_ID);
 		bugzillaKeywords.setValue("Documentation");
 		
-		final RESTPropertyTagV1 bugzillaWriter = new RESTPropertyTagV1();
+		final RESTAssignedPropertyTagV1 bugzillaWriter = new RESTAssignedPropertyTagV1();
 		bugzillaWriter.setId(CommonConstants.BUGZILLA_PROFILE_PROPERTY);
 		bugzillaWriter.setValue("lnewson@redhat.com");
 		
 		/* Create the REST collections */
-		final RESTPropertyTagCollectionV1 writerTags = new RESTPropertyTagCollectionV1();
+		final RESTAssignedPropertyTagCollectionV1 writerTags = new RESTAssignedPropertyTagCollectionV1();
 		writerTags.addItem(bugzillaWriter);
 		
-		final RESTPropertyTagCollectionV1 releaseTags = new RESTPropertyTagCollectionV1();
+		final RESTAssignedPropertyTagCollectionV1 releaseTags = new RESTAssignedPropertyTagCollectionV1();
 		releaseTags.addItem(bugzillaProduct);
 		releaseTags.addItem(bugzillaKeywords);
 		releaseTags.addItem(bugzillaComponent);

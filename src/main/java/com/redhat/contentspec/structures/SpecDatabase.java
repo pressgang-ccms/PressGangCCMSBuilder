@@ -8,11 +8,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.jboss.pressgangccms.contentspec.Level;
-import org.jboss.pressgangccms.contentspec.SpecTopic;
-import org.jboss.pressgangccms.rest.v1.collections.base.BaseRestCollectionV1;
-import org.jboss.pressgangccms.rest.v1.entities.base.RESTBaseTopicV1;
-import org.jboss.pressgangccms.utils.common.CollectionUtilities;
+import org.jboss.pressgang.ccms.contentspec.Level;
+import org.jboss.pressgang.ccms.contentspec.SpecTopic;
+import org.jboss.pressgang.ccms.rest.v1.entities.base.RESTBaseTopicV1;
+import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
+
+import com.redhat.contentspec.builder.utils.DocbookBuildUtilities;
 
 public class SpecDatabase
 {
@@ -33,11 +34,6 @@ public class SpecDatabase
 		
 		if (specTopics.get(topicId).size() > 0 || specTopicsTitles.get(escapedTitle).size() > 0)
 		{
-			int duplicateId = specTopics.get(topicId).size();
-			
-			if (specTopicsTitles.get(escapedTitle).size() > duplicateId)
-				duplicateId = specTopicsTitles.get(escapedTitle).size();
-			
 			topic.setDuplicateId(Integer.toString(specTopics.get(topicId).size()));
 		}
 		
@@ -58,7 +54,7 @@ public class SpecDatabase
 		specLevels.get(escapedTitle).add(level);
 	}
 	
-	public void setDatabaseDulicateIds()
+	public void setDatabaseDulicateIds(final Map<Integer, Set<String>> usedIdAttributes)
 	{
 		/* Topics */
 		for (final String topicTitle: specTopicsTitles.keySet())
@@ -66,10 +62,27 @@ public class SpecDatabase
 			final List<SpecTopic> specTopics = specTopicsTitles.get(topicTitle);
 			for (int i = 0; i < specTopics.size(); i++)
 			{
-				if (i != 0)
-					specTopics.get(i).setDuplicateId(Integer.toString(i));
-				else
-					specTopics.get(i).setDuplicateId(null);
+			    final SpecTopic specTopic = specTopics.get(i);
+			    String fixedIdAttributeValue = null;
+			    
+			    if (i != 0)
+			    {
+			        fixedIdAttributeValue = Integer.toString(i);
+			    }
+
+			    if (!DocbookBuildUtilities.isUniqueAttributeId(topicTitle, specTopic.getDBId(), usedIdAttributes))
+                {
+			        if (fixedIdAttributeValue == null)
+			        {
+			            fixedIdAttributeValue = Integer.toString(specTopic.getStep());
+			        }
+			        else
+			        {
+			            fixedIdAttributeValue += "-" + specTopic.getStep();
+			        }
+                }
+
+				specTopic.setDuplicateId(fixedIdAttributeValue);
 			}
 		}
 		
@@ -157,7 +170,7 @@ public class SpecDatabase
 	}
 	
 	@SuppressWarnings("unchecked")
-	public <T extends RESTBaseTopicV1<T, U>, U extends BaseRestCollectionV1<T, U>> List<T> getAllTopics()
+	public <T extends RESTBaseTopicV1<T, ?, ?>> List<T> getAllTopics()
 	{
 		final List<T> topics = new ArrayList<T>();
 		for (final Integer topicId : specTopics.keySet())

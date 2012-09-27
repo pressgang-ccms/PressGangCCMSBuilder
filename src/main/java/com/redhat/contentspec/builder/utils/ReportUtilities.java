@@ -5,22 +5,22 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.TreeMap;
 
-import org.jboss.pressgangccms.docbook.structures.TopicErrorData;
-import org.jboss.pressgangccms.rest.v1.collections.base.BaseRestCollectionV1;
-import org.jboss.pressgangccms.rest.v1.components.ComponentBaseTopicV1;
-import org.jboss.pressgangccms.rest.v1.components.ComponentTopicV1;
-import org.jboss.pressgangccms.rest.v1.components.ComponentTranslatedTopicV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTagV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTopicV1;
-import org.jboss.pressgangccms.rest.v1.entities.RESTTranslatedTopicV1;
-import org.jboss.pressgangccms.rest.v1.entities.base.RESTBaseTopicV1;
-import org.jboss.pressgangccms.rest.v1.sort.TagV1NameComparator;
-import org.jboss.pressgangccms.utils.common.CollectionUtilities;
-import org.jboss.pressgangccms.utils.common.DocBookUtilities;
-import org.jboss.pressgangccms.utils.structures.NameIDSortMap;
-import org.jboss.pressgangccms.zanata.ZanataDetails;
+import org.jboss.pressgang.ccms.docbook.structures.TopicErrorData;
+import org.jboss.pressgang.ccms.rest.v1.components.ComponentBaseTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.components.ComponentTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.components.ComponentTranslatedTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTagV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.RESTTranslatedTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.entities.base.RESTBaseTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.sort.TagV1NameComparator;
+import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
+import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
+import org.jboss.pressgang.ccms.utils.structures.NameIDSortMap;
+import org.jboss.pressgang.ccms.zanata.ZanataDetails;
 
 public class ReportUtilities
 {
@@ -34,13 +34,13 @@ public class ReportUtilities
 	 * @param tableTitle The title for the table.
 	 * @return The table as a String.
 	 */
-	public static <T extends RESTBaseTopicV1<T, U>, U extends BaseRestCollectionV1<T, U>> String buildReportTable(final List<TopicErrorData<T, U>> topicErrorDatas, final String tableTitle, final boolean showEditorLink, final ZanataDetails zanataDetails)
+	public static <T extends RESTBaseTopicV1<T, ?, ?>> String buildReportTable(final List<TopicErrorData<T>> topicErrorDatas, final String tableTitle, final boolean showEditorLink, final ZanataDetails zanataDetails)
 	{
 		final List<String> tableHeaders = CollectionUtilities.toArrayList(new String[]{"Topic Link", "Topic Title", "Topic Tags"});
 
 		// Put the details into different tables
 		final List<List<String>> rows = new ArrayList<List<String>>();
-		for (final TopicErrorData<T, U> topicErrorData : topicErrorDatas)
+		for (final TopicErrorData<T> topicErrorData : topicErrorDatas)
 		{
 			final T topic = topicErrorData.getTopic();
 			final List<String> topicTitles;
@@ -72,7 +72,7 @@ public class ReportUtilities
 		return rows.size() > 0 ? DocBookUtilities.wrapInTable(tableTitle, tableHeaders, rows) : "";
 	}
 	
-	private static <T extends RESTBaseTopicV1<T, U>, U extends BaseRestCollectionV1<T, U>> String createTopicTableLinks(final T topic, final boolean showEditorLink, final ZanataDetails zanataDetails)
+	private static <T extends RESTBaseTopicV1<T, ?, ?>> String createTopicTableLinks(final T topic, final boolean showEditorLink, final ZanataDetails zanataDetails)
 	{
 		final List<String> topicIdUrls = new ArrayList<String>();
 		final String url;
@@ -138,7 +138,7 @@ public class ReportUtilities
 		return DocBookUtilities.wrapListItems(topicIdUrls);
 	}
 	
-	private static <T extends RESTBaseTopicV1<T, U>, U extends BaseRestCollectionV1<T, U>> String buildItemizedTopicTagList(final T topic)
+	private static <T extends RESTBaseTopicV1<T, ?, ?>> String buildItemizedTopicTagList(final T topic)
 	{
 		final TreeMap<NameIDSortMap, ArrayList<RESTTagV1>> tags = ComponentBaseTopicV1.getCategoriesMappedToTags(topic);
 
@@ -147,11 +147,13 @@ public class ReportUtilities
 		 * we need to regroup the mapping.
 		 */
 		final Map<String, List<RESTTagV1>> catToTags = new TreeMap<String, List<RESTTagV1>>();
-		for (final NameIDSortMap key : tags.keySet())
+		for (final Entry<NameIDSortMap, ArrayList<RESTTagV1>> entry : tags.entrySet())
 		{
+		    final NameIDSortMap key = entry.getKey();
+		    
 			// sort alphabetically
-			Collections.sort(tags.get(key), new TagV1NameComparator());
-			
+			Collections.sort(entry.getValue(), new TagV1NameComparator());
+
 			final String categoryName = key.getName();
 			
 			if (!catToTags.containsKey(categoryName))
@@ -162,19 +164,19 @@ public class ReportUtilities
 		
 		/* Build the list of items to be used in the itemized lists */
 		final List<String> items = new ArrayList<String>();
-		for (final String catName : catToTags.keySet())
+		for (final Entry<String, List<RESTTagV1>> catEntry : catToTags.entrySet())
 		{
-			String thisTagList = "";
+			final StringBuilder thisTagList = new StringBuilder("");
 
-			for (final RESTTagV1 tag : catToTags.get(catName))
+			for (final RESTTagV1 tag : catEntry.getValue())
 			{
 				if (thisTagList.length() != 0)
-					thisTagList += ", ";
+					thisTagList.append(", ");
 
-				thisTagList += tag.getName();
+				thisTagList.append(tag.getName());
 			}
 			
-			items.add(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara("<emphasis role=\"bold\">" + catName + ":</emphasis> " + thisTagList)));
+			items.add(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara("<emphasis role=\"bold\">" + catEntry.getKey() + ":</emphasis> " + thisTagList)));
 		}
 		
 		/* Check that some tags exist, otherwise add a message about there being no tags */

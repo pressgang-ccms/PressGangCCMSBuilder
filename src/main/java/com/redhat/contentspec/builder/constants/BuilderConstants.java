@@ -2,7 +2,7 @@ package com.redhat.contentspec.builder.constants;
 
 import java.util.List;
 
-import org.jboss.pressgangccms.utils.common.CollectionUtilities;
+import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 
 public class BuilderConstants
 {
@@ -10,7 +10,7 @@ public class BuilderConstants
 	public static final Integer MAXIMUM_SET_PROP_TAGS_RETRY = 5;
 	public static final Integer MAXIMUM_SET_PROP_TAG_NAME_RETRY = 50;
 
-	public static final String BUILDER_VERSION			= "1.6";
+	public static final String BUILDER_VERSION			= "1.7";
 	public static final String BUILD_NAME				= "CSProcessor Builder Version " + BUILDER_VERSION;
 
 	public static final String DOCBOOK_45_DTD = "docbookx.dtd";
@@ -29,6 +29,7 @@ public class BuilderConstants
 	public static final String BZCOMPONENT_REGEX 		= "<<contentSpec\\.bzcomponent>>";
 	public static final String BUILDER_VERSION_REGEX 	= "<<csBuilder\\.version>>";
 	public static final String BOOK_TYPE_REGEX			= "<<contentSpec\\.bookType>>";
+	public static final String DRAFT_REGEX              = "<<contentSpec\\.draft>>";
 	public static final String DATE_FORMAT_REGEX		= "Day Mon DD HH:MM:SS YYYY";
 	public static final String REV_DATE_FORMAT_REGEX	= "DAY MON DD YYYY";
 	public static final String DATE_STRING_FORMAT		= "EEE MMM dd HH:mm:ss yyyy";
@@ -51,6 +52,7 @@ public class BuilderConstants
 	public static final String AUTHOR_FIRST_NAME_REGEX	= "<!-- Inject authorInformation\\.firstName -->";
 	public static final String AUTHOR_SURNAME_REGEX		= "<!-- Inject authorInformation\\.lastName -->";
 	public static final String AUTHOR_EMAIL_REGEX		= "<!-- Inject authorInformation\\.email -->";
+	public static final String REVNUMBER_REGEX          = "<!-- Inject revnumber -->";
 	
 	// Common Content File Names
 	public static final String[] COMMON_CONTENT_FILES = new String[] {"Conventions.xml", "Program_Listing.xml", "Feedback.xml", "Legal_Notice.xml"}; 
@@ -62,15 +64,16 @@ public class BuilderConstants
 	// Defaults
 	public static final String DEFAULT_BZCOMPONENT		= "documentation";
 	public static final String DEFAULT_CONDITION		= "default";
-	public static final String BRAND_DEFAULT			= "common";
+	public static final String DEFAULT_BRAND			= "common";
 	public static final String SUBTITLE_DEFAULT			= "Subtitle goes here";
-	public static final String EDITION_DEFAULT			= "1";
-	public static final String PUBSNUMBER_DEFAULT		= "1";
+	public static final String DEFAULT_EDITION			= "1";
+	public static final String DEFAULT_PUBSNUMBER		= "1";
 	public static final String DEFAULT_BUGZILLA_URL 	= "https://bugzilla.redhat.com/";
 	
 	public static final String DEFAULT_AUTHOR_FIRSTNAME	= "CS Builder";
 	public static final String DEFAULT_AUTHOR_LASTNAME	= "Robot";
 	public static final String DEFAULT_EMAIL			= "robot@dev.null.com";
+	public static final String DEFAULT_REVNUMBER        = "0.0-0";
 
 	public static final String DEFAULT_ABSTRACT			= 	"<abstract>\n\t\t<para>\n" +
 			"\t\t\tA brief paragraph describing this book. This will be used as the description for the rpm package.\n" +

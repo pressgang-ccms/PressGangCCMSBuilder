@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.jboss.pressgangccms.docbook.compiling.DocbookBuildingOptions;
+import org.jboss.pressgang.ccms.docbook.compiling.DocbookBuildingOptions;
 
 public class CSDocbookBuildingOptions extends DocbookBuildingOptions
 {
@@ -16,7 +16,9 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions
 	private Boolean showReportPage = false;
 	private String commonContentLocale = null;
 	private String commonContentDirectory = null;
-	
+	private Boolean draft = false;
+	private List<String> revisionMessages = null;
+
 	public CSDocbookBuildingOptions()
 	{
 		
@@ -117,4 +119,24 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions
 	{
 		this.commonContentDirectory = commonContentDirectory;
 	}
+
+    public Boolean getDraft()
+    {
+        return draft;
+    }
+
+    public void setDraft(final Boolean draft)
+    {
+        this.draft = draft;
+    }
+
+    public List<String> getRevisionMessages()
+    {
+        return revisionMessages;
+    }
+
+    public void setRevisionMessages(final List<String> revisionMessage)
+    {
+        this.revisionMessages = revisionMessage;
+    }
 }

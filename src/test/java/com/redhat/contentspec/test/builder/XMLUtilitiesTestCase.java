@@ -8,7 +8,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
-import org.jboss.pressgangccms.utils.common.XMLUtilities;
+import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
 import org.junit.Test;
 import org.w3c.dom.CDATASection;
 import org.w3c.dom.Document;

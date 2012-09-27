@@ -4,7 +4,7 @@ public class BuilderCreationException extends Exception {
 
 	private static final long serialVersionUID = -1901080966359723226L;
 	
-	public BuilderCreationException(String message) {
+	public BuilderCreationException(final String message) {
 		super(message);
 	}
 }
