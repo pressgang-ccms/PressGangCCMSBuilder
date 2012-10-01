@@ -52,6 +52,7 @@ import org.jboss.pressgang.ccms.rest.v1.collections.RESTTagCollectionV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.RESTTopicCollectionV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.RESTTranslatedTopicCollectionV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.RESTTranslatedTopicStringCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.base.RESTBaseCollectionItemV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.base.RESTBaseCollectionV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.join.RESTAssignedPropertyTagCollectionV1;
 import org.jboss.pressgang.ccms.rest.v1.components.ComponentTagV1;
@@ -98,7 +99,7 @@ import com.redhat.contentspec.builder.utils.SAXXMLValidator;
 import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
 import com.redhat.contentspec.structures.SpecDatabase;
 
-public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBaseCollectionV1<T, U, ?>> implements ShutdownAbleApp
+public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBaseCollectionV1<T, U, V>, V extends RESTBaseCollectionItemV1<T, U, V>> implements ShutdownAbleApp
 {
 	private static final Logger log = Logger.getLogger(DocbookBuilder.class);
 	private static final List<Integer> validKeywordCategoryIds = CollectionUtilities.toArrayList(CSConstants.TECHNOLOGY_CATEGORY_ID,
@@ -161,7 +162,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 	 * Holds the compiler errors that form the Errors.xml file in the compiled
 	 * docbook.
 	 */
-	private TopicErrorDatabase<T> errorDatabase;;
+	private TopicErrorDatabase<T, U, V> errorDatabase;;
 
 	/**
 	 * Holds the SpecTopics and their XML that exist within the content specification.
@@ -320,7 +321,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 
 		this.zanataDetails = zanataDetails;
 		
-		errorDatabase = new TopicErrorDatabase<T>();
+		errorDatabase = new TopicErrorDatabase<T, U, V>();
 		specDatabase = new SpecDatabase();
 
 		if (contentSpec.getLocale() == null || contentSpec.getLocale().equals(defaultLocale))
@@ -1286,7 +1287,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 		int lastPercent = 0;
 
 		/* Create the related topics database to be used for CSP builds */
-		final TocTopicDatabase<T> relatedTopicsDatabase = new TocTopicDatabase<T>();
+		final TocTopicDatabase<T, U, V> relatedTopicsDatabase = new TocTopicDatabase<T, U, V>();
 		relatedTopicsDatabase.setTopics(specDatabase.<T>getAllTopics());
 
 		for (final SpecTopic specTopic : specTopics)
@@ -1308,7 +1309,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 			final T topic = (T) specTopic.getTopic();
 			final Document doc = specTopic.getXmlDocument();
 
-			final XMLPreProcessor<T, U> xmlPreProcessor = new XMLPreProcessor<T, U>();
+			final XMLPreProcessor<T, U, V> xmlPreProcessor = new XMLPreProcessor<T, U, V>();
 
 			if (doc != null)
 			{
@@ -1416,8 +1417,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, ?>, U extends RESTBa
 	 * @return True if no errors occurred or if the build is set to ignore missing injections, otherwise false.
 	 */
 	@SuppressWarnings("unchecked")
-    protected boolean processSpecTopicInjections(final ContentSpec contentSpec, final SpecTopic specTopic, final XMLPreProcessor<T, U> xmlPreProcessor,
-            final TocTopicDatabase<T> relatedTopicsDatabase, final boolean useFixedUrls)
+    protected boolean processSpecTopicInjections(final ContentSpec contentSpec, final SpecTopic specTopic, final XMLPreProcessor<T, U, V> xmlPreProcessor,
+            final TocTopicDatabase<T, U, V> relatedTopicsDatabase, final boolean useFixedUrls)
 	{
 	    final T topic = (T) specTopic.getTopic();
         final Document doc = specTopic.getXmlDocument();

@@ -10,6 +10,8 @@ import org.jboss.pressgang.ccms.contentspec.rest.RESTReader;
 import org.jboss.pressgang.ccms.docbook.constants.DocbookBuilderConstants;
 import org.jboss.pressgang.ccms.rest.v1.collections.RESTTopicCollectionV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.RESTTranslatedTopicCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.items.RESTTopicCollectionItemV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.items.RESTTranslatedTopicCollectionItemV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.RESTBlobConstantV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.RESTTopicV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.RESTTranslatedTopicV1;
@@ -39,7 +41,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp
 	private final RESTReader reader;
 	private final RESTBlobConstantV1 rocbookdtd;
 	private final RESTManager restManager;
-	private DocbookBuilder<?, ?> docbookBuilder;
+	private DocbookBuilder<?, ?, ?> docbookBuilder;
 
 	public ContentSpecBuilder(final RESTManager restManager)
 			throws InvalidParameterException, InternalProcessingException
@@ -100,7 +102,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp
 			throw new BuilderCreationException("A user must be specified as the user who requested the build.");
 		}
 
-		docbookBuilder = new DocbookBuilder<RESTTopicV1, RESTTopicCollectionV1>(restManager, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
+		docbookBuilder = new DocbookBuilder<RESTTopicV1, RESTTopicCollectionV1, RESTTopicCollectionItemV1>(restManager, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
 
 		final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, null);
 
@@ -148,7 +150,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp
             throw new BuilderCreationException("A user must be specified as the user who requested the build.");
         }
 
-        docbookBuilder = new DocbookBuilder<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1>(restManager, rocbookdtd, CommonConstants.DEFAULT_LOCALE, locale);
+        docbookBuilder = new DocbookBuilder<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1, RESTTranslatedTopicCollectionItemV1>(restManager, rocbookdtd, CommonConstants.DEFAULT_LOCALE, locale);
 
         final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, null, zanataDetails);
 

@@ -24,9 +24,9 @@ import org.xml.sax.SAXException;
 
 public class XMLPreProcessorTestCase
 {
-	private static final XMLPreProcessor<RESTTopicV1, RESTTopicCollectionV1> topicPreProcessor = new XMLPreProcessor<RESTTopicV1, RESTTopicCollectionV1>();
-	private static final XMLPreProcessor<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1> translatedTopicPreProcessor
-	        = new XMLPreProcessor<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1>();
+	private static final XMLPreProcessor<RESTTopicV1, RESTTopicCollectionV1, RESTTopicCollectionItemV1> topicPreProcessor = new XMLPreProcessor<RESTTopicV1, RESTTopicCollectionV1, RESTTopicCollectionItemV1>();
+	private static final XMLPreProcessor<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1, RESTTranslatedTopicCollectionItemV1> translatedTopicPreProcessor
+	        = new XMLPreProcessor<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1, RESTTranslatedTopicCollectionItemV1>();
 	private static SpecTopic specTopic;
 	private static SpecTopic specTranslatedTopic;
 	private static RESTTopicV1 topic;
