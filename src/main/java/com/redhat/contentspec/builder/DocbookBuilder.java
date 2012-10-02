@@ -3186,6 +3186,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @return True if the fixed url property tags were able to be created for all topics, and false otherwise.
      */
     protected boolean setFixedURLsPass(final RESTTopicCollectionV1 topics) {
+        
         log.info("Doing Fixed URL Pass");
 
         int tries = 0;
@@ -3207,6 +3208,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
                 final List<RESTTopicV1> topicItems = topics.returnItems();
                 for (final RESTTopicV1 topic : topicItems) {
+                    
                     // Check if the app should be shutdown
                     if (isShuttingDown.get()) {
                         return false;
@@ -3304,29 +3306,36 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     // Is this a revision topic? If not, don't process it here
                     if (topic.getRevision() == null)
                         continue;
-                    
-                    final RESTAssignedPropertyTagV1 existingUniqueURL = ComponentTopicV1.returnProperty(topic,
+
+                    /* Get the existing property tag */
+                    RESTAssignedPropertyTagV1 existingUniqueURL = ComponentTopicV1.returnProperty(topic,
                             CommonConstants.FIXED_URL_PROP_TAG_ID);
-                    
-                    if (existingUniqueURL == null || processedFileNames.contains(existingUniqueURL.getValue()))
-                    {
-                        String baseUrlName = DocbookBuildUtilities.createURLTitle(topic.getTitle());
+
+                    /* Create a property tag if none exists */
+                    if (existingUniqueURL == null) {
+                        existingUniqueURL = new RESTAssignedPropertyTagV1();
+                        existingUniqueURL.setId(CommonConstants.FIXED_URL_PROP_TAG_ID);
+                        topic.getProperties().addItem(existingUniqueURL);
+                    }
+
+                    if (existingUniqueURL.getValue() == null || existingUniqueURL.getValue().isEmpty()
+                            || processedFileNames.contains(existingUniqueURL.getValue())) {
+                        
+                        final String baseUrlName = DocbookBuildUtilities.createURLTitle(topic.getTitle());
                         String postFix = "";
-                        for (int uniqueCount = 1; ; ++uniqueCount)
-                        {
-                            if (!processedFileNames.contains(baseUrlName + postFix))
-                            {
+                        for (int uniqueCount = 1;; ++uniqueCount) {
+                            if (!processedFileNames.contains(baseUrlName + postFix)) {
                                 postFix = uniqueCount + "";
                                 break;
-                            }                            
+                            }
                         }
-                        
+
                         /* Update the fixed url */
                         existingUniqueURL.setValue(baseUrlName + postFix);
                         processedFileNames.add(baseUrlName + postFix);
                     }
                 }
-                
+
                 /* If we got here, then the REST update went ok */
                 success = true;
 
