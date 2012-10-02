@@ -3212,7 +3212,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         return false;
                     }
 
-                    // Is this a revision topic? If so, don't process it here
+                    // Is this a revision topic? If so, don't process it here.
                     if (topic.getRevision() != null)
                         continue;
 
@@ -3327,7 +3327,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     }
                 }
                 
-
                 /* If we got here, then the REST update went ok */
                 success = true;
 
