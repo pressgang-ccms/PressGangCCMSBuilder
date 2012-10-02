@@ -3186,7 +3186,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @return True if the fixed url property tags were able to be created for all topics, and false otherwise.
      */
     protected boolean setFixedURLsPass(final RESTTopicCollectionV1 topics) {
-        
+
         log.info("Doing Fixed URL Pass");
 
         int tries = 0;
@@ -3208,14 +3208,18 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
                 final List<RESTTopicV1> topicItems = topics.returnItems();
                 for (final RESTTopicV1 topic : topicItems) {
-                    
+
                     // Check if the app should be shutdown
                     if (isShuttingDown.get()) {
                         return false;
                     }
 
-                    // Is this a revision topic? If so, don't process it here.
-                    if (topic.getRevision() != null)
+                    /*
+                     * Topic revisions don't have a revisions collection. So by testing to see if the revisions collection is
+                     * null, we can tell if this is a revision topic or not. If it is a revision topic (i.e. the revisions
+                     * collection is null), don't process it.
+                     */
+                    if (topic.getRevisions() == null)
                         continue;
 
                     final RESTAssignedPropertyTagV1 existingUniqueURL = ComponentTopicV1.returnProperty(topic,
@@ -3304,7 +3308,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 for (final RESTTopicV1 topic : topicItems) {
 
                     // Is this a revision topic? If not, don't process it here
-                    if (topic.getRevision() == null)
+                    if (topic.getRevisions() != null)
                         continue;
 
                     /* Get the existing property tag */
@@ -3320,7 +3324,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
                     if (existingUniqueURL.getValue() == null || existingUniqueURL.getValue().isEmpty()
                             || processedFileNames.contains(existingUniqueURL.getValue())) {
-                        
+
                         final String baseUrlName = DocbookBuildUtilities.createURLTitle(topic.getTitle());
                         String postFix = "";
                         for (int uniqueCount = 1;; ++uniqueCount) {
