@@ -169,14 +169,13 @@ public class SpecDatabase
 		return ids;
 	}
 	
-	@SuppressWarnings("unchecked")
-	public <T extends RESTBaseTopicV1<T, ?, ?>> List<T> getAllTopics()
+	public List<RESTBaseTopicV1<?, ?, ?>> getAllTopics()
 	{
-		final List<T> topics = new ArrayList<T>();
+		final List<RESTBaseTopicV1<?, ?, ?>> topics = new ArrayList<RESTBaseTopicV1<?, ?, ?>>();
 		for (final Integer topicId : specTopics.keySet())
 		{
 			if (!specTopics.get(topicId).isEmpty())
-				topics.add((T) specTopics.get(topicId).get(0).getTopic());
+				topics.add(specTopics.get(topicId).get(0).getTopic());
 		}
 		return topics;
 	}

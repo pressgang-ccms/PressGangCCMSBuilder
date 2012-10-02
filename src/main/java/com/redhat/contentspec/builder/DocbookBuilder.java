@@ -1287,8 +1287,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 		int lastPercent = 0;
 
 		/* Create the related topics database to be used for CSP builds */
-		final TocTopicDatabase<T, U, V> relatedTopicsDatabase = new TocTopicDatabase<T, U, V>();
-		relatedTopicsDatabase.setTopics(specDatabase.<T>getAllTopics());
+		final TocTopicDatabase relatedTopicsDatabase = new TocTopicDatabase();
+		relatedTopicsDatabase.setTopics(specDatabase.getAllTopics());
 
 		for (final SpecTopic specTopic : specTopics)
 		{
@@ -1309,7 +1309,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 			final T topic = (T) specTopic.getTopic();
 			final Document doc = specTopic.getXmlDocument();
 
-			final XMLPreProcessor<T, U, V> xmlPreProcessor = new XMLPreProcessor<T, U, V>();
+			final XMLPreProcessor xmlPreProcessor = new XMLPreProcessor();
 
 			if (doc != null)
 			{
@@ -1417,8 +1417,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 	 * @return True if no errors occurred or if the build is set to ignore missing injections, otherwise false.
 	 */
 	@SuppressWarnings("unchecked")
-    protected boolean processSpecTopicInjections(final ContentSpec contentSpec, final SpecTopic specTopic, final XMLPreProcessor<T, U, V> xmlPreProcessor,
-            final TocTopicDatabase<T, U, V> relatedTopicsDatabase, final boolean useFixedUrls)
+    protected boolean processSpecTopicInjections(final ContentSpec contentSpec, final SpecTopic specTopic, final XMLPreProcessor xmlPreProcessor,
+            final TocTopicDatabase relatedTopicsDatabase, final boolean useFixedUrls)
 	{
 	    final T topic = (T) specTopic.getTopic();
         final Document doc = specTopic.getXmlDocument();
@@ -3228,8 +3228,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     		    zanataUrl.append("localeId=" + locale);
     		    
     		    // Add all the Topic Zanata Ids
-    		    final List<T> topics = specDatabase.getAllTopics();
-    		    for (final T topic : topics)
+    		    final List<RESTBaseTopicV1<?, ?, ?>> topics = specDatabase.getAllTopics();
+    		    for (final RESTBaseTopicV1<?, ?, ?> topic : topics)
     		    {
     		        // Check to make sure the topic has been pushed for translation
     		        if (!ComponentTranslatedTopicV1.returnIsDummyTopic(topic) || ComponentTranslatedTopicV1.hasBeenPushedForTranslation((RESTTranslatedTopicV1) topic))
