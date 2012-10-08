@@ -260,7 +260,7 @@ public class DocbookBuildUtilities {
      * @return The input error template with the pointers replaced
      * with values from the topic.
      */
-    public static <T extends RESTBaseTopicV1<T, ?, ?>> String buildTopicErrorTemplate(final T topic, final String errorTemplate, final CSDocbookBuildingOptions docbookBuildingOptions)
+    public static String buildTopicErrorTemplate(final RESTBaseTopicV1<?, ?, ?> topic, final String errorTemplate, final CSDocbookBuildingOptions docbookBuildingOptions)
     {
         String topicXMLErrorTemplate = errorTemplate;
         topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());

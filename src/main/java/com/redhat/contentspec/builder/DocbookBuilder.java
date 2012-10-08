@@ -162,7 +162,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Holds the compiler errors that form the Errors.xml file in the compiled docbook.
      */
-    private TopicErrorDatabase<T, U, V> errorDatabase;;
+    private TopicErrorDatabase<T> errorDatabase;;
 
     /**
      * Holds the SpecTopics and their XML that exist within the content specification.
@@ -302,7 +302,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         this.zanataDetails = zanataDetails;
 
-        errorDatabase = new TopicErrorDatabase<T, U, V>();
+        errorDatabase = new TopicErrorDatabase<T>();
         specDatabase = new SpecDatabase();
 
         if (contentSpec.getLocale() == null || contentSpec.getLocale().equals(defaultLocale)) {
@@ -549,15 +549,18 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         final U topics;
         final boolean fixedUrlsSuccess;
         if (contentSpec.getLocale() == null || contentSpec.getLocale().equals(defaultLocale)) {
-            final RESTTopicCollectionV1 normalTopics;
+            final RESTTopicCollectionV1 allTopics = new RESTTopicCollectionV1();
 
             /* Ensure that the collection doesn't equal null */
-            final RESTTopicCollectionV1 topicCollection = reader.getTopicsByIds(CollectionUtilities.toArrayList(topicIds),
+            final RESTTopicCollectionV1 latestTopics = reader.getTopicsByIds(CollectionUtilities.toArrayList(topicIds),
                     false);
-            if (topicCollection == null) {
-                normalTopics = new RESTTopicCollectionV1();
-            } else {
-                normalTopics = topicCollection;
+            
+            /* Add any latest topics to the "all" topic collection */
+            if (latestTopics != null) {
+                final List<RESTTopicV1> topicItems = latestTopics.returnItems();
+                for (final RESTTopicV1 topic : topicItems) {
+                    allTopics.addItem(topic);
+                }
             }
 
             /*
@@ -566,22 +569,22 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             for (final Pair<Integer, Integer> topicToRevision : topicRevisions) {
                 final RESTTopicV1 topicRevision = reader.getTopicById(topicToRevision.getFirst(), topicToRevision.getSecond());
                 if (topicRevision != null) {
-                    normalTopics.addItem(topicRevision);
+                    allTopics.addItem(topicRevision);
                 }
             }
 
-            if (topicCollection != null && topicCollection.getItems() != null) {
+            if (latestTopics != null && latestTopics.getItems() != null) {
                 /*
                  * assign fixed urls property tags to the topics. If fixedUrlsSuccess is true, the id of the topic sections,
                  * xref injection points and file names in the zip file will be taken from the fixed url property tag,
                  * defaulting back to the TopicID## format if for some reason that property tag does not exist.
                  */
-                fixedUrlsSuccess = setFixedURLsPass(topicCollection);
+                fixedUrlsSuccess = setFixedURLsPass(latestTopics);
             } else {
                 fixedUrlsSuccess = true;
             }
 
-            topics = (U) normalTopics;
+            topics = (U) allTopics;
         } else {
             /*
              * Translations should reference an existing historical topic with the fixed urls set, so we assume this to be the
@@ -1131,8 +1134,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         int lastPercent = 0;
 
         /* Create the related topics database to be used for CSP builds */
-        final TocTopicDatabase relatedTopicsDatabase = new TocTopicDatabase();
-        relatedTopicsDatabase.setTopics(specDatabase.getAllTopics());
+        final TocTopicDatabase<T> relatedTopicsDatabase = new TocTopicDatabase<T>();
+        final List<T> topics = specDatabase.getAllTopics();
+        relatedTopicsDatabase.setTopics(topics);
 
         for (final SpecTopic specTopic : specTopics) {
             // Check if the app should be shutdown
@@ -1251,7 +1255,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      */
     @SuppressWarnings("unchecked")
     protected boolean processSpecTopicInjections(final ContentSpec contentSpec, final SpecTopic specTopic,
-            final XMLPreProcessor xmlPreProcessor, final TocTopicDatabase relatedTopicsDatabase, final boolean useFixedUrls) {
+            final XMLPreProcessor xmlPreProcessor, final TocTopicDatabase<T> relatedTopicsDatabase, final boolean useFixedUrls) {
         final T topic = (T) specTopic.getTopic();
         final Document doc = specTopic.getXmlDocument();
         final Level baseLevel = contentSpec.getBaseLevel();
@@ -1722,13 +1726,24 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         buffer.append(line + "\n");
                     }
 
-                    // Add a revision message to the Revision_History.xml
-                    final String revHistoryOverride = buffer.toString();
-                    final String docType = XMLUtilities.findDocumentType(revHistoryOverride);
-                    if (docType != null) {
-                        buildRevisionHistory(contentSpec, revHistoryOverride.replace(docType, ""), requester, files);
+                    if (docbookBuildingOptions.getRevisionMessages() != null
+                            && !docbookBuildingOptions.getRevisionMessages().isEmpty()) {
+                        // Add a revision message to the Revision_History.xml
+                        final String revHistoryOverride = buffer.toString();
+                        final String docType = XMLUtilities.findDocumentType(revHistoryOverride);
+                        if (docType != null) {
+                            buildRevisionHistory(contentSpec, revHistoryOverride.replace(docType, ""), requester, files);
+                        } else {
+                            buildRevisionHistory(contentSpec, revHistoryOverride, requester, files);
+                        }
                     } else {
-                        buildRevisionHistory(contentSpec, revHistoryOverride, requester, files);
+                        // Add the revision history directly to the book
+                        try {
+                            files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", buffer.toString().getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            /* UTF-8 is a valid format so this should exception should never get thrown */
+                            log.error(e.getMessage());
+                        }
                     }
                 } catch (Exception e) {
                     log.error(e.getMessage());
@@ -2087,10 +2102,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
      * @return The filename of the new topic XML file.
      */
-    @SuppressWarnings("unchecked")
     protected String createTopicXMLFile(final Map<String, byte[]> files, final SpecTopic specTopic, final boolean useFixedUrls) {
         String topicFileName;
-        final T topic = (T) specTopic.getTopic();
+        final RESTBaseTopicV1<?, ?, ?> topic = specTopic.getTopic();
 
         if (topic != null) {
             if (topic instanceof RESTTranslatedTopicV1) {
@@ -2278,7 +2292,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @throws InternalProcessingException If an error occurred during a REST API call.
      * @throws BuildProcessingException
      */
-    @SuppressWarnings("unchecked")
     private void buildAuthorGroup(final ContentSpec contentSpec, final Map<String, byte[]> files)
             throws InvalidParameterException, InternalProcessingException, BuildProcessingException {
         log.info("\tBuilding Author_Group.xml");
@@ -2304,7 +2317,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         // Get the mapping of authors using the topics inside the content spec
         for (final Integer topicId : specDatabase.getTopicIds()) {
-            final T topic = (T) specDatabase.getSpecTopicsForTopicID(topicId).get(0).getTopic();
+            final RESTBaseTopicV1<?, ?, ?> topic = specDatabase.getSpecTopicsForTopicID(topicId).get(0).getTopic();
             final List<RESTTagV1> authorTags;
             if (topic instanceof RESTTranslatedTopicV1) {
                 authorTags = ComponentTranslatedTopicV1.returnTagsInCategoriesByID(topic,
@@ -2487,14 +2500,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             if (authorInfo != null) {
                 final Element revision = generateRevision(contentSpec, revHistoryDoc, authorInfo, requester);
 
-                revHistory.appendChild(revision);
+                addRevisionToRevHistory(revHistory, revision);
             } else {
                 // No AuthorInformation so Use the default value
                 authorInfo = new AuthorInformation(-1, BuilderConstants.DEFAULT_AUTHOR_FIRSTNAME,
                         BuilderConstants.DEFAULT_AUTHOR_LASTNAME, BuilderConstants.DEFAULT_EMAIL);
                 final Element revision = generateRevision(contentSpec, revHistoryDoc, authorInfo, requester);
 
-                revHistory.appendChild(revision);
+                addRevisionToRevHistory(revHistory, revision);
             }
         }
         // No assigned writer exists for the uploader so use default values
@@ -2503,7 +2516,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     BuilderConstants.DEFAULT_AUTHOR_LASTNAME, BuilderConstants.DEFAULT_EMAIL);
             final Element revision = generateRevision(contentSpec, revHistoryDoc, authorInfo, requester);
 
-            revHistory.appendChild(revision);
+            addRevisionToRevHistory(revHistory, revision);
         }
 
         // Add the revision history to the book
@@ -2515,6 +2528,21 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
             log.error(e.getMessage());
+        }
+    }
+
+    /**
+     * Adds a revision element to the list of revisions in a revhistory element. This method ensures that the new revision is at
+     * the top of the revhistory list.
+     * 
+     * @param revHistory The revhistory element to add the revision to.
+     * @param revision The revision element to be added into the revisionhistory element.
+     */
+    private void addRevisionToRevHistory(final Node revHistory, final Node revision) {
+        if (revHistory.hasChildNodes()) {
+            revHistory.insertBefore(revision, revHistory.getFirstChild());
+        } else {
+            revHistory.appendChild(revision);
         }
     }
 
@@ -2881,8 +2909,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 zanataUrl.append("localeId=" + locale);
 
                 // Add all the Topic Zanata Ids
-                final List<RESTBaseTopicV1<?, ?, ?>> topics = specDatabase.getAllTopics();
-                for (final RESTBaseTopicV1<?, ?, ?> topic : topics) {
+                final List<T> topics = specDatabase.getAllTopics();
+                for (final T topic : topics) {
                     // Check to make sure the topic has been pushed for translation
                     if (!ComponentTranslatedTopicV1.returnIsDummyTopic(topic)
                             || ComponentTranslatedTopicV1.hasBeenPushedForTranslation((RESTTranslatedTopicV1) topic)) {
@@ -3075,10 +3103,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
      * @throws BuildProcessingException
      */
-    @SuppressWarnings("unchecked")
     protected void setSpecTopicXMLForError(final SpecTopic specTopic, final String template, final boolean useFixedUrls)
             throws BuildProcessingException {
-        final T topic = (T) specTopic.getTopic();
+        final RESTBaseTopicV1<?, ?, ?> topic = specTopic.getTopic();
 
         Document doc = null;
         try {
@@ -3100,7 +3127,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param doc The document object for the topics XML.
      * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
      */
-    protected void processTopicID(final T topic, final Document doc, final boolean useFixedUrls) {
+    protected void processTopicID(final RESTBaseTopicV1<?, ?, ?> topic, final Document doc, final boolean useFixedUrls) {
         if (useFixedUrls) {
             final String errorXRefID;
             if (topic instanceof RESTTranslatedTopicV1) {
