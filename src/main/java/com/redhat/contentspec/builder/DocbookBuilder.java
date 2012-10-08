@@ -54,6 +54,7 @@ import org.jboss.pressgang.ccms.rest.v1.collections.RESTTranslatedTopicCollectio
 import org.jboss.pressgang.ccms.rest.v1.collections.RESTTranslatedTopicStringCollectionV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.base.RESTBaseCollectionItemV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.base.RESTBaseCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.collections.items.join.RESTAssignedPropertyTagCollectionItemV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.join.RESTAssignedPropertyTagCollectionV1;
 import org.jboss.pressgang.ccms.rest.v1.components.ComponentTagV1;
 import org.jboss.pressgang.ccms.rest.v1.components.ComponentTopicV1;
@@ -3249,9 +3250,32 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     if (topic.getRevisions() == null)
                         continue;
 
-                    final RESTAssignedPropertyTagV1 existingUniqueURL = ComponentTopicV1.returnProperty(topic,
+                    /* Create the PropertyTagCollection to be used to update any data */
+                    final RESTAssignedPropertyTagCollectionV1 updatePropertyTags = new RESTAssignedPropertyTagCollectionV1();
+                    
+                    /* Get a list of all property tag items that exist for the current topic */
+                    final List<RESTAssignedPropertyTagCollectionItemV1> existingUniqueURLs = ComponentTopicV1.returnPropertyItems(topic,
                             CommonConstants.FIXED_URL_PROP_TAG_ID);
 
+                    RESTAssignedPropertyTagV1 existingUniqueURL = null;
+                    
+                    // Remove any Duplicate Fixed URL's
+                    for (int i = 0; i < existingUniqueURLs.size(); i++) {
+                        final RESTAssignedPropertyTagCollectionItemV1 propertyTag = existingUniqueURLs.get(i);
+                        if (propertyTag.getItem() == null)
+                            continue;
+
+                        if (i == 0)
+                        {
+                            existingUniqueURL = propertyTag.getItem();
+                        }
+                        else
+                        {
+                            updatePropertyTags.addRemoveItem(propertyTag.getItem());
+                            topic.getProperties().getItems().remove(propertyTag);
+                        }
+                    }
+                    
                     if (existingUniqueURL == null || !existingUniqueURL.getValid()) {
                         /*
                          * generate the base url
@@ -3283,7 +3307,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                          * persist the new fixed url, as long as we are not looking at a landing page topic
                          */
                         if (topic.getId() >= 0) {
-                            final RESTAssignedPropertyTagCollectionV1 updatePropertyTags = new RESTAssignedPropertyTagCollectionV1();
 
                             /* update any old fixed url property tags */
                             boolean found = false;
@@ -3291,10 +3314,18 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                                 final List<RESTAssignedPropertyTagV1> propertyTags = topic.getProperties().returnItems();
                                 for (final RESTAssignedPropertyTagV1 existing : propertyTags) {
                                     if (existing.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
-                                        found = true;
-                                        existing.explicitSetValue(baseUrlName + postFix);
-
-                                        updatePropertyTags.addUpdateItem(existing);
+                                        if (found)
+                                        {
+                                            /* If we've already found one then we need to remove any duplicates */
+                                            updatePropertyTags.addRemoveItem(existing);
+                                        }
+                                        else
+                                        {
+                                            found = true;
+                                            existing.explicitSetValue(baseUrlName + postFix);
+                                            
+                                            updatePropertyTags.addUpdateItem(existing);
+                                        }
                                     }
                                 }
                             }
@@ -3307,15 +3338,21 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
                                 updatePropertyTags.addNewItem(propertyTag);
                             }
-
-                            final RESTTopicV1 updateTopic = new RESTTopicV1();
-                            updateTopic.setId(topic.getId());
-                            updateTopic.explicitSetProperties(updatePropertyTags);
-
-                            updateTopics.addItem(updateTopic);
-
                             processedFileNames.add(baseUrlName + postFix);
                         }
+                    }
+                    
+                    /*
+                     * If we have changes then create a basic topic so that the property
+                     * tags can be updated.
+                     */
+                    if (!updatePropertyTags.getItems().isEmpty())
+                    {
+                        final RESTTopicV1 updateTopic = new RESTTopicV1();
+                        updateTopic.setId(topic.getId());
+                        
+                        updateTopic.explicitSetProperties(updatePropertyTags);
+                        updateTopics.addItem(updateTopic);
                     }
                 }
 
