@@ -1542,76 +1542,55 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @throws InvalidParameterException If an error occurred during the REST API call.
      * @throws BuildProcessingException
      */
-    private String buildBookBase(final ContentSpec contentSpec, final RESTUserV1 requester, final Map<String, byte[]> files)
+    protected String buildBookBase(final ContentSpec contentSpec, final RESTUserV1 requester, final Map<String, byte[]> files)
             throws InvalidParameterException, InternalProcessingException, BuildProcessingException {
         log.info("\tAdding standard files to Publican ZIP file");
 
         final Map<String, String> overrides = docbookBuildingOptions.getOverrides();
 
+        // Load the templates from the server
         final String publicanCfg = restManager.getRESTClient()
                 .getJSONStringConstant(DocbookBuilderConstants.PUBLICAN_CFG_ID, "").getValue();
-        final String bookEnt = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_ENT_ID, "")
+        final String bookEntityTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_ENT_ID, "")
                 .getValue();
-        final String prefaceXml = restManager.getRESTClient()
+        final String prefaceXmlTemplate = restManager.getRESTClient()
                 .getJSONStringConstant(DocbookBuilderConstants.CSP_PREFACE_XML_ID, "").getValue();
-
-        final String brand = contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND : contentSpec.getBrand();
+        
+        final String bookInfoTemplate;
+        if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
+            bookInfoTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ARTICLE_INFO_XML_ID, "")
+                    .getValue();
+        } else {
+            bookInfoTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_INFO_XML_ID, "")
+                    .getValue();
+        }
+        
+        final String bookXmlTemplate;
+        if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
+            bookXmlTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ARTICLE_XML_ID, "").getValue();
+        } else {
+            bookXmlTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_XML_ID, "").getValue();
+        }
 
         // Setup the basic book.xml
-        final String bookXml;
-        if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            bookXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ARTICLE_XML_ID, "").getValue();
-        } else {
-            bookXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_XML_ID, "").getValue();
-        }
-        String basicBook = bookXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
+        String basicBook = bookXmlTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
         basicBook = basicBook.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
         basicBook = basicBook.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
         basicBook = basicBook.replaceAll(BuilderConstants.DRAFT_REGEX, docbookBuildingOptions.getDraft() ? "status=\"draft\""
                 : "");
+        
+        if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+            // Add the preface to the book.xml
+            basicBook = basicBook.replaceAll(BuilderConstants.PREFACE_REGEX,
+                    "<xi:include href=\"Preface.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
+
+            // Add the revision history to the book.xml
+            basicBook = basicBook.replaceAll(BuilderConstants.REV_HISTORY_REGEX,
+                    "<xi:include href=\"Revision_History.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
+        }
 
         // Setup publican.cfg
-        String fixedPublicanCfg = publicanCfg.replaceAll(BuilderConstants.BRAND_REGEX, brand);
-        fixedPublicanCfg = fixedPublicanCfg.replaceFirst("type\\:\\s*.*($|\\r\\n|\\n)", "type: "
-                + contentSpec.getBookType().toString().replaceAll("-Draft", "") + "\n");
-        fixedPublicanCfg = fixedPublicanCfg.replaceAll("xml_lang\\:\\s*.*?($|\\r\\n|\\n)", "xml_lang: " + locale + "\n");
-        if (!fixedPublicanCfg.matches(".*\n$")) {
-            fixedPublicanCfg += "\n";
-        }
-
-        // Remove the image width for CSP output
-        if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
-            fixedPublicanCfg = fixedPublicanCfg.replaceFirst("max_image_width:\\s*\\d+\\s*(\\r)?\\n", "");
-            fixedPublicanCfg = fixedPublicanCfg.replaceFirst("toc_section_depth:\\s*\\d+\\s*(\\r)?\\n", "");
-        }
-
-        if (contentSpec.getPublicanCfg() != null) {
-            /* Remove the git_branch if the content spec contains a git_branch */
-            if (contentSpec.getPublicanCfg().indexOf("git_branch") != -1) {
-                fixedPublicanCfg = fixedPublicanCfg.replaceFirst("git_branch:\\s*.*(\\r)?(\\n)?", "");
-            }
-            fixedPublicanCfg += contentSpec.getPublicanCfg();
-
-            if (!fixedPublicanCfg.matches(".*\n$")) {
-                fixedPublicanCfg += "\n";
-            }
-        }
-
-        if (docbookBuildingOptions.getPublicanShowRemarks()) {
-            /* Remove any current show_remarks definitions */
-            if (fixedPublicanCfg.indexOf("show_remarks") != -1) {
-                fixedPublicanCfg = fixedPublicanCfg.replaceAll("show_remarks:\\s*\\d+\\s*(\\r)?(\\n)?", "");
-            }
-            fixedPublicanCfg += "show_remarks: 1\n";
-        }
-
-        fixedPublicanCfg += "docname: " + escapedTitle.replaceAll("_", " ") + "\n";
-        fixedPublicanCfg += "product: " + originalProduct + "\n";
-
-        if (docbookBuildingOptions.getCvsPkgOption() != null) {
-            fixedPublicanCfg += "cvs_pkg: " + docbookBuildingOptions.getCvsPkgOption() + "\n";
-        }
-
+        final String fixedPublicanCfg = buildPublicanCfgFile(publicanCfg, contentSpec);
         try {
             files.put(BOOK_FOLDER + "publican.cfg", fixedPublicanCfg.getBytes("UTF-8"));
         } catch (UnsupportedEncodingException e) {
@@ -1619,32 +1598,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             log.error(e.getMessage());
         }
 
-        final String bookInfo;
-        if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            bookInfo = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ARTICLE_INFO_XML_ID, "")
-                    .getValue();
-        } else {
-            bookInfo = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_INFO_XML_ID, "")
-                    .getValue();
-        }
-
         // Setup Book_Info.xml
-        String fixedBookInfo = bookInfo.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
-        fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.TITLE_REGEX, contentSpec.getTitle());
-        fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX,
-                contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : contentSpec.getSubtitle());
-        fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
-        fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
-        fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.EDITION_REGEX,
-                contentSpec.getEdition() == null ? BuilderConstants.DEFAULT_EDITION : contentSpec.getEdition());
-
-        if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
-            fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX,
-                    contentSpec.getAbstract() == null ? BuilderConstants.DEFAULT_ABSTRACT : ("<abstract>\n\t\t<para>\n\t\t\t"
-                            + contentSpec.getAbstract() + "\n\t\t</para>\n\t</abstract>\n"));
-            fixedBookInfo = fixedBookInfo.replaceAll(BuilderConstants.LEGAL_NOTICE_REGEX, BuilderConstants.LEGAL_NOTICE_XML);
-        }
-
+        final String fixedBookInfo = buildBookInfoFile(bookInfoTemplate, contentSpec);
         try {
             if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
                 files.put(BOOK_LOCALE_FOLDER + "Article_Info.xml", fixedBookInfo.getBytes("UTF-8"));
@@ -1683,23 +1638,15 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             buildAuthorGroup(contentSpec, files);
         }
 
+        // Setup Preface.xml
         if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
-            // Setup Preface.xml
-            String fixedPrefaceXml = prefaceXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
+            String fixedPrefaceXml = prefaceXmlTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
             try {
                 files.put(BOOK_LOCALE_FOLDER + "Preface.xml", fixedPrefaceXml.getBytes("UTF-8"));
             } catch (UnsupportedEncodingException e) {
                 /* UTF-8 is a valid format so this should exception should never get thrown */
                 log.error(e.getMessage());
             }
-
-            // Add the preface to the book.xml
-            basicBook = basicBook.replaceAll(BuilderConstants.PREFACE_REGEX,
-                    "<xi:include href=\"Preface.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
-
-            // Add the revision history to the book.xml
-            basicBook = basicBook.replaceAll(BuilderConstants.REV_HISTORY_REGEX,
-                    "<xi:include href=\"Revision_History.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
         }
 
         // Add any common content files that need to be included locally
@@ -1758,21 +1705,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             buildRevisionHistory(contentSpec, fixedRevisionHistoryXml, requester, files);
         }
 
-        // Setup the <<contentSpec.title>>.ent file
-        String entFile = bookEnt.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
-        entFile = entFile.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
-        entFile = entFile.replaceAll(BuilderConstants.TITLE_REGEX, originalTitle);
-        entFile = entFile.replaceAll(BuilderConstants.YEAR_FORMAT_REGEX,
-                Integer.toString(Calendar.getInstance().get(Calendar.YEAR)));
-        entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_COPYRIGHT_REGEX, contentSpec.getCopyrightHolder());
-        entFile = entFile.replaceAll(BuilderConstants.BZPRODUCT_REGEX,
-                contentSpec.getBugzillaProduct() == null ? originalProduct : contentSpec.getBugzillaProduct());
-        entFile = entFile.replaceAll(
-                BuilderConstants.BZCOMPONENT_REGEX,
-                contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec
-                        .getBugzillaComponent());
-        entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX,
-                contentSpec.getBugzillaURL() == null ? BuilderConstants.DEFAULT_BUGZILLA_URL : contentSpec.getBugzillaURL());
+        // Build the book .ent file
+        final String entFile = buildBookEntityFile(bookEntityTemplate, contentSpec);
         try {
             files.put(BOOK_LOCALE_FOLDER + escapedTitle + ".ent", entFile.getBytes("UTF-8"));
         } catch (UnsupportedEncodingException e) {
@@ -1781,6 +1715,21 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         // Setup the images and files folders
+        addBookBaseFilesAndImages(contentSpec, files);
+
+        return basicBook;
+    }
+    
+    /**
+     * Adds the basic Images and Files to the book that are the minimum requirements to build it.
+     * 
+     * @param contentSpec The content specification object to be built.
+     * @param files The mapping of file names/locations to files that will be packaged into the ZIP archive.
+     * @throws InternalProcessingException If an error occurred during the REST API call.
+     * @throws InvalidParameterException If an error occurred during the REST API call.
+     */
+    protected void addBookBaseFilesAndImages(final ContentSpec contentSpec, final Map<String, byte[]> files) throws InvalidParameterException, InternalProcessingException
+    {
         final String iconSvg = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ICON_SVG_ID, "")
                 .getValue();
         try {
@@ -1826,8 +1775,118 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             files.put(BOOK_IMAGES_FOLDER + "jboss.svg", StringUtilities.getStringBytes(jbossSvg));
         }
+    }
+    
+    /**
+     * Builds the Book_Info.xml file that is a basic requirement to build the book.
+     * 
+     * @param bookInfoTemplate The Book_Info.xml template to add content to.
+     * @param contentSpec The content specification object to be built.
+     * @return The Book_Info.xml file filled with content from the Content Spec.
+     */
+    protected String buildBookInfoFile(final String bookInfoTemplate, final ContentSpec contentSpec)
+    {
+        String bookInfo = bookInfoTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
+        bookInfo = bookInfo.replaceAll(BuilderConstants.TITLE_REGEX, contentSpec.getTitle());
+        bookInfo = bookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX,
+                contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : contentSpec.getSubtitle());
+        bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
+        bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
+        bookInfo = bookInfo.replaceAll(BuilderConstants.EDITION_REGEX,
+                contentSpec.getEdition() == null ? BuilderConstants.DEFAULT_EDITION : contentSpec.getEdition());
 
-        return basicBook;
+        if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+            bookInfo = bookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX,
+                    contentSpec.getAbstract() == null ? BuilderConstants.DEFAULT_ABSTRACT : ("<abstract>\n\t\t<para>\n\t\t\t"
+                            + contentSpec.getAbstract() + "\n\t\t</para>\n\t</abstract>\n"));
+            bookInfo = bookInfo.replaceAll(BuilderConstants.LEGAL_NOTICE_REGEX, BuilderConstants.LEGAL_NOTICE_XML);
+        }
+        
+        return bookInfo;
+    }
+    
+    /**
+     * Builds the publican.cfg file that is a basic requirement to build the publican book.
+     * 
+     * @param publicanCfgTemplate The publican.cfg template to add content to.
+     * @param contentSpec The content specification object to be built.
+     * @return The publican.cfg file filled with content from the Content Spec.
+     */
+    protected String buildPublicanCfgFile(final String publicanCfgTemplate, final ContentSpec contentSpec)
+    {
+        final String brand = contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND : contentSpec.getBrand();
+        
+        // Setup publican.cfg
+        String publicanCfg = publicanCfgTemplate.replaceAll(BuilderConstants.BRAND_REGEX, brand);
+        publicanCfg = publicanCfg.replaceFirst("type\\:\\s*.*($|\\r\\n|\\n)", "type: "
+                + contentSpec.getBookType().toString().replaceAll("-Draft", "") + "\n");
+        publicanCfg = publicanCfg.replaceAll("xml_lang\\:\\s*.*?($|\\r\\n|\\n)", "xml_lang: " + locale + "\n");
+        if (!publicanCfg.matches(".*\n$")) {
+            publicanCfg += "\n";
+        }
+
+        // Remove the image width for CSP output
+        if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+            publicanCfg = publicanCfg.replaceFirst("max_image_width:\\s*\\d+\\s*(\\r)?\\n", "");
+            publicanCfg = publicanCfg.replaceFirst("toc_section_depth:\\s*\\d+\\s*(\\r)?\\n", "");
+        }
+
+        if (contentSpec.getPublicanCfg() != null) {
+            /* Remove the git_branch if the content spec contains a git_branch */
+            if (contentSpec.getPublicanCfg().indexOf("git_branch") != -1) {
+                publicanCfg = publicanCfg.replaceFirst("git_branch:\\s*.*(\\r)?(\\n)?", "");
+            }
+            publicanCfg += contentSpec.getPublicanCfg();
+
+            if (!publicanCfg.matches(".*\n$")) {
+                publicanCfg += "\n";
+            }
+        }
+
+        if (docbookBuildingOptions.getPublicanShowRemarks()) {
+            /* Remove any current show_remarks definitions */
+            if (publicanCfg.indexOf("show_remarks") != -1) {
+                publicanCfg = publicanCfg.replaceAll("show_remarks:\\s*\\d+\\s*(\\r)?(\\n)?", "");
+            }
+            publicanCfg += "show_remarks: 1\n";
+        }
+
+        publicanCfg += "docname: " + escapedTitle.replaceAll("_", " ") + "\n";
+        publicanCfg += "product: " + originalProduct + "\n";
+
+        if (docbookBuildingOptions.getCvsPkgOption() != null) {
+            publicanCfg += "cvs_pkg: " + docbookBuildingOptions.getCvsPkgOption() + "\n";
+        }
+        
+        return publicanCfg;
+    }
+    
+    /**
+     * Builds the book .ent file that is a basic requirement to build the book.
+     * 
+     * @param entityFileTemplate The entity file template to add content to.
+     * @param contentSpec The content specification object to be built.
+     * @return The book .ent file filled with content from the Content Spec.
+     */
+    protected String buildBookEntityFile(final String entityFileTemplate, final ContentSpec contentSpec)
+    {
+        // Setup the <<contentSpec.title>>.ent file
+        String entFile = entityFileTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
+        entFile = entFile.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
+        entFile = entFile.replaceAll(BuilderConstants.TITLE_REGEX, originalTitle);
+        entFile = entFile.replaceAll(BuilderConstants.YEAR_FORMAT_REGEX,
+                Integer.toString(Calendar.getInstance().get(Calendar.YEAR)));
+        entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_COPYRIGHT_REGEX, contentSpec.getCopyrightHolder());
+        entFile = entFile.replaceAll(BuilderConstants.BZPRODUCT_REGEX,
+                contentSpec.getBugzillaProduct() == null ? originalProduct : contentSpec.getBugzillaProduct());
+        entFile = entFile.replaceAll(
+                BuilderConstants.BZCOMPONENT_REGEX,
+                contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec
+                        .getBugzillaComponent());
+        entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX,
+                contentSpec.getBugzillaURL() == null ? BuilderConstants.DEFAULT_BUGZILLA_URL : contentSpec.getBugzillaURL());
+        
+        return entFile;
     }
 
     /**
