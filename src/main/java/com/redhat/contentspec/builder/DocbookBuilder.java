@@ -1814,7 +1814,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      */
     protected String buildPublicanCfgFile(final String publicanCfgTemplate, final ContentSpec contentSpec)
     {
-        final String brand = contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND : contentSpec.getBrand();
+        final Map<String, String> overrides = docbookBuildingOptions.getOverrides();
+        
+        final String brand = overrides.containsKey(CSConstants.BRAND_OVERRIDE) ? overrides.get(CSConstants.BRAND_OVERRIDE) : (contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND : contentSpec.getBrand());
         
         // Setup publican.cfg
         String publicanCfg = publicanCfgTemplate.replaceAll(BuilderConstants.BRAND_REGEX, brand);
