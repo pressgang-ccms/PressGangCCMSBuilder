@@ -603,7 +603,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             fixedUrlsSuccess = true;
 
             /* set the topics variable now all initialisation is done */
-            topics = (U) getTranslatedTopics(contentSpec, topicIds, topicRevisions);
+            topics = (U) getTranslatedTopics(topicIds, topicRevisions);
 
             /* Ensure that our translated topics FixedURLs are still valid */
             final Set<String> processedFileNames = new HashSet<String>();
@@ -646,12 +646,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * Gets the translated topics from the REST Interface and also creates any dummy translations for topics that have yet to be
      * translated.
      * 
-     * @param contentSpec The ContentSpec object used to build the book.
      * @param topicIds A Set of topic id's that are to be used to get the latest translations.
      * @param topicRevisions A Set of topic id's to revisions, used to get translations closest to specific revisions.
      * @return A collection of TranslatedTopics or null if a shutdown was requested.
      */
-    private RESTTranslatedTopicCollectionV1 getTranslatedTopics(final ContentSpec contentSpec, final Set<Integer> topicIds,
+    private RESTTranslatedTopicCollectionV1 getTranslatedTopics(final Set<Integer> topicIds,
             final Set<Pair<Integer, Integer>> topicRevisions) {
         final RESTTranslatedTopicCollectionV1 translatedTopics = new RESTTranslatedTopicCollectionV1();
 
@@ -1505,7 +1504,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         /* add the report chapter */
         if (docbookBuildingOptions.getShowReportPage()) {
-            final String compilerOutput = DocBookUtilities.addXMLBoilerplate(buildReportChapter(locale), this.escapedTitle
+            final String compilerOutput = DocBookUtilities.addXMLBoilerplate(buildReportChapter(contentSpec, locale), this.escapedTitle
                     + ".ent", "chapter");
             files.put(BOOK_LOCALE_FOLDER + "Report.xml", StringUtilities.getStringBytes(StringUtilities
                     .cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
@@ -2731,7 +2730,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      */
     private String buildTranslateCSChapter(final ContentSpec contentSpec, final String locale) {
 
-        final RESTTranslatedTopicCollectionV1 translatedTopics = this.getTranslatedTopics(contentSpec, new HashSet<Integer>(
+        final RESTTranslatedTopicCollectionV1 translatedTopics = this.getTranslatedTopics(new HashSet<Integer>(
                 CollectionUtilities.toArrayList(contentSpec.getId())), null);
 
         final String para;
@@ -2921,7 +2920,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param locale The locale to build the report chapter for.
      * @return The Docbook Report Chapter formatted as a String.
      */
-    private String buildReportChapter(final String locale) {
+    private String buildReportChapter(final ContentSpec contentSpec, final String locale) {
         log.info("\tBuilding Report Chapter");
 
         String reportChapter = "";
@@ -2992,6 +2991,21 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                             || ComponentTranslatedTopicV1.hasBeenPushedForTranslation((RESTTranslatedTopicV1) topic)) {
                         zanataUrl.append("&amp;");
                         zanataUrl.append("doc=" + ComponentTranslatedTopicV1.returnZanataId((RESTTranslatedTopicV1) topic));
+                    }
+                }
+                
+                // Add the CSP Zanata ID
+                final RESTTranslatedTopicCollectionV1 translatedTopics = this.getTranslatedTopics(new HashSet<Integer>(
+                        CollectionUtilities.toArrayList(contentSpec.getId())), null);
+
+                if (translatedTopics != null && translatedTopics.getItems() != null && !translatedTopics.getItems().isEmpty()) {
+                    final RESTTranslatedTopicV1 translatedContentSpec = translatedTopics.returnItems().get(0);
+                    
+                    // Check to make sure the Content Spec has been pushed for translation
+                    if (!ComponentTranslatedTopicV1.returnIsDummyTopic(translatedContentSpec)
+                            || ComponentTranslatedTopicV1.hasBeenPushedForTranslation(translatedContentSpec)) {
+                        zanataUrl.append("&amp;");
+                        zanataUrl.append("doc=" + ComponentTranslatedTopicV1.returnZanataId(translatedContentSpec));
                     }
                 }
 
