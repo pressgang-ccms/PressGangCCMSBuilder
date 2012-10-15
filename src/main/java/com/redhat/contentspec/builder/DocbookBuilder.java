@@ -59,6 +59,7 @@ import org.jboss.pressgang.ccms.rest.v1.collections.join.RESTAssignedPropertyTag
 import org.jboss.pressgang.ccms.rest.v1.components.ComponentTagV1;
 import org.jboss.pressgang.ccms.rest.v1.components.ComponentTopicV1;
 import org.jboss.pressgang.ccms.rest.v1.components.ComponentTranslatedTopicV1;
+import org.jboss.pressgang.ccms.rest.v1.constants.RESTv1Constants;
 import org.jboss.pressgang.ccms.rest.v1.entities.RESTBlobConstantV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.RESTImageV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.RESTLanguageImageV1;
@@ -488,8 +489,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 DocbookBuildUtilities.getTopicLinkIds(doc, linkIds);
 
                 for (final String linkId : linkIds) {
-                    /* Check if the xref linkend id exists in the book */
-                    if (!bookIdAttributes.contains(linkId)) {
+                    /*
+                     * Check if the xref linkend id exists in the book. If the Tag Starts with our error syntax then we can
+                     * ignore it
+                     */
+                    if (!bookIdAttributes.contains(linkId) && !linkId.startsWith(RESTv1Constants.ERROR_XREF_ID_PREFIX)) {
                         final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                                 errorInvalidValidationTopic.getValue(), docbookBuildingOptions);
 
@@ -551,11 +555,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         final boolean fixedUrlsSuccess;
         if (contentSpec.getLocale() == null || contentSpec.getLocale().equals(defaultLocale)) {
             final RESTTopicCollectionV1 allTopics = new RESTTopicCollectionV1();
+            final RESTTopicCollectionV1 revisionTopics = new RESTTopicCollectionV1();
 
             /* Ensure that the collection doesn't equal null */
-            final RESTTopicCollectionV1 latestTopics = reader.getTopicsByIds(CollectionUtilities.toArrayList(topicIds),
-                    false);
-            
+            final RESTTopicCollectionV1 latestTopics = reader.getTopicsByIds(CollectionUtilities.toArrayList(topicIds), false);
+
             /* Add any latest topics to the "all" topic collection */
             if (latestTopics != null) {
                 final List<RESTTopicV1> topicItems = latestTopics.returnItems();
@@ -571,19 +575,24 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 final RESTTopicV1 topicRevision = reader.getTopicById(topicToRevision.getFirst(), topicToRevision.getSecond());
                 if (topicRevision != null) {
                     allTopics.addItem(topicRevision);
+                    revisionTopics.addItem(topicRevision);
                 }
             }
 
+            final Set<String> processedFileNames = new HashSet<String>();
             if (latestTopics != null && latestTopics.getItems() != null) {
                 /*
                  * assign fixed urls property tags to the topics. If fixedUrlsSuccess is true, the id of the topic sections,
                  * xref injection points and file names in the zip file will be taken from the fixed url property tag,
                  * defaulting back to the TopicID## format if for some reason that property tag does not exist.
                  */
-                fixedUrlsSuccess = setFixedURLsPass(latestTopics);
+                fixedUrlsSuccess = setFixedURLsPass(latestTopics, processedFileNames);
             } else {
                 fixedUrlsSuccess = true;
             }
+
+            /* Ensure that our revision topics FixedURLs are still valid */
+            setFixedURLsForRevisionsPass((U) revisionTopics, processedFileNames);
 
             topics = (U) allTopics;
         } else {
@@ -595,6 +604,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             /* set the topics variable now all initialisation is done */
             topics = (U) getTranslatedTopics(contentSpec, topicIds, topicRevisions);
+
+            /* Ensure that our translated topics FixedURLs are still valid */
+            final Set<String> processedFileNames = new HashSet<String>();
+            setFixedURLsForRevisionsPass(topics, processedFileNames);
         }
 
         // Check if the app should be shutdown
@@ -1066,17 +1079,18 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         } else {
                             final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                                     errorInvalidValidationTopic.getValue(), docbookBuildingOptions);
-
+                            final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(topic.getXml());
                             errorDatabase
-                                    .addError(topic, ErrorType.INVALID_CONTENT, BuilderConstants.ERROR_INVALID_XML_CONTENT);
+                                    .addError(topic, ErrorType.INVALID_CONTENT, BuilderConstants.ERROR_INVALID_XML_CONTENT
+                                            + " The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
                             topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
                         }
                     } catch (SAXException ex) {
                         final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                                 errorInvalidValidationTopic.getValue(), docbookBuildingOptions);
-
+                        final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(topic.getXml());
                         errorDatabase.addError(topic, ErrorType.INVALID_CONTENT, BuilderConstants.ERROR_BAD_XML_STRUCTURE + " "
-                                + StringUtilities.escapeForXML(ex.getMessage()));
+                                + StringUtilities.escapeForXML(ex.getMessage()) + " The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
                         topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
                     }
                 }
@@ -1551,25 +1565,27 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         // Load the templates from the server
         final String publicanCfg = restManager.getRESTClient()
                 .getJSONStringConstant(DocbookBuilderConstants.PUBLICAN_CFG_ID, "").getValue();
-        final String bookEntityTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_ENT_ID, "")
-                .getValue();
+        final String bookEntityTemplate = restManager.getRESTClient()
+                .getJSONStringConstant(DocbookBuilderConstants.BOOK_ENT_ID, "").getValue();
         final String prefaceXmlTemplate = restManager.getRESTClient()
                 .getJSONStringConstant(DocbookBuilderConstants.CSP_PREFACE_XML_ID, "").getValue();
-        
+
         final String bookInfoTemplate;
         if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            bookInfoTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ARTICLE_INFO_XML_ID, "")
-                    .getValue();
+            bookInfoTemplate = restManager.getRESTClient()
+                    .getJSONStringConstant(DocbookBuilderConstants.ARTICLE_INFO_XML_ID, "").getValue();
         } else {
             bookInfoTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_INFO_XML_ID, "")
                     .getValue();
         }
-        
+
         final String bookXmlTemplate;
         if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            bookXmlTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ARTICLE_XML_ID, "").getValue();
+            bookXmlTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ARTICLE_XML_ID, "")
+                    .getValue();
         } else {
-            bookXmlTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_XML_ID, "").getValue();
+            bookXmlTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_XML_ID, "")
+                    .getValue();
         }
 
         // Setup the basic book.xml
@@ -1578,7 +1594,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         basicBook = basicBook.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
         basicBook = basicBook.replaceAll(BuilderConstants.DRAFT_REGEX, docbookBuildingOptions.getDraft() ? "status=\"draft\""
                 : "");
-        
+
         if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
             // Add the preface to the book.xml
             basicBook = basicBook.replaceAll(BuilderConstants.PREFACE_REGEX,
@@ -1719,7 +1735,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         return basicBook;
     }
-    
+
     /**
      * Adds the basic Images and Files to the book that are the minimum requirements to build it.
      * 
@@ -1728,8 +1744,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @throws InternalProcessingException If an error occurred during the REST API call.
      * @throws InvalidParameterException If an error occurred during the REST API call.
      */
-    protected void addBookBaseFilesAndImages(final ContentSpec contentSpec, final Map<String, byte[]> files) throws InvalidParameterException, InternalProcessingException
-    {
+    protected void addBookBaseFilesAndImages(final ContentSpec contentSpec, final Map<String, byte[]> files)
+            throws InvalidParameterException, InternalProcessingException {
         final String iconSvg = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ICON_SVG_ID, "")
                 .getValue();
         try {
@@ -1776,7 +1792,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             files.put(BOOK_IMAGES_FOLDER + "jboss.svg", StringUtilities.getStringBytes(jbossSvg));
         }
     }
-    
+
     /**
      * Builds the Book_Info.xml file that is a basic requirement to build the book.
      * 
@@ -1784,8 +1800,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param contentSpec The content specification object to be built.
      * @return The Book_Info.xml file filled with content from the Content Spec.
      */
-    protected String buildBookInfoFile(final String bookInfoTemplate, final ContentSpec contentSpec)
-    {
+    protected String buildBookInfoFile(final String bookInfoTemplate, final ContentSpec contentSpec) {
         String bookInfo = bookInfoTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
         bookInfo = bookInfo.replaceAll(BuilderConstants.TITLE_REGEX, contentSpec.getTitle());
         bookInfo = bookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX,
@@ -1801,10 +1816,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                             + contentSpec.getAbstract() + "\n\t\t</para>\n\t</abstract>\n"));
             bookInfo = bookInfo.replaceAll(BuilderConstants.LEGAL_NOTICE_REGEX, BuilderConstants.LEGAL_NOTICE_XML);
         }
-        
+
         return bookInfo;
     }
-    
+
     /**
      * Builds the publican.cfg file that is a basic requirement to build the publican book.
      * 
@@ -1812,12 +1827,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param contentSpec The content specification object to be built.
      * @return The publican.cfg file filled with content from the Content Spec.
      */
-    protected String buildPublicanCfgFile(final String publicanCfgTemplate, final ContentSpec contentSpec)
-    {
+    protected String buildPublicanCfgFile(final String publicanCfgTemplate, final ContentSpec contentSpec) {
         final Map<String, String> overrides = docbookBuildingOptions.getOverrides();
-        
-        final String brand = overrides.containsKey(CSConstants.BRAND_OVERRIDE) ? overrides.get(CSConstants.BRAND_OVERRIDE) : (contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND : contentSpec.getBrand());
-        
+
+        final String brand = overrides.containsKey(CSConstants.BRAND_OVERRIDE) ? overrides.get(CSConstants.BRAND_OVERRIDE)
+                : (contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND : contentSpec.getBrand());
+
         // Setup publican.cfg
         String publicanCfg = publicanCfgTemplate.replaceAll(BuilderConstants.BRAND_REGEX, brand);
         publicanCfg = publicanCfg.replaceFirst("type\\:\\s*.*($|\\r\\n|\\n)", "type: "
@@ -1859,10 +1874,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         if (docbookBuildingOptions.getCvsPkgOption() != null) {
             publicanCfg += "cvs_pkg: " + docbookBuildingOptions.getCvsPkgOption() + "\n";
         }
-        
+
         return publicanCfg;
     }
-    
+
     /**
      * Builds the book .ent file that is a basic requirement to build the book.
      * 
@@ -1870,8 +1885,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param contentSpec The content specification object to be built.
      * @return The book .ent file filled with content from the Content Spec.
      */
-    protected String buildBookEntityFile(final String entityFileTemplate, final ContentSpec contentSpec)
-    {
+    protected String buildBookEntityFile(final String entityFileTemplate, final ContentSpec contentSpec) {
         // Setup the <<contentSpec.title>>.ent file
         String entFile = entityFileTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
         entFile = entFile.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
@@ -1887,7 +1901,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         .getBugzillaComponent());
         entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX,
                 contentSpec.getBugzillaURL() == null ? BuilderConstants.DEFAULT_BUGZILLA_URL : contentSpec.getBugzillaURL());
-        
+
         return entFile;
     }
 
@@ -3274,7 +3288,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param topics The list of topics to set the Fixed URL's for.
      * @return True if the fixed url property tags were able to be created for all topics, and false otherwise.
      */
-    protected boolean setFixedURLsPass(final RESTTopicCollectionV1 topics) {
+    protected boolean setFixedURLsPass(final RESTTopicCollectionV1 topics, final Set<String> processedFileNames) {
 
         log.info("Doing Fixed URL Pass");
 
@@ -3292,8 +3306,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             while (tries < BuilderConstants.MAXIMUM_SET_PROP_TAGS_RETRY && !success) {
                 ++tries;
                 final RESTTopicCollectionV1 updateTopics = new RESTTopicCollectionV1();
-
-                final Set<String> processedFileNames = new HashSet<String>();
 
                 final List<RESTTopicV1> topicItems = topics.returnItems();
                 for (final RESTTopicV1 topic : topicItems) {
@@ -3313,30 +3325,27 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
                     /* Create the PropertyTagCollection to be used to update any data */
                     final RESTAssignedPropertyTagCollectionV1 updatePropertyTags = new RESTAssignedPropertyTagCollectionV1();
-                    
+
                     /* Get a list of all property tag items that exist for the current topic */
-                    final List<RESTAssignedPropertyTagCollectionItemV1> existingUniqueURLs = ComponentTopicV1.returnPropertyItems(topic,
-                            CommonConstants.FIXED_URL_PROP_TAG_ID);
+                    final List<RESTAssignedPropertyTagCollectionItemV1> existingUniqueURLs = ComponentTopicV1
+                            .returnPropertyItems(topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
 
                     RESTAssignedPropertyTagV1 existingUniqueURL = null;
-                    
+
                     // Remove any Duplicate Fixed URL's
                     for (int i = 0; i < existingUniqueURLs.size(); i++) {
                         final RESTAssignedPropertyTagCollectionItemV1 propertyTag = existingUniqueURLs.get(i);
                         if (propertyTag.getItem() == null)
                             continue;
 
-                        if (i == 0)
-                        {
+                        if (i == 0) {
                             existingUniqueURL = propertyTag.getItem();
-                        }
-                        else
-                        {
+                        } else {
                             updatePropertyTags.addRemoveItem(propertyTag.getItem());
                             topic.getProperties().getItems().remove(propertyTag);
                         }
                     }
-                    
+
                     if (existingUniqueURL == null || !existingUniqueURL.getValid()) {
                         /*
                          * generate the base url
@@ -3352,7 +3361,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                             final RESTTopicCollectionV1 queryTopics = restManager.getRESTClient().getJSONTopicsWithQuery(
                                     new PathSegmentImpl(query, false), expandString);
 
-                            if (queryTopics.getSize() != 0) {
+                            if (queryTopics.getSize() != 0 || processedFileNames.contains(baseUrlName + postFix)) {
                                 postFix = uniqueCount + "";
                             } else {
                                 break;
@@ -3375,16 +3384,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                                 final List<RESTAssignedPropertyTagV1> propertyTags = topic.getProperties().returnItems();
                                 for (final RESTAssignedPropertyTagV1 existing : propertyTags) {
                                     if (existing.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
-                                        if (found)
-                                        {
+                                        if (found) {
                                             /* If we've already found one then we need to remove any duplicates */
                                             updatePropertyTags.addRemoveItem(existing);
-                                        }
-                                        else
-                                        {
+                                        } else {
                                             found = true;
                                             existing.explicitSetValue(baseUrlName + postFix);
-                                            
+
                                             updatePropertyTags.addUpdateItem(existing);
                                         }
                                     }
@@ -3401,17 +3407,17 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                             }
                             processedFileNames.add(baseUrlName + postFix);
                         }
+                    } else {
+                        processedFileNames.add(existingUniqueURL.getValue());
                     }
-                    
+
                     /*
-                     * If we have changes then create a basic topic so that the property
-                     * tags can be updated.
+                     * If we have changes then create a basic topic so that the property tags can be updated.
                      */
-                    if (!updatePropertyTags.getItems().isEmpty())
-                    {
+                    if (!updatePropertyTags.getItems().isEmpty()) {
                         final RESTTopicV1 updateTopic = new RESTTopicV1();
                         updateTopic.setId(topic.getId());
-                        
+
                         updateTopic.explicitSetProperties(updatePropertyTags);
                         updateTopics.addItem(updateTopic);
                     }
@@ -3424,45 +3430,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 // Check if the app should be shutdown
                 if (isShuttingDown.get()) {
                     return false;
-                }
-
-                /*
-                 * Now loop over the revision topics, and make sure their fixed url property tags are unique. They only have to
-                 * be unique within the book.
-                 */
-                for (final RESTTopicV1 topic : topicItems) {
-
-                    // Is this a revision topic? If not, don't process it here
-                    if (topic.getRevisions() != null)
-                        continue;
-
-                    /* Get the existing property tag */
-                    RESTAssignedPropertyTagV1 existingUniqueURL = ComponentTopicV1.returnProperty(topic,
-                            CommonConstants.FIXED_URL_PROP_TAG_ID);
-
-                    /* Create a property tag if none exists */
-                    if (existingUniqueURL == null) {
-                        existingUniqueURL = new RESTAssignedPropertyTagV1();
-                        existingUniqueURL.setId(CommonConstants.FIXED_URL_PROP_TAG_ID);
-                        topic.getProperties().addItem(existingUniqueURL);
-                    }
-
-                    if (existingUniqueURL.getValue() == null || existingUniqueURL.getValue().isEmpty()
-                            || processedFileNames.contains(existingUniqueURL.getValue())) {
-
-                        final String baseUrlName = DocbookBuildUtilities.createURLTitle(topic.getTitle());
-                        String postFix = "";
-                        for (int uniqueCount = 1;; ++uniqueCount) {
-                            if (!processedFileNames.contains(baseUrlName + postFix)) {
-                                postFix = uniqueCount + "";
-                                break;
-                            }
-                        }
-
-                        /* Update the fixed url */
-                        existingUniqueURL.setValue(baseUrlName + postFix);
-                        processedFileNames.add(baseUrlName + postFix);
-                    }
                 }
 
                 /* If we got here, then the REST update went ok */
@@ -3479,6 +3446,57 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         /* did we blow the try count? */
         return success;
+    }
+
+    /**
+     * Ensure that the FixedURL Properties for revision topics are still valid inside the book. Revision topics can either be
+     * Normal Topics or Translated Topics (which are actually a saved normal revision).
+     * 
+     * @param topics The list of revision topics.
+     * @param processedFileNames A List of file names that has already been processed. (ie in the setFixedURLsPass() method)
+     */
+    protected void setFixedURLsForRevisionsPass(final U topics, final Set<String> processedFileNames) {
+        /*
+         * Now loop over the revision topics, and make sure their fixed url property tags are unique. They only have to be
+         * unique within the book.
+         */
+        final List<T> topicItems = topics.returnItems();
+        for (final T topic : topicItems) {
+
+            /* Get the existing property tag */
+            RESTAssignedPropertyTagV1 existingUniqueURL = ComponentTopicV1.returnProperty(topic,
+                    CommonConstants.FIXED_URL_PROP_TAG_ID);
+
+            /* Create a property tag if none exists */
+            if (existingUniqueURL == null) {
+                existingUniqueURL = new RESTAssignedPropertyTagV1();
+                existingUniqueURL.setId(CommonConstants.FIXED_URL_PROP_TAG_ID);
+                topic.getProperties().addItem(existingUniqueURL);
+            }
+
+            if (existingUniqueURL.getValue() == null || existingUniqueURL.getValue().isEmpty()
+                    || processedFileNames.contains(existingUniqueURL.getValue())) {
+
+                final String baseUrlName;
+                if (topic instanceof RESTTranslatedTopicV1) {
+                    baseUrlName = DocbookBuildUtilities.createURLTitle(((RESTTranslatedTopicV1) topic).getTopic().getTitle());
+                } else {
+                    baseUrlName = DocbookBuildUtilities.createURLTitle(topic.getTitle());
+                }
+                String postFix = "";
+                for (int uniqueCount = 1;; ++uniqueCount) {
+                    if (!processedFileNames.contains(baseUrlName + postFix)) {
+                        postFix = uniqueCount + "";
+                        break;
+                    }
+                }
+
+                /* Update the fixed url */
+                existingUniqueURL.setValue(baseUrlName + postFix);
+            }
+
+            processedFileNames.add(existingUniqueURL.getValue());
+        }
     }
 
     /**

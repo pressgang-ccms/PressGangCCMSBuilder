@@ -372,6 +372,12 @@ public class DocbookBuildUtilities {
         }
     }
     
+    /**
+     * Checks to see if the Rows, in XML Tables exceed the maximum number of columns.
+     *
+     * @param doc The XML DOM Document to be validated.
+     * @return True if the XML is valid, otherwise false.
+     */
     public static boolean validateTopicTables(final Document doc)
     {
         final NodeList tables = doc.getElementsByTagName("table");
