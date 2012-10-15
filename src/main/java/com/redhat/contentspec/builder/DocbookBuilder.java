@@ -108,6 +108,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             CSConstants.TECHNOLOGY_CATEGORY_ID, CSConstants.RELEASE_CATEGORY_ID, CSConstants.SEO_METADATA_CATEGORY_ID,
             CSConstants.COMMON_NAME_CATEGORY_ID, CSConstants.CONCERN_CATEGORY_ID, CSConstants.CONTENT_TYPE_CATEGORY_ID,
             CSConstants.PROGRAMMING_LANGUAGE_CATEGORY_ID);
+    private static final Integer MAX_URL_LENGTH = 4000;
 
     private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
@@ -1079,9 +1080,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                             final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                                     errorInvalidValidationTopic.getValue(), docbookBuildingOptions);
                             final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(topic.getXml());
-                            errorDatabase
-                                    .addError(topic, ErrorType.INVALID_CONTENT, BuilderConstants.ERROR_INVALID_XML_CONTENT
-                                            + " The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+                            errorDatabase.addError(topic, ErrorType.INVALID_CONTENT, BuilderConstants.ERROR_INVALID_XML_CONTENT
+                                    + " The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
                             topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
                         }
                     } catch (SAXException ex) {
@@ -1089,7 +1089,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                                 errorInvalidValidationTopic.getValue(), docbookBuildingOptions);
                         final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(topic.getXml());
                         errorDatabase.addError(topic, ErrorType.INVALID_CONTENT, BuilderConstants.ERROR_BAD_XML_STRUCTURE + " "
-                                + StringUtilities.escapeForXML(ex.getMessage()) + " The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+                                + StringUtilities.escapeForXML(ex.getMessage()) + " The processed XML is <programlisting>"
+                                + xmlStringInCDATA + "</programlisting>");
                         topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
                     }
                 }
@@ -1434,15 +1435,16 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     }
 
     /**
-     * TODO
+     * Wrap all of the topics, images, common content, etc... files into a ZIP Archive.
      * 
-     * @param contentSpec TODO
-     * @param requester TODO
-     * @param useFixedUrls TODO
-     * @return TODO
-     * @throws InvalidParameterException TODO
-     * @throws InternalProcessingException TODO
-     * @throws BuildProcessingException
+     * @param contentSpec The content specification object to be built.
+     * @param requester The User who requested the book be built.
+     * @param useFixedUrls If during processing the fixed urls should be used.
+     * @return A ZIP Archive containing all the information to build the book.
+     * @throws InternalProcessingException If an error occurred during the REST API call.
+     * @throws InvalidParameterException If an error occurred during the REST API call.
+     * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
+     *         converted to a DOM Document.
      */
     private HashMap<String, byte[]> doBuildZipPass(final ContentSpec contentSpec, final RESTUserV1 requester,
             final boolean useFixedUrls) throws InvalidParameterException, InternalProcessingException, BuildProcessingException {
@@ -1504,8 +1506,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         /* add the report chapter */
         if (docbookBuildingOptions.getShowReportPage()) {
-            final String compilerOutput = DocBookUtilities.addXMLBoilerplate(buildReportChapter(contentSpec, locale), this.escapedTitle
-                    + ".ent", "chapter");
+            final String compilerOutput = DocBookUtilities.addXMLBoilerplate(buildReportChapter(contentSpec, locale),
+                    this.escapedTitle + ".ent", "chapter");
             files.put(BOOK_LOCALE_FOLDER + "Report.xml", StringUtilities.getStringBytes(StringUtilities
                     .cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
             bookXIncludes.append("	<xi:include href=\"Report.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
@@ -2918,6 +2920,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * list the errors, providing links and basic topic data.
      * 
      * @param locale The locale to build the report chapter for.
+     * @param contentSpec The content spec object used to build the book.
      * @return The Docbook Report Chapter formatted as a String.
      */
     private String buildReportChapter(final ContentSpec contentSpec, final String locale) {
@@ -2969,51 +2972,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         // Add a link to show the zanata statistics
         if (clazz.equals(RESTTranslatedTopicV1.class)) {
-            final String zanataServerUrl = zanataDetails == null ? null : zanataDetails.getServer();
-            final String zanataProject = zanataDetails == null ? null : zanataDetails.getProject();
-            final String zanataVersion = zanataDetails == null ? null : zanataDetails.getVersion();
-
-            if (zanataServerUrl != null && !zanataServerUrl.isEmpty() && zanataProject != null && !zanataProject.isEmpty()
-                    && zanataVersion != null && !zanataVersion.isEmpty()) {
-                final StringBuilder zanataUrl = new StringBuilder(zanataDetails.getServer());
-
-                zanataUrl.append("webtrans/Application.html?project=" + zanataProject);
-                zanataUrl.append("&amp;");
-                zanataUrl.append("iteration=" + zanataVersion);
-                zanataUrl.append("&amp;");
-                zanataUrl.append("localeId=" + locale);
-
-                // Add all the Topic Zanata Ids
-                final List<T> topics = specDatabase.getAllTopics();
-                for (final T topic : topics) {
-                    // Check to make sure the topic has been pushed for translation
-                    if (!ComponentTranslatedTopicV1.returnIsDummyTopic(topic)
-                            || ComponentTranslatedTopicV1.hasBeenPushedForTranslation((RESTTranslatedTopicV1) topic)) {
-                        zanataUrl.append("&amp;");
-                        zanataUrl.append("doc=" + ComponentTranslatedTopicV1.returnZanataId((RESTTranslatedTopicV1) topic));
-                    }
-                }
-                
-                // Add the CSP Zanata ID
-                final RESTTranslatedTopicCollectionV1 translatedTopics = this.getTranslatedTopics(new HashSet<Integer>(
-                        CollectionUtilities.toArrayList(contentSpec.getId())), null);
-
-                if (translatedTopics != null && translatedTopics.getItems() != null && !translatedTopics.getItems().isEmpty()) {
-                    final RESTTranslatedTopicV1 translatedContentSpec = translatedTopics.returnItems().get(0);
-                    
-                    // Check to make sure the Content Spec has been pushed for translation
-                    if (!ComponentTranslatedTopicV1.returnIsDummyTopic(translatedContentSpec)
-                            || ComponentTranslatedTopicV1.hasBeenPushedForTranslation(translatedContentSpec)) {
-                        zanataUrl.append("&amp;");
-                        zanataUrl.append("doc=" + ComponentTranslatedTopicV1.returnZanataId(translatedContentSpec));
-                    }
-                }
-
-                final String para = DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(zanataUrl.toString(),
-                        "View Topics and Statistics in Zanata"));
-
-                reportChapter += para;
-            }
+            reportChapter += generateAllTopicZanataUrl(contentSpec);
         }
 
         final boolean showEditorLinks = this.docbookBuildingOptions.getInsertEditorLinks();
@@ -3052,6 +3011,88 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         return DocBookUtilities.buildChapter(reportChapter, "Status Report");
+    }
+
+    /**
+     * Generates a set of docbook paragraphs containing links to all the Topics in Zanata.
+     * 
+     * @param contentSpec The content spec object used to build the book.
+     * @return The docbook generated content.
+     */
+    protected String generateAllTopicZanataUrl(final ContentSpec contentSpec) {
+        final String zanataServerUrl = zanataDetails == null ? null : zanataDetails.getServer();
+        final String zanataProject = zanataDetails == null ? null : zanataDetails.getProject();
+        final String zanataVersion = zanataDetails == null ? null : zanataDetails.getVersion();
+
+        String reportChapter = "";
+        if (zanataServerUrl != null && !zanataServerUrl.isEmpty() && zanataProject != null && !zanataProject.isEmpty()
+                && zanataVersion != null && !zanataVersion.isEmpty()) {
+
+            final List<StringBuilder> zanataUrls = new ArrayList<StringBuilder>();
+            StringBuilder zanataUrl = new StringBuilder(zanataDetails.getServer());
+            zanataUrls.add(zanataUrl);
+
+            zanataUrl.append("webtrans/Application.html?project=" + zanataProject);
+            zanataUrl.append("&amp;");
+            zanataUrl.append("iteration=" + zanataVersion);
+            zanataUrl.append("&amp;");
+            zanataUrl.append("localeId=" + locale);
+
+            // Add all the Topic Zanata Ids
+            final List<T> topics = specDatabase.getAllTopics();
+            for (final T topic : topics) {
+                // Check to make sure the topic has been pushed for translation
+                if (!ComponentTranslatedTopicV1.returnIsDummyTopic(topic)
+                        || ComponentTranslatedTopicV1.hasBeenPushedForTranslation((RESTTranslatedTopicV1) topic)) {
+                    zanataUrl.append("&amp;");
+                    zanataUrl.append("doc=" + ComponentTranslatedTopicV1.returnZanataId((RESTTranslatedTopicV1) topic));
+                }
+
+                // If the URL gets too big create a second, third, etc... URL.
+                if (zanataUrl.length() > MAX_URL_LENGTH) {
+                    zanataUrl = new StringBuilder(zanataDetails.getServer());
+                    zanataUrls.add(zanataUrl);
+
+                    zanataUrl.append("webtrans/Application.html?project=" + zanataProject);
+                    zanataUrl.append("&amp;");
+                    zanataUrl.append("iteration=" + zanataVersion);
+                    zanataUrl.append("&amp;");
+                    zanataUrl.append("localeId=" + locale);
+                }
+            }
+
+            // Add the CSP Zanata ID
+            final RESTTranslatedTopicCollectionV1 translatedTopics = this.getTranslatedTopics(new HashSet<Integer>(
+                    CollectionUtilities.toArrayList(contentSpec.getId())), null);
+
+            if (translatedTopics != null && translatedTopics.getItems() != null && !translatedTopics.getItems().isEmpty()) {
+                final RESTTranslatedTopicV1 translatedContentSpec = translatedTopics.returnItems().get(0);
+
+                // Check to make sure the Content Spec has been pushed for translation
+                if (!ComponentTranslatedTopicV1.returnIsDummyTopic(translatedContentSpec)
+                        || ComponentTranslatedTopicV1.hasBeenPushedForTranslation(translatedContentSpec)) {
+                    zanataUrl.append("&amp;");
+                    zanataUrl.append("doc=" + ComponentTranslatedTopicV1.returnZanataId(translatedContentSpec));
+                }
+            }
+
+            // Generate the docbook elements for the links
+            for (int i = 1; i <= zanataUrls.size(); i++) {
+                final String para;
+
+                if (zanataUrls.size() > 1) {
+                    para = DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(zanataUrls.get(i - 1).toString(),
+                            "View Topics and Statistics in Zanata (" + i + "/" + zanataUrls.size() + ")"));
+                } else {
+                    para = DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(zanataUrl.toString(),
+                            "View Topics and Statistics in Zanata"));
+                }
+
+                reportChapter += para;
+            }
+        }
+
+        return reportChapter;
     }
 
     /**
