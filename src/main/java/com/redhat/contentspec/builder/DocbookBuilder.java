@@ -3050,16 +3050,18 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             // Add all the Topic Zanata Ids
             final List<T> topics = specDatabase.getAllTopics();
+            int andCount = 0;
             for (final T topic : topics) {
                 // Check to make sure the topic has been pushed for translation
                 if (!ComponentTranslatedTopicV1.returnIsDummyTopic(topic)
                         || ComponentTranslatedTopicV1.hasBeenPushedForTranslation((RESTTranslatedTopicV1) topic)) {
                     zanataUrl.append("&amp;");
+                    andCount++;
                     zanataUrl.append("doc=" + ComponentTranslatedTopicV1.returnZanataId((RESTTranslatedTopicV1) topic));
                 }
 
                 // If the URL gets too big create a second, third, etc... URL.
-                if (zanataUrl.length() > MAX_URL_LENGTH) {
+                if (zanataUrl.length() > (MAX_URL_LENGTH + andCount * 4)) {
                     zanataUrl = new StringBuilder(zanataDetails.getServer());
                     zanataUrls.add(zanataUrl);
 
