@@ -1113,8 +1113,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         return;
                     }
 
-                    specTopic.setTopic(topic.clone(false));
-                    specTopic.setXmlDocument((Document) topicDoc.cloneNode(true));
+                    /* 
+                     * Only set the topic for the spec topic if it matches the spec topic revision. 
+                     */
+                    if ((specTopic.getRevision() == null && (specTopic.getTopic() == null || specTopic.getTopic().getRevision() >= topic
+                            .getRevision())) || specTopic.getRevision() >= topic.getRevision()) {
+                        specTopic.setTopic(topic.clone(false));
+                        specTopic.setXmlDocument((Document) topicDoc.cloneNode(true));
+                    }
                 }
 
             }
