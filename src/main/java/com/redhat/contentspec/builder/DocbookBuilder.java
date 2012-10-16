@@ -1117,8 +1117,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     }
 
                     /*
-                     * Only set the topic for the spec topic if it matches the spec topic revision.
-                     * If the Revision is null then we need to ensure 
+                     * Only set the topic for the spec topic if it matches the spec topic revision. If the Spec Topic Revision
+                     * is null then we need to ensure that we get the latest version of the topic that was downloaded.
                      */
                     if ((specTopic.getRevision() == null && (specTopic.getTopic() == null || specTopic.getTopic().getRevision() >= topicRevision))
                             || (specTopic.getRevision() != null && specTopic.getRevision() >= topicRevision)) {
@@ -1160,7 +1160,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         /* Create the related topics database to be used for CSP builds */
         final TocTopicDatabase<T> relatedTopicsDatabase = new TocTopicDatabase<T>();
-        final List<T> topics = specDatabase.getAllTopics();
+        final List<T> topics = specDatabase.getAllTopics(true);
         relatedTopicsDatabase.setTopics(topics);
 
         for (final SpecTopic specTopic : specTopics) {
