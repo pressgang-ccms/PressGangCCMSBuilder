@@ -1035,10 +1035,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
                 /* Find the Topic ID */
                 final Integer topicId;
+                final Integer topicRevision;
                 if (topic instanceof RESTTranslatedTopicV1) {
                     topicId = ((RESTTranslatedTopicV1) topic).getTopicId();
+                    topicRevision = ((RESTTranslatedTopicV1) topic).getTopicRevision();
                 } else {
                     topicId = topic.getId();
+                    topicRevision = topic.getRevision();
                 }
 
                 Document topicDoc = null;
@@ -1113,11 +1116,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         return;
                     }
 
-                    /* 
-                     * Only set the topic for the spec topic if it matches the spec topic revision. 
+                    /*
+                     * Only set the topic for the spec topic if it matches the spec topic revision.
+                     * If the Revision is null then we need to ensure 
                      */
-                    if ((specTopic.getRevision() == null && (specTopic.getTopic() == null || specTopic.getTopic().getRevision() >= topic
-                            .getRevision())) || specTopic.getRevision() >= topic.getRevision()) {
+                    if ((specTopic.getRevision() == null && (specTopic.getTopic() == null || specTopic.getTopic().getRevision() >= topicRevision))
+                            || (specTopic.getRevision() != null && specTopic.getRevision() >= topicRevision)) {
                         specTopic.setTopic(topic.clone(false));
                         specTopic.setXmlDocument((Document) topicDoc.cloneNode(true));
                     }
