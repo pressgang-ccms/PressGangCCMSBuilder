@@ -18,6 +18,7 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions
 	private String commonContentDirectory = null;
 	private Boolean draft = false;
 	private List<String> revisionMessages = null;
+	private Boolean useLatestVersions = false;
 
 	public CSDocbookBuildingOptions()
 	{
@@ -138,5 +139,13 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions
     public void setRevisionMessages(final List<String> revisionMessage)
     {
         this.revisionMessages = revisionMessage;
+    }
+
+    public Boolean getUseLatestVersions() {
+        return useLatestVersions;
+    }
+
+    public void setUseLatestVersions(Boolean useLatestVersions) {
+        this.useLatestVersions = useLatestVersions;
     }
 }

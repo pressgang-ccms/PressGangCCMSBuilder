@@ -545,7 +545,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         final Set<Integer> topicIds = new HashSet<Integer>();
         final Set<Pair<Integer, Integer>> topicRevisions = new HashSet<Pair<Integer, Integer>>();
         for (final Pair<Integer, Integer> topicToRevision : topicToRevisions) {
-            if (topicToRevision.getSecond() != null) {
+            if (topicToRevision.getSecond() != null && !docbookBuildingOptions.getUseLatestVersions()) {
                 topicRevisions.add(topicToRevision);
             } else {
                 topicIds.add(topicToRevision.getFirst());
@@ -1116,14 +1116,20 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         return;
                     }
 
-                    /*
-                     * Only set the topic for the spec topic if it matches the spec topic revision. If the Spec Topic Revision
-                     * is null then we need to ensure that we get the latest version of the topic that was downloaded.
-                     */
-                    if ((specTopic.getRevision() == null && (specTopic.getTopic() == null || specTopic.getTopic().getRevision() >= topicRevision))
-                            || (specTopic.getRevision() != null && specTopic.getRevision() >= topicRevision)) {
+                    if (docbookBuildingOptions.getUseLatestVersions())
+                    {
                         specTopic.setTopic(topic.clone(false));
                         specTopic.setXmlDocument((Document) topicDoc.cloneNode(true));
+                    } else {
+                        /*
+                         * Only set the topic for the spec topic if it matches the spec topic revision. If the Spec Topic Revision
+                         * is null then we need to ensure that we get the latest version of the topic that was downloaded.
+                         */
+                        if ((specTopic.getRevision() == null && (specTopic.getTopic() == null || specTopic.getTopic().getRevision() >= topicRevision))
+                                || (specTopic.getRevision() != null && specTopic.getRevision() >= topicRevision)) {
+                            specTopic.setTopic(topic.clone(false));
+                            specTopic.setXmlDocument((Document) topicDoc.cloneNode(true));
+                        }
                     }
                 }
 
@@ -1168,6 +1174,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             if (isShuttingDown.get()) {
                 return;
             }
+            
+            if (log.isDebugEnabled())
+                log.debug("\tProcessing SpecTopic " + specTopic.getId() + (specTopic.getRevision() != null ? (", Revision " + specTopic.getRevision()) : ""));
 
             ++current;
             final int percent = Math.round(current / total * 100);
@@ -1178,6 +1187,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             final T topic = (T) specTopic.getTopic();
             final Document doc = specTopic.getXmlDocument();
+            
+            assert doc != null;
+            assert topic != null;
 
             final XMLPreProcessor xmlPreProcessor = new XMLPreProcessor();
 
@@ -3115,8 +3127,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     private void processImageLocations() {
         final List<Integer> topicIds = specDatabase.getTopicIds();
         for (final Integer topicId : topicIds) {
+            // TODO Deal with different spec topic revisions in this method once images are fixed
             final SpecTopic specTopic = specDatabase.getSpecTopicsForTopicID(topicId).get(0);
             final T topic = (T) specTopic.getTopic();
+            
+            if (log.isDebugEnabled())
+                log.debug("\tProcessing SpecTopic " + specTopic.getId() + (specTopic.getRevision() != null ? (", Revision " + specTopic.getRevision()) : ""));
 
             /*
              * Images have to be in the image folder in Publican. Here we loop through all the imagedata elements and fix up any
