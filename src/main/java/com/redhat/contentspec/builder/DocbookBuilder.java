@@ -489,33 +489,40 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 final Set<String> linkIds = new HashSet<String>();
                 DocbookBuildUtilities.getTopicLinkIds(doc, linkIds);
 
+                final List<String> invalidLinks = new ArrayList<String>();
+                
                 for (final String linkId : linkIds) {
                     /*
                      * Check if the xref linkend id exists in the book. If the Tag Starts with our error syntax then we can
                      * ignore it
                      */
                     if (!bookIdAttributes.contains(linkId) && !linkId.startsWith(RESTv1Constants.ERROR_XREF_ID_PREFIX)) {
-                        final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
-                                errorInvalidValidationTopic.getValue(), docbookBuildingOptions);
+                        invalidLinks.add("\"" + linkId + "\"");
+                    }
+                }
+                
+                // If there were any invalid links then replace the XML with an error template and add an error message.
+                if (!invalidLinks.isEmpty()) {
+                    final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
+                            errorInvalidValidationTopic.getValue(), docbookBuildingOptions);
 
-                        final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(XMLUtilities.convertNodeToString(doc,
-                                verbatimElements, inlineElements, contentsInlineElements, true));
-                        errorDatabase.addError(topic, ErrorType.INVALID_CONTENT,
-                                "Topic references non-exist ID's in links. The processed XML is <programlisting>"
-                                        + xmlStringInCDATA + "</programlisting>");
+                    final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(XMLUtilities.convertNodeToString(doc,
+                            verbatimElements, inlineElements, contentsInlineElements, true));
+                    errorDatabase.addError(topic, ErrorType.INVALID_CONTENT,
+                            "The following link(s) " + CollectionUtilities.toSeperatedString(invalidLinks, ",") + " don't exist. The processed XML is <programlisting>"
+                                    + xmlStringInCDATA + "</programlisting>");
 
-                        /* Find the Topic ID */
-                        final Integer topicId;
-                        if (topic instanceof RESTTranslatedTopicV1) {
-                            topicId = ((RESTTranslatedTopicV1) topic).getTopicId();
-                        } else {
-                            topicId = topic.getId();
-                        }
+                    /* Find the Topic ID */
+                    final Integer topicId;
+                    if (topic instanceof RESTTranslatedTopicV1) {
+                        topicId = ((RESTTranslatedTopicV1) topic).getTopicId();
+                    } else {
+                        topicId = topic.getId();
+                    }
 
-                        final List<SpecTopic> specTopics = specDatabase.getSpecTopicsForTopicID(topicId);
-                        for (final SpecTopic spec : specTopics) {
-                            setSpecTopicXMLForError(spec, topicXMLErrorTemplate, useFixedUrls);
-                        }
+                    final List<SpecTopic> specTopics = specDatabase.getSpecTopicsForTopicID(topicId);
+                    for (final SpecTopic spec : specTopics) {
+                        setSpecTopicXMLForError(spec, topicXMLErrorTemplate, useFixedUrls);
                     }
                 }
             }
@@ -1116,16 +1123,17 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         return;
                     }
 
-                    if (docbookBuildingOptions.getUseLatestVersions())
-                    {
+                    if (docbookBuildingOptions.getUseLatestVersions()) {
                         specTopic.setTopic(topic.clone(false));
                         specTopic.setXmlDocument((Document) topicDoc.cloneNode(true));
                     } else {
                         /*
-                         * Only set the topic for the spec topic if it matches the spec topic revision. If the Spec Topic Revision
-                         * is null then we need to ensure that we get the latest version of the topic that was downloaded.
+                         * Only set the topic for the spec topic if it matches the spec topic revision. If the Spec Topic
+                         * Revision is null then we need to ensure that we get the latest version of the topic that was
+                         * downloaded.
                          */
-                        if ((specTopic.getRevision() == null && (specTopic.getTopic() == null || specTopic.getTopic().getRevision() >= topicRevision))
+                        if ((specTopic.getRevision() == null && (specTopic.getTopic() == null || specTopic.getTopic()
+                                .getRevision() >= topicRevision))
                                 || (specTopic.getRevision() != null && specTopic.getRevision() >= topicRevision)) {
                             specTopic.setTopic(topic.clone(false));
                             specTopic.setXmlDocument((Document) topicDoc.cloneNode(true));
@@ -1174,9 +1182,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             if (isShuttingDown.get()) {
                 return;
             }
-            
+
             if (log.isDebugEnabled())
-                log.debug("\tProcessing SpecTopic " + specTopic.getId() + (specTopic.getRevision() != null ? (", Revision " + specTopic.getRevision()) : ""));
+                log.debug("\tProcessing SpecTopic " + specTopic.getId()
+                        + (specTopic.getRevision() != null ? (", Revision " + specTopic.getRevision()) : ""));
 
             ++current;
             final int percent = Math.round(current / total * 100);
@@ -1187,7 +1196,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             final T topic = (T) specTopic.getTopic();
             final Document doc = specTopic.getXmlDocument();
-            
+
             assert doc != null;
             assert topic != null;
 
@@ -1510,7 +1519,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         if (docbookBuildingOptions.getInsertEditorLinks() && clazz == RESTTranslatedTopicV1.class) {
-            final String translateLinkChapter = DocBookUtilities.addXMLBoilerplate(
+            final String translateLinkChapter = DocBookUtilities.addDocbook45XMLDoctype(
                     buildTranslateCSChapter(contentSpec, locale), this.escapedTitle + ".ent", "chapter");
             files.put(BOOK_LOCALE_FOLDER + "Translate.xml", StringUtilities.getStringBytes(StringUtilities
                     .cleanTextForXML(translateLinkChapter == null ? "" : translateLinkChapter)));
@@ -1519,7 +1528,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         /* add any compiler errors */
         if (!docbookBuildingOptions.getSuppressErrorsPage() && errorDatabase.hasItems(locale)) {
-            final String compilerOutput = DocBookUtilities.addXMLBoilerplate(buildErrorChapter(locale), this.escapedTitle
+            final String compilerOutput = DocBookUtilities.addDocbook45XMLDoctype(buildErrorChapter(locale), this.escapedTitle
                     + ".ent", "chapter");
             files.put(BOOK_LOCALE_FOLDER + "Errors.xml", StringUtilities.getStringBytes(StringUtilities
                     .cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
@@ -1528,7 +1537,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         /* add the report chapter */
         if (docbookBuildingOptions.getShowReportPage()) {
-            final String compilerOutput = DocBookUtilities.addXMLBoilerplate(buildReportChapter(contentSpec, locale),
+            final String compilerOutput = DocBookUtilities.addDocbook45XMLDoctype(buildReportChapter(contentSpec, locale),
                     this.escapedTitle + ".ent", "chapter");
             files.put(BOOK_LOCALE_FOLDER + "Report.xml", StringUtilities.getStringBytes(StringUtilities
                     .cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
@@ -2022,7 +2031,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         createSectionXML(files, level, chapter, chapter.getDocumentElement(), useFixedUrls);
 
         // Add the boiler plate text and add the chapter to the book
-        final String chapterString = DocBookUtilities.addXMLBoilerplate(
+        final String chapterString = DocBookUtilities.addDocbook45XMLDoctype(
                 XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true),
                 this.escapedTitle + ".ent", elementName);
         try {
@@ -2077,7 +2086,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         createSectionXML(files, level, chapter, chapter.getDocumentElement(), useFixedUrls);
 
         // Add the boiler plate text and add the chapter to the book
-        final String chapterString = DocBookUtilities.addXMLBoilerplate(
+        final String chapterString = DocBookUtilities.addDocbook45XMLDoctype(
                 XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true),
                 this.escapedTitle + ".ent", elementName);
         try {
@@ -2228,7 +2237,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             topicFileName += ".xml";
 
-            final String topicXML = DocBookUtilities.addXMLBoilerplate(XMLUtilities.convertNodeToString(
+            final String topicXML = DocBookUtilities.addDocbook45XMLDoctype(XMLUtilities.convertNodeToString(
                     specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements, true),
                     this.escapedTitle + ".ent", DocBookUtilities.TOPIC_ROOT_NODE_NAME);
             try {
@@ -2533,7 +2542,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         // Add the Author_Group.xml to the book
-        fixedAuthorGroupXml = DocBookUtilities.addXMLBoilerplate(
+        fixedAuthorGroupXml = DocBookUtilities.addDocbook45XMLDoctype(
                 XMLUtilities.convertNodeToString(authorDoc, verbatimElements, inlineElements, contentsInlineElements, true),
                 this.escapedTitle + ".ent", "authorgroup");
         try {
@@ -2620,7 +2629,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         // Add the revision history to the book
         final String fixedRevisionHistoryXml = DocBookUtilities
-                .addXMLBoilerplate(XMLUtilities.convertNodeToString(revHistoryDoc, verbatimElements, inlineElements,
+                .addDocbook45XMLDoctype(XMLUtilities.convertNodeToString(revHistoryDoc, verbatimElements, inlineElements,
                         contentsInlineElements, true), this.escapedTitle + ".ent", "appendix");
         try {
             files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", fixedRevisionHistoryXml.getBytes("UTF-8"));
@@ -3130,9 +3139,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             // TODO Deal with different spec topic revisions in this method once images are fixed
             final SpecTopic specTopic = specDatabase.getSpecTopicsForTopicID(topicId).get(0);
             final T topic = (T) specTopic.getTopic();
-            
+
             if (log.isDebugEnabled())
-                log.debug("\tProcessing SpecTopic " + specTopic.getId() + (specTopic.getRevision() != null ? (", Revision " + specTopic.getRevision()) : ""));
+                log.debug("\tProcessing SpecTopic " + specTopic.getId()
+                        + (specTopic.getRevision() != null ? (", Revision " + specTopic.getRevision()) : ""));
 
             /*
              * Images have to be in the image folder in Publican. Here we loop through all the imagedata elements and fix up any
