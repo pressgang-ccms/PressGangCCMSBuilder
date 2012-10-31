@@ -6,7 +6,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
 import org.jboss.pressgang.ccms.contentspec.rest.RESTManager;
-import org.jboss.pressgang.ccms.contentspec.rest.RESTReader;
 import org.jboss.pressgang.ccms.docbook.constants.DocbookBuilderConstants;
 import org.jboss.pressgang.ccms.rest.v1.collections.RESTTopicCollectionV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.RESTTranslatedTopicCollectionV1;
@@ -30,15 +29,12 @@ import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
  * A class that provides the ability to build a book from content specifications.
  *
  * @author lnewson
- * @author alabbas
  */
 public class ContentSpecBuilder implements ShutdownAbleApp
 {
 	private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
 	private final AtomicBoolean shutdown = new AtomicBoolean(false);
 
-	@SuppressWarnings("unused")
-	private final RESTReader reader;
 	private final RESTBlobConstantV1 rocbookdtd;
 	private final RESTManager restManager;
 	private DocbookBuilder<?, ?, ?> docbookBuilder;
@@ -47,7 +43,6 @@ public class ContentSpecBuilder implements ShutdownAbleApp
 			throws InvalidParameterException, InternalProcessingException
 	{
 		this.restManager = restManager;
-		reader = restManager.getReader();
 		this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
 	}
 
@@ -104,7 +99,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp
 
 		docbookBuilder = new DocbookBuilder<RESTTopicV1, RESTTopicCollectionV1, RESTTopicCollectionItemV1>(restManager, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
 
-		final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, null);
+		final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions);
 
 		// Create the zip file
 		byte[] zipFile = null;
@@ -152,7 +147,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp
 
         docbookBuilder = new DocbookBuilder<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1, RESTTranslatedTopicCollectionItemV1>(restManager, rocbookdtd, CommonConstants.DEFAULT_LOCALE, locale);
 
-        final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, null, zanataDetails);
+        final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, zanataDetails);
 
         // Create the zip file
         byte[] zipFile = null;

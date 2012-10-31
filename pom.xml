@@ -17,6 +17,33 @@
 		<com.ibm.ico.version>4.8.1.1</com.ibm.ico.version>
 	</properties>
 
+	<build>
+		<plugins>
+			<plugin>
+        <groupId>org.zanata</groupId>
+        <artifactId>zanata-maven-plugin</artifactId>
+        <version>1.7.1</version>
+      </plugin>
+		</plugins>
+	</build>
+
+	<pluginRepositories>
+    <pluginRepository>
+      <id>jboss-public-repository-group</id>
+      <name>JBoss Public Repository Group</name>
+      <url>http://repository.jboss.org/nexus/content/groups/public/</url>
+      <layout>default</layout>
+      <releases>
+        <enabled>true</enabled>
+        <updatePolicy>never</updatePolicy>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+        <updatePolicy>daily</updatePolicy>
+      </snapshots>
+    </pluginRepository>
+  </pluginRepositories>
+
 	<dependencies>
 		<dependency>
 			<groupId>com.ibm.icu</groupId>

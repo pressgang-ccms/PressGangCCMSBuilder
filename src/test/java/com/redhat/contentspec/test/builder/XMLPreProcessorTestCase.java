@@ -3,7 +3,7 @@ package com.redhat.contentspec.test.builder;
 import java.util.Date;
 
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
-import org.jboss.pressgang.ccms.docbook.processing.XMLPreProcessor;
+import org.jboss.pressgang.ccms.docbook.processing.DocbookXMLPreProcessor;
 import org.jboss.pressgang.ccms.rest.v1.collections.RESTTagCollectionV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.RESTTopicCollectionV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.RESTTranslatedTopicCollectionV1;
@@ -23,8 +23,8 @@ import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 
 public class XMLPreProcessorTestCase {
-    private static final XMLPreProcessor topicPreProcessor = new XMLPreProcessor();
-    private static final XMLPreProcessor translatedTopicPreProcessor = new XMLPreProcessor();
+    private static final DocbookXMLPreProcessor topicPreProcessor = new DocbookXMLPreProcessor();
+    private static final DocbookXMLPreProcessor translatedTopicPreProcessor = new DocbookXMLPreProcessor();
     private static SpecTopic specTopic;
     private static SpecTopic specTranslatedTopic;
     private static RESTTopicV1 topic;

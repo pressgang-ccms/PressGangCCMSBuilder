@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -41,7 +42,7 @@ import org.jboss.pressgang.ccms.contentspec.rest.RESTReader;
 import org.jboss.pressgang.ccms.contentspec.sort.AuthorInformationComparator;
 import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
 import org.jboss.pressgang.ccms.docbook.constants.DocbookBuilderConstants;
-import org.jboss.pressgang.ccms.docbook.processing.XMLPreProcessor;
+import org.jboss.pressgang.ccms.docbook.processing.DocbookXMLPreProcessor;
 import org.jboss.pressgang.ccms.docbook.structures.TocTopicDatabase;
 import org.jboss.pressgang.ccms.docbook.structures.TopicErrorData;
 import org.jboss.pressgang.ccms.docbook.structures.TopicErrorDatabase;
@@ -103,50 +104,50 @@ import com.redhat.contentspec.structures.SpecDatabase;
 
 public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBaseCollectionV1<T, U, V>, V extends RESTBaseCollectionItemV1<T, U, V>>
         implements ShutdownAbleApp {
-    private static final Logger log = Logger.getLogger(DocbookBuilder.class);
-    private static final List<Integer> validKeywordCategoryIds = CollectionUtilities.toArrayList(
+    protected static final Logger log = Logger.getLogger(DocbookBuilder.class);
+    protected static final List<Integer> validKeywordCategoryIds = CollectionUtilities.toArrayList(
             CSConstants.TECHNOLOGY_CATEGORY_ID, CSConstants.RELEASE_CATEGORY_ID, CSConstants.SEO_METADATA_CATEGORY_ID,
             CSConstants.COMMON_NAME_CATEGORY_ID, CSConstants.CONCERN_CATEGORY_ID, CSConstants.CONTENT_TYPE_CATEGORY_ID,
             CSConstants.PROGRAMMING_LANGUAGE_CATEGORY_ID);
     private static final Integer MAX_URL_LENGTH = 4000;
 
-    private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
-    private final AtomicBoolean shutdown = new AtomicBoolean(false);
+    protected final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
+    protected final AtomicBoolean shutdown = new AtomicBoolean(false);
 
-    private final List<String> verbatimElements;
-    private final List<String> inlineElements;
-    private final List<String> contentsInlineElements;
+    protected final List<String> verbatimElements;
+    protected final List<String> inlineElements;
+    protected final List<String> contentsInlineElements;
 
-    private final RESTReader reader;
-    private final RESTManager restManager;
-    private final RESTBlobConstantV1 rocbookdtd;
-    private final String defaultLocale;
-    private final String translationLocale;
+    protected final RESTReader reader;
+    protected final RESTManager restManager;
+    protected final RESTBlobConstantV1 rocbookdtd;
+    protected final String defaultLocale;
+    protected final String translationLocale;
 
-    private ZanataDetails zanataDetails;
+    protected ZanataDetails zanataDetails;
     private String originalTitle;
     private String originalProduct;
 
     /** The StringConstant that holds the error template for a topic with no content. */
-    private final RESTStringConstantV1 errorEmptyTopic;
+    protected final RESTStringConstantV1 errorEmptyTopic;
     /** The StringConstant that holds the error template for a topic with invalid injection references. */
-    private final RESTStringConstantV1 errorInvalidInjectionTopic;
+    protected final RESTStringConstantV1 errorInvalidInjectionTopic;
     /** The StringConstant that holds the error template for a topic that failed validation. */
-    private final RESTStringConstantV1 errorInvalidValidationTopic;
+    protected final RESTStringConstantV1 errorInvalidValidationTopic;
     /** The StringConstant that holds the formatting XML element properties file. */
-    private final RESTStringConstantV1 xmlElementsProperties;
+    protected final RESTStringConstantV1 xmlElementsProperties;
 
     /** The Docbook/Formatting Building Options to be used when building. */
-    private CSDocbookBuildingOptions docbookBuildingOptions;
+    protected CSDocbookBuildingOptions docbookBuildingOptions;
     /** The options that specify what injections are allowed when building. */
-    private InjectionOptions injectionOptions;
+    protected InjectionOptions injectionOptions;
     /** The date of this build. */
-    private Date buildDate;
+    protected Date buildDate;
 
     /** The escaped version of the books title. */
-    private String escapedTitle;
+    protected String escapedTitle;
     /** The locale the book is to be built in. */
-    private String locale;
+    protected String locale;
 
     /** The root path for the books storage. */
     private String BOOK_FOLDER;
@@ -160,25 +161,28 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     private String BOOK_FILES_FOLDER;
 
     /** Jackson object mapper. */
-    private final ObjectMapper mapper = new ObjectMapper();
+    protected final ObjectMapper mapper = new ObjectMapper();
 
     /**
      * Holds the compiler errors that form the Errors.xml file in the compiled docbook.
      */
-    private TopicErrorDatabase<T> errorDatabase;;
+    protected TopicErrorDatabase<T> errorDatabase;;
 
     /**
      * Holds the SpecTopics and their XML that exist within the content specification.
      */
-    private SpecDatabase specDatabase;
+    protected SpecDatabase specDatabase;
 
     /**
      * Holds information on file url locations, which will be downloaded and included in the docbook zip file.
      */
-    private final ArrayList<TopicImageData<T>> imageLocations = new ArrayList<TopicImageData<T>>();
+    protected final ArrayList<TopicImageData<T>> imageLocations = new ArrayList<TopicImageData<T>>();
 
     /** The Topic class to be used for building. (RESTTranslatedTopicV1 or RESTTopicV1) */
-    private Class<T> clazz;
+    protected Class<T> clazz;
+
+    /** The set of Translation Constants to use when building */
+    protected Properties constantTranslatedStrings = new Properties();
 
     public DocbookBuilder(final RESTManager restManager, final RESTBlobConstantV1 rocbookDtd, final String defaultLocale)
             throws InvalidParameterException, InternalProcessingException, BuilderCreationException {
@@ -269,17 +273,19 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param contentSpec The content specification to build from.
      * @param requester The user who requested the build.
      * @param buildingOptions The options to be used when building.
-     * @param searchTagsUrl The search URL that lists the topics (used mainly from skynet builds).
      * @return Returns a mapping of file names/locations to files. This HashMap can be used to build a ZIP archive.
      * @throws BuildProcessingException Thrown if an unexpected Error occurs during processing. eg. A template file doesn't
      *         contain valid XML.
      * @throws BuilderCreationException Thrown if the builder is unable to start due to incorrect passed variables.
-     * @throws Exception Any other unexpected errors.
+     * @throws InternalProcessingException If an error occurred during the REST API call.
+     * @throws InvalidParameterException If an error occurred during the REST API call.
+     * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
+     *         converted to a DOM Document.
      */
     public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final RESTUserV1 requester,
-            final CSDocbookBuildingOptions buildingOptions, final String searchTagsUrl) throws BuilderCreationException,
-            BuildProcessingException, Exception {
-        return this.buildBook(contentSpec, requester, buildingOptions, searchTagsUrl, new ZanataDetails());
+            final CSDocbookBuildingOptions buildingOptions) throws BuilderCreationException, BuildProcessingException,
+            InvalidParameterException, InternalProcessingException {
+        return this.buildBook(contentSpec, requester, buildingOptions, new ZanataDetails());
     }
 
     /**
@@ -288,17 +294,19 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param contentSpec The content specification to build from.
      * @param requester The user who requested the build.
      * @param buildingOptions The options to be used when building.
-     * @param searchTagsUrl The search URL that lists the topics (used mainly from skynet builds).
      * @return Returns a mapping of file names/locations to files. This HashMap can be used to build a ZIP archive.
      * @throws BuildProcessingException Thrown if an unexpected Error occurs during processing. eg. A template file doesn't
      *         contain valid XML.
      * @throws BuilderCreationException Thrown if the builder is unable to start due to incorrect passed variables.
-     * @throws Exception Any other unexpected errors.
+     * @throws InternalProcessingException If an error occurred during the REST API call.
+     * @throws InvalidParameterException If an error occurred during the REST API call.
+     * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
+     *         converted to a DOM Document.
      */
     @SuppressWarnings("unchecked")
     public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final RESTUserV1 requester,
-            final CSDocbookBuildingOptions buildingOptions, final String searchTagsUrl, final ZanataDetails zanataDetails)
-            throws BuilderCreationException, BuildProcessingException, Exception {
+            final CSDocbookBuildingOptions buildingOptions, final ZanataDetails zanataDetails) throws BuilderCreationException,
+            BuildProcessingException, InvalidParameterException, InternalProcessingException {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
         }
@@ -390,6 +398,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         if (translationLocale != null) {
             pullTranslations(contentSpec);
         }
+        loadConstantTranslations(locale);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -417,7 +426,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         validateTopicLinks(bookIdAttributes, fixedUrlsSuccess);
 
         // second topic pass to set the ids and process injections
-        doSpecTopicPass(contentSpec, searchTagsUrl, usedIdAttributes, fixedUrlsSuccess, BuilderConstants.BUILD_NAME);
+        doSpecTopicPass(contentSpec, usedIdAttributes, fixedUrlsSuccess, BuilderConstants.BUILD_NAME);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -435,6 +444,38 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         return doBuildZipPass(contentSpec, requester, fixedUrlsSuccess);
+    }
+
+    /**
+     * Load the Constant Translated Strings from the local properties file.
+     * 
+     * @param locale The locale the book is being built in.
+     */
+    protected void loadConstantTranslations(final String locale) {
+        
+        final Properties defaultProperties = new Properties();
+
+        // Load the default properties
+        final URL defaultUrl = ClassLoader.getSystemResource("Constants.properties");
+        if (defaultUrl != null) {
+            try {
+                defaultProperties.load(new InputStreamReader(defaultUrl.openStream(), "UTF-8"));
+            } catch (IOException ex) {
+                log.debug(ex);
+            }
+        }
+        
+        constantTranslatedStrings = new Properties(defaultProperties);
+
+        // Load the translated properties
+        final URL url = ClassLoader.getSystemResource("Constants-" + locale + ".properties");
+        if (url != null) {
+            try {
+                constantTranslatedStrings.load(new InputStreamReader(url.openStream(), "UTF-8"));
+            } catch (IOException ex) {
+                log.debug(ex);
+            }
+        }
     }
 
     /**
@@ -490,7 +531,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 DocbookBuildUtilities.getTopicLinkIds(doc, linkIds);
 
                 final List<String> invalidLinks = new ArrayList<String>();
-                
+
                 for (final String linkId : linkIds) {
                     /*
                      * Check if the xref linkend id exists in the book. If the Tag Starts with our error syntax then we can
@@ -500,7 +541,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         invalidLinks.add("\"" + linkId + "\"");
                     }
                 }
-                
+
                 // If there were any invalid links then replace the XML with an error template and add an error message.
                 if (!invalidLinks.isEmpty()) {
                     final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
@@ -509,8 +550,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(XMLUtilities.convertNodeToString(doc,
                             verbatimElements, inlineElements, contentsInlineElements, true));
                     errorDatabase.addError(topic, ErrorType.INVALID_CONTENT,
-                            "The following link(s) " + CollectionUtilities.toSeperatedString(invalidLinks, ",") + " don't exist. The processed XML is <programlisting>"
-                                    + xmlStringInCDATA + "</programlisting>");
+                            "The following link(s) " + CollectionUtilities.toSeperatedString(invalidLinks, ",")
+                                    + " don't exist. The processed XML is <programlisting>" + xmlStringInCDATA
+                                    + "</programlisting>");
 
                     /* Find the Topic ID */
                     final Integer topicId;
@@ -1152,16 +1194,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * Topics XML.
      * 
      * @param contentSpec The content specification used to build the book.
-     * @param searchTagsUrl The URL for the search to list the topics in the book.
      * @param usedIdAttributes The set of ids that have been used in the set of topics in the content spec.
      * @param useFixedUrls If during processing the fixed urls should be used.
      * @param buildName A specific name for the build to be used in bug links.
      * @throws BuildProcessingException
      */
     @SuppressWarnings("unchecked")
-    private void doSpecTopicPass(final ContentSpec contentSpec, final String searchTagsUrl,
-            final Map<Integer, Set<String>> usedIdAttributes, final boolean useFixedUrls, final String buildName)
-            throws BuildProcessingException {
+    private void doSpecTopicPass(final ContentSpec contentSpec, final Map<Integer, Set<String>> usedIdAttributes,
+            final boolean useFixedUrls, final String buildName) throws BuildProcessingException {
         log.info("Doing " + locale + " Spec Topic Pass");
         final List<SpecTopic> specTopics = specDatabase.getAllSpecTopics();
 
@@ -1200,7 +1240,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             assert doc != null;
             assert topic != null;
 
-            final XMLPreProcessor xmlPreProcessor = new XMLPreProcessor();
+            final DocbookXMLPreProcessor xmlPreProcessor = new DocbookXMLPreProcessor(constantTranslatedStrings);
 
             if (doc != null) {
                 /* process the conditional statements */
@@ -1254,7 +1294,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 } else {
                     /* add the standard boilerplate xml */
                     xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, contentSpec.getBugzillaOptions(),
-                            docbookBuildingOptions, buildName, searchTagsUrl, buildDate, zanataDetails);
+                            docbookBuildingOptions, buildName, buildDate, zanataDetails);
 
                     /*
                      * make sure the XML is valid docbook after the standard processing has been done
@@ -1301,7 +1341,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      */
     @SuppressWarnings("unchecked")
     protected boolean processSpecTopicInjections(final ContentSpec contentSpec, final SpecTopic specTopic,
-            final XMLPreProcessor xmlPreProcessor, final TocTopicDatabase<T> relatedTopicsDatabase, final boolean useFixedUrls) {
+            final DocbookXMLPreProcessor xmlPreProcessor, final TocTopicDatabase<T> relatedTopicsDatabase,
+            final boolean useFixedUrls) {
         final T topic = (T) specTopic.getTopic();
         final Document doc = specTopic.getXmlDocument();
         final Level baseLevel = contentSpec.getBaseLevel();
@@ -1689,6 +1730,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         // Setup Preface.xml
         if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
             String fixedPrefaceXml = prefaceXmlTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
+            
+            final String prefaceTitleTranslation = constantTranslatedStrings.getProperty("PREFACE");
+            if (prefaceTitleTranslation != null) {
+                fixedPrefaceXml = fixedPrefaceXml.replace("<title>Preface</title>", "<title>" + prefaceTitleTranslation + "</title>");
+            }
+            
             try {
                 files.put(BOOK_LOCALE_FOLDER + "Preface.xml", fixedPrefaceXml.getBytes("UTF-8"));
             } catch (UnsupportedEncodingException e) {
@@ -2583,6 +2630,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         revHistoryDoc.getDocumentElement().setAttribute("id", "appe-" + escapedTitle + "-Revision_History");
+        
+        final String reportHistoryTitleTranslation = constantTranslatedStrings.getProperty("REVISION_HISTORY");
+        if (reportHistoryTitleTranslation != null) {
+            DocBookUtilities.setRootElementTitle(reportHistoryTitleTranslation, revHistoryDoc);
+        }
 
         /* Find the revhistory node */
         final Element revHistory;
@@ -2709,11 +2761,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         lastName.setTextContent(authorInfo.getLastName());
         author.appendChild(lastName);
 
-        if (authorInfo.getEmail() != null) {
-            final Element email = xmlDoc.createElement("email");
-            email.setTextContent(authorInfo.getEmail());
-            author.appendChild(email);
-        }
+        final Element email = xmlDoc.createElement("email");
+        email.setTextContent(authorInfo.getEmail() == null ? BuilderConstants.DEFAULT_EMAIL : authorInfo.getEmail());
+        author.appendChild(email);
 
         // Create the Revision Messages
         final Element revDescription = xmlDoc.createElement("revdescription");
