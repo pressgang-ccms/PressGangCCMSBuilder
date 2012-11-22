@@ -14,8 +14,10 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions
 	private Map<String, String> overrides = new HashMap<String, String>();
 	private Boolean allowEmptySections = false;
 	private Boolean showReportPage = false;
+	private String locale = null;
 	private String commonContentLocale = null;
 	private String commonContentDirectory = null;
+	private String outputLocale = null;
 	private Boolean draft = false;
 	private List<String> revisionMessages = null;
 	private Boolean useLatestVersions = false;
@@ -101,7 +103,15 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions
 		this.showReportPage = showReportPage;
 	}
 
-	public String getCommonContentLocale()
+	public String getLocale() {
+        return locale;
+    }
+
+    public void setLocale(String locale) {
+        this.locale = locale;
+    }
+
+    public String getCommonContentLocale()
 	{
 		return commonContentLocale;
 	}
@@ -120,6 +130,14 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions
 	{
 		this.commonContentDirectory = commonContentDirectory;
 	}
+
+    public String getOutputLocale() {
+        return outputLocale;
+    }
+
+    public void setOutputLocale(String outputLocale) {
+        this.outputLocale = outputLocale;
+    }
 
     public Boolean getDraft()
     {

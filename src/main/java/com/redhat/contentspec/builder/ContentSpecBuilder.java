@@ -114,26 +114,18 @@ public class ContentSpecBuilder implements ShutdownAbleApp
 		return zipFile;
 	}
 	
-	/**
+	    /**
      * Builds a book into a zip file for the passed Content Specification.
-     *
-     * @param contentSpec
-     *                  The content specification that is to be built. It
-     *                  should have already been validated, if not errors
-     *                  may occur.
-	 * @param locale The locale the book is to be built for.
-	 * @param requester
-     *                  The user who requested the book to be built.
-	 * @param builderOptions
-     *                  The set of options what are to be when building the
-     *                  book.
-	 * @param zanataDetails
-     *                  The Zanata details to be used when editor links are
-     *                  turned on.
-	 * @return A byte array that is the zip file
+     * 
+     * @param contentSpec The content specification that is to be built. It should have already been validated, if not errors
+     *        may occur.
+     * @param requester The user who requested the book to be built.
+     * @param builderOptions The set of options what are to be when building the book.
+     * @param zanataDetails The Zanata details to be used when editor links are turned on.
+     * @return A byte array that is the zip file
      * @throws Exception Any unexpected errors that occur during building.
      */
-    public byte[] buildTranslatedBook(final ContentSpec contentSpec, final String locale,
+    public byte[] buildTranslatedBook(final ContentSpec contentSpec,
             final RESTUserV1 requester, final CSDocbookBuildingOptions builderOptions, final ZanataDetails zanataDetails) throws Exception
     {
         if (contentSpec == null)
@@ -145,7 +137,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp
             throw new BuilderCreationException("A user must be specified as the user who requested the build.");
         }
 
-        docbookBuilder = new DocbookBuilder<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1, RESTTranslatedTopicCollectionItemV1>(restManager, rocbookdtd, CommonConstants.DEFAULT_LOCALE, locale);
+        docbookBuilder = new DocbookBuilder<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1, RESTTranslatedTopicCollectionItemV1>(restManager, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
 
         final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, zanataDetails);
 

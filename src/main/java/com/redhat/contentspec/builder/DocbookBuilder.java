@@ -122,8 +122,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     protected final RESTManager restManager;
     protected final RESTBlobConstantV1 rocbookdtd;
     protected final String defaultLocale;
-    protected final String translationLocale;
-
+    
+    protected String outputLocale;
     protected ZanataDetails zanataDetails;
     private String originalTitle;
     private String originalProduct;
@@ -186,12 +186,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
     public DocbookBuilder(final RESTManager restManager, final RESTBlobConstantV1 rocbookDtd, final String defaultLocale)
             throws InvalidParameterException, InternalProcessingException, BuilderCreationException {
-        this(restManager, rocbookDtd, defaultLocale, null);
-    }
-
-    public DocbookBuilder(final RESTManager restManager, final RESTBlobConstantV1 rocbookDtd, final String defaultLocale,
-            final String translationLocale) throws InvalidParameterException, InternalProcessingException,
-            BuilderCreationException {
         reader = restManager.getReader();
         this.restManager = restManager;
         this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
@@ -205,7 +199,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 CommonConstants.XML_ELEMENTS_STRING_CONSTANT_ID, "");
 
         this.defaultLocale = defaultLocale;
-        this.translationLocale = translationLocale;
 
         /*
          * Get the XML formatting details. These are used to pretty-print the XML when it is converted into a String.
@@ -324,12 +317,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         // Setup the constants
         escapedTitle = DocBookUtilities.escapeTitle(contentSpec.getTitle());
-        locale = translationLocale == null ? defaultLocale : translationLocale;
+        locale = buildingOptions.getLocale() == null ? defaultLocale : buildingOptions.getLocale();
+        outputLocale = buildingOptions.getOutputLocale() == null ? locale :buildingOptions.getOutputLocale(); 
         originalTitle = contentSpec.getTitle();
         originalProduct = contentSpec.getProduct();
 
         BOOK_FOLDER = escapedTitle + "/";
-        BOOK_LOCALE_FOLDER = BOOK_FOLDER + locale + "/";
+        BOOK_LOCALE_FOLDER = BOOK_FOLDER + outputLocale + "/";
         BOOK_TOPICS_FOLDER = BOOK_LOCALE_FOLDER + "topics/";
         BOOK_IMAGES_FOLDER = BOOK_LOCALE_FOLDER + "images/";
         BOOK_FILES_FOLDER = BOOK_LOCALE_FOLDER + "files/";
@@ -395,8 +389,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         // Get the translations
-        if (translationLocale != null) {
-            pullTranslations(contentSpec);
+        if (buildingOptions.getLocale() != null) {
+            pullTranslations(contentSpec, buildingOptions.getLocale());
         }
         loadConstantTranslations(locale);
 
@@ -452,7 +446,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param locale The locale the book is being built in.
      */
     protected void loadConstantTranslations(final String locale) {
-        
+
         final Properties defaultProperties = new Properties();
 
         // Load the default properties
@@ -464,7 +458,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 log.debug(ex);
             }
         }
-        
+
         constantTranslatedStrings = new Properties(defaultProperties);
 
         // Load the translated properties
@@ -482,10 +476,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * Get the translations from the REST API and replace the original strings with the values downloaded.
      * 
      * @param contentSpec The Content Spec to get and replace the translations for.
+     * @param locale The locale to pull the translations for.
      */
-    protected void pullTranslations(final ContentSpec contentSpec) {
+    protected void pullTranslations(final ContentSpec contentSpec, final String locale) {
         final RESTTranslatedTopicStringCollectionV1 translatedStrings = reader.getTranslatedTopicStringsByTopicId(
-                contentSpec.getId(), contentSpec.getRevision(), translationLocale);
+                contentSpec.getId(), contentSpec.getRevision(), locale);
 
         if (translatedStrings != null && translatedStrings.getItems() != null) {
             final Map<String, String> translations = new HashMap<String, String>();
@@ -1730,12 +1725,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         // Setup Preface.xml
         if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
             String fixedPrefaceXml = prefaceXmlTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
-            
+
             final String prefaceTitleTranslation = constantTranslatedStrings.getProperty("PREFACE");
             if (prefaceTitleTranslation != null) {
-                fixedPrefaceXml = fixedPrefaceXml.replace("<title>Preface</title>", "<title>" + prefaceTitleTranslation + "</title>");
+                fixedPrefaceXml = fixedPrefaceXml.replace("<title>Preface</title>", "<title>" + prefaceTitleTranslation
+                        + "</title>");
             }
-            
+
             try {
                 files.put(BOOK_LOCALE_FOLDER + "Preface.xml", fixedPrefaceXml.getBytes("UTF-8"));
             } catch (UnsupportedEncodingException e) {
@@ -1916,7 +1912,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         String publicanCfg = publicanCfgTemplate.replaceAll(BuilderConstants.BRAND_REGEX, brand);
         publicanCfg = publicanCfg.replaceFirst("type\\:\\s*.*($|\\r\\n|\\n)", "type: "
                 + contentSpec.getBookType().toString().replaceAll("-Draft", "") + "\n");
-        publicanCfg = publicanCfg.replaceAll("xml_lang\\:\\s*.*?($|\\r\\n|\\n)", "xml_lang: " + locale + "\n");
+        publicanCfg = publicanCfg.replaceAll("xml_lang\\:\\s*.*?($|\\r\\n|\\n)", "xml_lang: " + outputLocale + "\n");
         if (!publicanCfg.matches(".*\n$")) {
             publicanCfg += "\n";
         }
@@ -2630,7 +2626,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         revHistoryDoc.getDocumentElement().setAttribute("id", "appe-" + escapedTitle + "-Revision_History");
-        
+
         final String reportHistoryTitleTranslation = constantTranslatedStrings.getProperty("REVISION_HISTORY");
         if (reportHistoryTitleTranslation != null) {
             DocBookUtilities.setRootElementTitle(reportHistoryTitleTranslation, revHistoryDoc);
