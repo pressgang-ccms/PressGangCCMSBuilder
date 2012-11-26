@@ -60,7 +60,6 @@ import org.jboss.pressgang.ccms.rest.v1.collections.join.RESTAssignedPropertyTag
 import org.jboss.pressgang.ccms.rest.v1.components.ComponentTagV1;
 import org.jboss.pressgang.ccms.rest.v1.components.ComponentTopicV1;
 import org.jboss.pressgang.ccms.rest.v1.components.ComponentTranslatedTopicV1;
-import org.jboss.pressgang.ccms.rest.v1.constants.RESTv1Constants;
 import org.jboss.pressgang.ccms.rest.v1.entities.RESTBlobConstantV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.RESTImageV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.RESTLanguageImageV1;
@@ -532,7 +531,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                      * Check if the xref linkend id exists in the book. If the Tag Starts with our error syntax then we can
                      * ignore it
                      */
-                    if (!bookIdAttributes.contains(linkId) && !linkId.startsWith(RESTv1Constants.ERROR_XREF_ID_PREFIX)) {
+                    if (!bookIdAttributes.contains(linkId) && !linkId.startsWith(CommonConstants.ERROR_XREF_ID_PREFIX)) {
                         invalidLinks.add("\"" + linkId + "\"");
                     }
                 }
@@ -1564,7 +1563,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         /* add any compiler errors */
         if (!docbookBuildingOptions.getSuppressErrorsPage() && errorDatabase.hasItems(locale)) {
-            final String compilerOutput = DocBookUtilities.addDocbook45XMLDoctype(buildErrorChapter(locale), this.escapedTitle
+            final String compilerOutput = DocBookUtilities.addDocbook45XMLDoctype(buildErrorChapter(contentSpec, locale), this.escapedTitle
                     + ".ent", "chapter");
             files.put(BOOK_LOCALE_FOLDER + "Errors.xml", StringUtilities.getStringBytes(StringUtilities
                     .cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
@@ -2828,17 +2827,22 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     .wrapInPara("No editor link available as this Content Specification hasn't been pushed for Translation.");
         }
 
-        return DocBookUtilities.buildChapter(para, "Content Specification");
+        if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
+            return DocBookUtilities.buildSection(para, "Content Specification");
+        } else {
+            return DocBookUtilities.buildChapter(para, "Content Specification");
+        }
     }
 
     /**
      * Builds the Error Chapter that contains all warnings and errors. It also builds a glossary to define most of the error
      * messages.
      * 
+     * @param contentSpec TODO
      * @param locale The locale of the book.
      * @return A docbook formatted string representation of the error chapter.
      */
-    private String buildErrorChapter(final String locale) {
+    private String buildErrorChapter(final ContentSpec contentSpec, final String locale) {
         log.info("\tBuilding Error Chapter");
 
         String errorItemizedLists = "";
@@ -2908,7 +2912,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             errorItemizedLists = "<para>No Errors Found</para>";
         }
 
-        return DocBookUtilities.buildChapter(errorItemizedLists, "Compiler Output");
+        if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
+            return DocBookUtilities.buildSection(errorItemizedLists, "Compiler Output");
+        } else {
+            return DocBookUtilities.buildChapter(errorItemizedLists, "Compiler Output");
+        }
     }
 
     /**
@@ -3087,7 +3095,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     "Topics that have been Translated using a previous revision", showEditorLinks, zanataDetails);
         }
 
-        return DocBookUtilities.buildChapter(reportChapter, "Status Report");
+        if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
+            return DocBookUtilities.buildSection(reportChapter, "Status Report");
+        } else {
+            return DocBookUtilities.buildChapter(reportChapter, "Status Report");
+        }
     }
 
     /**
