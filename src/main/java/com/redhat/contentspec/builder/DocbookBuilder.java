@@ -3466,14 +3466,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         return false;
                     }
 
-                    /*
-                     * Topic revisions don't have a revisions collection. So by testing to see if the revisions collection is
-                     * null, we can tell if this is a revision topic or not. If it is a revision topic (i.e. the revisions
-                     * collection is null), don't process it.
-                     */
-                    if (topic.getRevisions() == null)
-                        continue;
-
                     /* Create the PropertyTagCollection to be used to update any data */
                     final RESTAssignedPropertyTagCollectionV1 updatePropertyTags = new RESTAssignedPropertyTagCollectionV1();
 
