@@ -3443,7 +3443,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         log.info("Doing Fixed URL Pass");
 
-        int tries = 0;
+        return false;
+        
+        /*int tries = 0;
         boolean success = false;
 
         try {
@@ -3453,7 +3455,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             final String expandString = mapper.writeValueAsString(expand);
 
-            /* This first pass will update or correct the fixed url property tags on the current revision */
+            // This first pass will update or correct the fixed url property tags on the current revision
             while (tries < BuilderConstants.MAXIMUM_SET_PROP_TAGS_RETRY && !success) {
                 ++tries;
                 final RESTTopicCollectionV1 updateTopics = new RESTTopicCollectionV1();
@@ -3466,10 +3468,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         return false;
                     }
 
-                    /* Create the PropertyTagCollection to be used to update any data */
+                    // Create the PropertyTagCollection to be used to update any data
                     final RESTAssignedPropertyTagCollectionV1 updatePropertyTags = new RESTAssignedPropertyTagCollectionV1();
 
-                    /* Get a list of all property tag items that exist for the current topic */
+                    // Get a list of all property tag items that exist for the current topic
                     final List<RESTAssignedPropertyTagCollectionItemV1> existingUniqueURLs = ComponentTopicV1
                             .returnPropertyItems(topic, CommonConstants.FIXED_URL_PROP_TAG_ID);
 
@@ -3490,12 +3492,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     }
 
                     if (existingUniqueURL == null || !existingUniqueURL.getValid()) {
-                        /*
-                         * generate the base url
-                         */
+                        // generate the base url
                         String baseUrlName = DocbookBuildUtilities.createURLTitle(topic.getTitle());
 
-                        /* generate a unique fixed url */
+                        // generate a unique fixed url
                         String postFix = "";
 
                         for (int uniqueCount = 1; uniqueCount <= BuilderConstants.MAXIMUM_SET_PROP_TAG_NAME_RETRY; ++uniqueCount) {
@@ -3516,19 +3516,17 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                             return false;
                         }
 
-                        /*
-                         * persist the new fixed url, as long as we are not looking at a landing page topic
-                         */
+                        // persist the new fixed url, as long as we are not looking at a landing page topic
                         if (topic.getId() >= 0) {
 
-                            /* update any old fixed url property tags */
+                            // update any old fixed url property tags
                             boolean found = false;
                             if (topic.getProperties() != null && topic.getProperties().getItems() != null) {
                                 final List<RESTAssignedPropertyTagV1> propertyTags = topic.getProperties().returnItems();
                                 for (final RESTAssignedPropertyTagV1 existing : propertyTags) {
                                     if (existing.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
                                         if (found) {
-                                            /* If we've already found one then we need to remove any duplicates */
+                                            // If we've already found one then we need to remove any duplicates
                                             updatePropertyTags.addRemoveItem(existing);
                                         } else {
                                             found = true;
@@ -3540,7 +3538,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                                 }
                             }
 
-                            /* If we didn't find any tags then add a new one */
+                            // If we didn't find any tags then add a new one
                             if (!found) {
                                 final RESTAssignedPropertyTagV1 propertyTag = new RESTAssignedPropertyTagV1();
                                 propertyTag.setId(CommonConstants.FIXED_URL_PROP_TAG_ID);
@@ -3554,9 +3552,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         processedFileNames.add(existingUniqueURL.getValue());
                     }
 
-                    /*
-                     * If we have changes then create a basic topic so that the property tags can be updated.
-                     */
+                    // If we have changes then create a basic topic so that the property tags can be updated.
                     if (!updatePropertyTags.getItems().isEmpty()) {
                         final RESTTopicV1 updateTopic = new RESTTopicV1();
                         updateTopic.setId(topic.getId());
@@ -3575,20 +3571,18 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     return false;
                 }
 
-                /* If we got here, then the REST update went ok */
+                // If we got here, then the REST update went ok
                 success = true;
 
                 updateFixedURLsForTopics(updateTopics, topicItems);
             }
         } catch (final Exception ex) {
-            /*
-             * Dump the exception to the command prompt, and restart the loop
-             */
+            // Dump the exception to the command prompt, and restart the loop
             log.error(ExceptionUtilities.getStackTrace(ex));
         }
 
-        /* did we blow the try count? */
-        return success;
+        // did we blow the try count?
+        return success;*/
     }
 
     /**
