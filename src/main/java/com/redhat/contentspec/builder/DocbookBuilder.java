@@ -3442,10 +3442,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     protected boolean setFixedURLsPass(final RESTTopicCollectionV1 topics, final Set<String> processedFileNames) {
 
         log.info("Doing Fixed URL Pass");
-
-        return false;
         
-        /*int tries = 0;
+        int tries = 0;
         boolean success = false;
 
         try {
@@ -3582,7 +3580,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         // did we blow the try count?
-        return success;*/
+        return success;
     }
 
     /**
