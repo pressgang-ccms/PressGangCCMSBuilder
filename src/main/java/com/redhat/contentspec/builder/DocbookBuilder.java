@@ -3612,6 +3612,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             if (existingUniqueURL.getValue() == null || existingUniqueURL.getValue().isEmpty()
                     || processedFileNames.contains(existingUniqueURL.getValue())) {
 
+                for (final String name : processedFileNames) {
+                    log.info(name);
+                }
+                
                 final String baseUrlName;
                 if (topic instanceof RESTTranslatedTopicV1) {
                     baseUrlName = DocbookBuildUtilities.createURLTitle(((RESTTranslatedTopicV1) topic).getTopic().getTitle());
@@ -3621,8 +3625,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 String postFix = "";
                 for (int uniqueCount = 1;; ++uniqueCount) {
                     if (!processedFileNames.contains(baseUrlName + postFix)) {
-                        postFix = uniqueCount + "";
                         break;
+                    } else {
+                        postFix = uniqueCount + "";
                     }
                 }
 
@@ -3655,10 +3660,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                             properties = new RESTAssignedPropertyTagCollectionV1();
                         } else if (properties.getItems() != null) {
                             // remove any current url's
-                            final List<RESTAssignedPropertyTagV1> propertyTags = new ArrayList<RESTAssignedPropertyTagV1>(
-                                    properties.returnItems());
-                            for (final RESTAssignedPropertyTagV1 prop : propertyTags) {
-                                if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
+                            final List<RESTAssignedPropertyTagCollectionItemV1> propertyTags = new ArrayList<RESTAssignedPropertyTagCollectionItemV1>(
+                                    properties.getItems());
+                            for (final RESTAssignedPropertyTagCollectionItemV1 prop : propertyTags) {
+                                if (prop.getItem() != null && prop.getItem().getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
                                     properties.getItems().remove(prop);
                                 }
                             }
@@ -3682,10 +3687,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                                     relatedTopicProperties = new RESTAssignedPropertyTagCollectionV1();
                                 } else if (relatedTopicProperties.getItems() != null) {
                                     // remove any current url's
-                                    final List<RESTAssignedPropertyTagV1> relatedTopicPropertyTags = new ArrayList<RESTAssignedPropertyTagV1>(
-                                            relatedTopicProperties.returnItems());
-                                    for (final RESTAssignedPropertyTagV1 prop : relatedTopicPropertyTags) {
-                                        if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
+                                    final List<RESTAssignedPropertyTagCollectionItemV1> relatedTopicPropertyTags = new ArrayList<RESTAssignedPropertyTagCollectionItemV1>(
+                                            relatedTopicProperties.getItems());
+                                    for (final RESTAssignedPropertyTagCollectionItemV1 prop : relatedTopicPropertyTags) {
+                                        if (prop.getItem() != null && prop.getItem().getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
                                             relatedTopicProperties.getItems().remove(prop);
                                         }
                                     }
