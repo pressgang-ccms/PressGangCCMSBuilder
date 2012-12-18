@@ -3611,10 +3611,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             if (existingUniqueURL.getValue() == null || existingUniqueURL.getValue().isEmpty()
                     || processedFileNames.contains(existingUniqueURL.getValue())) {
-
-                for (final String name : processedFileNames) {
-                    log.info(name);
-                }
                 
                 final String baseUrlName;
                 if (topic instanceof RESTTranslatedTopicV1) {
