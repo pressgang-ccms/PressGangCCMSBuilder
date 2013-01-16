@@ -991,11 +991,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 defaultLocaleTranslatedTopic.setId(topic.getId() * -1);
 
                 /* prefix the locale to show that it is missing the related translated topic */
-                defaultLocaleTranslatedTopic.tempSetTitle(
+                defaultLocaleTranslatedTopic.setTitle(
                         "[" + defaultLocaleTranslatedTopic.getLocale() + "] " + defaultLocaleTranslatedTopic.getTitle());
 
                 /* Change the locale since the default locale translation is being transformed into a dummy translation */
-                defaultLocaleTranslatedTopic.tempSetLocale(locale);
+                defaultLocaleTranslatedTopic.setLocale(locale);
 
                 return defaultLocaleTranslatedTopic;
             }
@@ -1004,18 +1004,17 @@ public class DocbookBuilder implements ShutdownAbleApp {
         /*
          * If we get to this point then no translation exists or the default locale translation failed to be downloaded.
          */
-        translatedTopic.tempSetTopicId(topic.getId());
-        translatedTopic.tempSetTopicRevision(topic.getRevision().intValue());
+        translatedTopic.setTopicId(topic.getId());
+        translatedTopic.setTopicRevision(topic.getRevision());
         translatedTopic.setTranslationPercentage(100);
-        translatedTopic.setRevision(topic.getRevision());
-        translatedTopic.tempSetXml(topic.getXml());
-        translatedTopic.tempSetTags(topic.getTags());
-        translatedTopic.tempSetSourceURLs(topic.getSourceURLs());
-        translatedTopic.tempSetProperties(topic.getProperties());
-        translatedTopic.tempSetLocale(locale);
+        translatedTopic.setXml(topic.getXml());
+        translatedTopic.setTags(topic.getTags());
+        translatedTopic.setSourceURLs(topic.getSourceURLs());
+        translatedTopic.setProperties(topic.getProperties());
+        translatedTopic.setLocale(locale);
 
         /* prefix the locale to show that it is missing the related translated topic */
-        translatedTopic.tempSetTitle("[" + topic.getLocale() + "] " + topic.getTitle());
+        translatedTopic.setTitle("[" + topic.getLocale() + "] " + topic.getTitle());
 
         /* Add the dummy outgoing relationships */
         if (topic.getOutgoingRelationships() != null && topic.getOutgoingRelationships().getItems() != null) {
@@ -1034,7 +1033,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     outgoingRelationships.addItem(createDummyTranslatedTopic(translatedTopicsMap, relatedTopic, false, locale));
                 }
             }
-            translatedTopic.tempSetOutgoingRelationships(outgoingRelationships);
+            translatedTopic.setOutgoingRelationships(outgoingRelationships);
         }
 
         /* Add the dummy incoming relationships */
@@ -1054,7 +1053,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     incomingRelationships.addItem(createDummyTranslatedTopic(translatedTopicsMap, relatedTopic, false, locale));
                 }
             }
-            translatedTopic.tempSetIncomingRelationships(incomingRelationships);
+            translatedTopic.setIncomingRelationships(incomingRelationships);
         }
 
         return translatedTopic;
@@ -2336,8 +2335,6 @@ public class DocbookBuilder implements ShutdownAbleApp {
                         } else {
                             errorDatabase.addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES,
                                     "ImageFile ID " + imageID + " from image location " + imageLocation.getImageName() + " was not found!");
-                            log.error(
-                                    "ImageFile ID " + imageID + " from image location " + imageLocation.getImageName() + " was not found!");
                         }
                     }
                 } catch (final NumberFormatException ex) {
@@ -2388,7 +2385,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             authorDoc = XMLUtilities.convertStringToDocument(fixedAuthorGroupXml);
         } catch (SAXException ex) {
             /* Exit since we shouldn't fail at converting the basic author group */
-            log.debug(ExceptionUtilities.getStackTrace(ex));
+            log.debug("", ex);
             throw new BuildProcessingException("Failed to convert the Author_Group.xml template into a DOM document");
         }
         final LinkedHashMap<Integer, AuthorInformation> authorIDtoAuthor = new LinkedHashMap<Integer, AuthorInformation>();
@@ -2401,8 +2398,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Get the mapping of authors using the topics inside the content spec
         for (final Integer topicId : specDatabase.getTopicIds()) {
             final BaseTopicWrapper<?> topic = specDatabase.getSpecTopicsForTopicID(topicId).get(0).getTopic();
-            final List<TagWrapper> authorTags = topic.getTagsInCategories(
-                    CollectionUtilities.toArrayList(CSConstants.WRITER_CATEGORY_ID)).getItems();
+            final List<TagWrapper> authorTags = topic.getTagsInCategories(CollectionUtilities.toArrayList(CSConstants.WRITER_CATEGORY_ID));
 
             if (authorTags.size() > 0) {
                 for (final TagWrapper author : authorTags) {
@@ -3316,7 +3312,6 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @return True if the fixed url property tags were able to be created for all topics, and false otherwise.
      */
     protected boolean setFixedURLsPass(final CollectionWrapper<TopicWrapper> topics, final Set<String> processedFileNames) {
-
         log.info("Doing Fixed URL Pass");
 
         int tries = 0;
@@ -3344,9 +3339,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     /*final List<RESTAssignedPropertyTagCollectionItemV1> existingUniqueURLs = ComponentTopicV1.returnPropertyItems(topic,
                             CommonConstants.FIXED_URL_PROP_TAG_ID);*/
 
-                    PropertyTagWrapper existingUniqueURL = null;
+                    PropertyTagWrapper existingUniqueURL = topic.getProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
 
                     // Remove any Duplicate Fixed URL's
+                    // TODO
                     /*for (int i = 0; i < existingUniqueURLs.size(); i++) {
                         final RESTAssignedPropertyTagCollectionItemV1 propertyTag = existingUniqueURLs.get(i);
                         if (propertyTag.getItem() == null) continue;
@@ -3461,6 +3457,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
      */
     protected <T extends BaseTopicWrapper<T>> void setFixedURLsForRevisionsPass(final CollectionWrapper<T> topics,
             final Set<String> processedFileNames) {
+        log.info("Doing Revisions Fixed URL Pass");
+
         /*
          * Now loop over the revision topics, and make sure their fixed url property tags are unique. They only have to be
          * unique within the book.
@@ -3490,13 +3488,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 String postFix = "";
                 for (int uniqueCount = 1; ; ++uniqueCount) {
                     if (!processedFileNames.contains(baseUrlName + postFix)) {
-                        postFix = uniqueCount + "";
                         break;
+                    } else {
+                        postFix = uniqueCount + "";
                     }
                 }
 
                 /* Update the fixed url */
-                existingUniqueURL.tempSetValue(baseUrlName + postFix);
+                existingUniqueURL.setValue(baseUrlName + postFix);
             }
 
             processedFileNames.add(existingUniqueURL.getValue());
