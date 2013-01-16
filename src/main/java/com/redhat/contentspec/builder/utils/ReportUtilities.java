@@ -14,8 +14,6 @@ import org.jboss.pressgang.ccms.contentspec.wrapper.BaseTopicWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.TagWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.TranslatedTopicWrapper;
 import org.jboss.pressgang.ccms.docbook.structures.TopicErrorData;
-import org.jboss.pressgang.ccms.rest.v1.components.ComponentTopicV1;
-import org.jboss.pressgang.ccms.rest.v1.entities.RESTTopicV1;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.structures.NameIDSortMap;
@@ -99,12 +97,12 @@ public class ReportUtilities {
                 editorUrl = null;
             }
         } else {
-            url = ComponentTopicV1.returnSkynetURL((RESTTopicV1) topic);
+            url = topic.getPressGangURL();
             final String topicIdString = "Topic " + topic.getId() + ", Revision " + topic.getRevision();
             topicIdUrls.add(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(url, topicIdString))));
 
             if (showEditorLink) {
-                editorUrl = ComponentTopicV1.returnEditorURL((RESTTopicV1) topic);
+                editorUrl = topic.getEditorURL(zanataDetails);
             } else {
                 editorUrl = null;
             }
