@@ -15,7 +15,7 @@ import com.redhat.contentspec.builder.constants.BuilderConstants;
 import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
-import org.jboss.pressgang.ccms.contentspec.wrapper.BaseTopicWrapper;
+import org.jboss.pressgang.ccms.contentspec.wrapper.base.BaseTopicWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.TranslatedTopicWrapper;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.w3c.dom.Document;

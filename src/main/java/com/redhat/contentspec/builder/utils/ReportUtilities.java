@@ -10,7 +10,7 @@ import java.util.TreeMap;
 
 import org.jboss.pressgang.ccms.contentspec.sort.TagWrapperNameComparator;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
-import org.jboss.pressgang.ccms.contentspec.wrapper.BaseTopicWrapper;
+import org.jboss.pressgang.ccms.contentspec.wrapper.base.BaseTopicWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.TagWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.TranslatedTopicWrapper;
 import org.jboss.pressgang.ccms.docbook.structures.TopicErrorData;

@@ -45,6 +45,7 @@ import org.jboss.pressgang.ccms.contentspec.enums.BookType;
 import org.jboss.pressgang.ccms.contentspec.enums.LevelType;
 import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
 import org.jboss.pressgang.ccms.contentspec.provider.BlobConstantProvider;
+import org.jboss.pressgang.ccms.contentspec.provider.ContentSpecProvider;
 import org.jboss.pressgang.ccms.contentspec.provider.DataProviderFactory;
 import org.jboss.pressgang.ccms.contentspec.provider.ImageProvider;
 import org.jboss.pressgang.ccms.contentspec.provider.PropertyTagProvider;
@@ -53,19 +54,17 @@ import org.jboss.pressgang.ccms.contentspec.provider.TagProvider;
 import org.jboss.pressgang.ccms.contentspec.provider.TopicProvider;
 import org.jboss.pressgang.ccms.contentspec.provider.TranslatedTopicProvider;
 import org.jboss.pressgang.ccms.contentspec.sort.AuthorInformationComparator;
-import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
-import org.jboss.pressgang.ccms.contentspec.wrapper.BaseTopicWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.BlobConstantWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.ImageWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.LanguageImageWrapper;
-import org.jboss.pressgang.ccms.contentspec.wrapper.PropertyTagWrapper;
+import org.jboss.pressgang.ccms.contentspec.wrapper.PropertyTagInTopicWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.StringConstantWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.TagWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.TopicWrapper;
-import org.jboss.pressgang.ccms.contentspec.wrapper.TranslatedTopicStringWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.TranslatedTopicWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.UserWrapper;
+import org.jboss.pressgang.ccms.contentspec.wrapper.base.BaseTopicWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.collection.CollectionWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.collection.UpdateableCollectionWrapper;
 import org.jboss.pressgang.ccms.docbook.constants.DocbookBuilderConstants;
@@ -107,6 +106,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
     protected final List<String> contentsInlineElements;
 
     protected final DataProviderFactory providerFactory;
+    private final ContentSpecProvider contentSpecProvider;
     private final TopicProvider topicProvider;
     private final TranslatedTopicProvider translatedTopicProvider;
     private final TagProvider tagProvider;
@@ -211,6 +211,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
     public DocbookBuilder(final DataProviderFactory providerFactory, final BlobConstantWrapper rocbookDtd,
             final String defaultLocale) throws BuilderCreationException {
         this.providerFactory = providerFactory;
+
+        contentSpecProvider = providerFactory.getProvider(ContentSpecProvider.class);
         topicProvider = providerFactory.getProvider(TopicProvider.class);
         translatedTopicProvider = providerFactory.getProvider(TranslatedTopicProvider.class);
         propertyTagProvider = providerFactory.getProvider(PropertyTagProvider.class);
@@ -500,7 +502,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param locale      The locale to pull the translations for.
      */
     protected void pullTranslations(final ContentSpec contentSpec, final String locale) {
-        final CollectionWrapper<TranslatedTopicStringWrapper> translatedStrings = EntityUtilities.getTranslatedTopicStringsByTopicId(
+        // TODO
+        /*final CollectionWrapper<TranslatedTopicStringWrapper> translatedStrings = EntityUtilities.getTranslatedTopicStringsByTopicId(
                 providerFactory, contentSpec.getId(), contentSpec.getRevision(), locale);
 
         if (translatedStrings != null && translatedStrings.getItems() != null) {
@@ -513,7 +516,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             }
 
             ContentSpecUtilities.replaceTranslatedStrings(contentSpec, translations);
-        }
+        }*/
     }
 
     /**
@@ -2702,8 +2705,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         if (contentSpec.getId() > 0) {
             if (contentSpec.getRevision() == null) {
-                listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(), topicProvider.getTopic(
-                        contentSpec.getId()).getRevision()) + (authorInfo.getAuthorId() > 0 ? (" by " + requester.getUsername()) : ""));
+                listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(),
+                        contentSpecProvider.getContentSpec(
+                                contentSpec.getId()).getRevision()) + (authorInfo.getAuthorId() > 0 ? (" by " + requester.getUsername())
+                        : ""));
             } else {
                 listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(),
                         contentSpec.getRevision()) + (authorInfo.getAuthorId() > 0 ? (" by " + requester.getUsername()) : ""));
@@ -3332,14 +3337,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     }
 
                     // Create the PropertyTagCollection to be used to update any data
-                    final UpdateableCollectionWrapper<PropertyTagWrapper> updatePropertyTags = propertyTagProvider
-                            .newAssignedPropertyTagCollection();
+                    final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
+                            .newPropertyTagInTopicCollection();
 
                     // Get a list of all property tag items that exist for the current topic
                     /*final List<RESTAssignedPropertyTagCollectionItemV1> existingUniqueURLs = ComponentTopicV1.returnPropertyItems(topic,
                             CommonConstants.FIXED_URL_PROP_TAG_ID);*/
 
-                    PropertyTagWrapper existingUniqueURL = topic.getProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
+                    PropertyTagInTopicWrapper existingUniqueURL = topic.getProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
 
                     // Remove any Duplicate Fixed URL's
                     // TODO
@@ -3385,8 +3390,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             // update any old fixed url property tags
                             boolean found = false;
                             if (topic.getProperties() != null && topic.getProperties().getItems() != null) {
-                                final List<PropertyTagWrapper> propertyTags = topic.getProperties().getItems();
-                                for (final PropertyTagWrapper existing : propertyTags) {
+                                final List<PropertyTagInTopicWrapper> propertyTags = topic.getProperties().getItems();
+                                for (final PropertyTagInTopicWrapper existing : propertyTags) {
                                     if (existing.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
                                         if (found) {
                                             // If we've already found one then we need to remove any duplicates
@@ -3403,7 +3408,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                             // If we didn't find any tags then add a new one
                             if (!found) {
-                                final PropertyTagWrapper propertyTag = propertyTagProvider.newAssignedPropertyTag();
+                                final PropertyTagInTopicWrapper propertyTag = propertyTagProvider.newPropertyTagInTopic();
                                 propertyTag.setId(CommonConstants.FIXED_URL_PROP_TAG_ID);
                                 propertyTag.setValue(baseUrlName + postFix);
 
@@ -3467,11 +3472,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
         for (final BaseTopicWrapper<?> topic : topicItems) {
 
             /* Get the existing property tag */
-            PropertyTagWrapper existingUniqueURL = topic.getProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
+            PropertyTagInTopicWrapper existingUniqueURL = topic.getProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
 
             /* Create a property tag if none exists */
             if (existingUniqueURL == null) {
-                existingUniqueURL = propertyTagProvider.newAssignedPropertyTag();
+                existingUniqueURL = propertyTagProvider.newPropertyTagInTopic();
                 existingUniqueURL.setId(CommonConstants.FIXED_URL_PROP_TAG_ID);
                 topic.getProperties().addItem(existingUniqueURL);
             }
@@ -3514,16 +3519,17 @@ public class DocbookBuilder implements ShutdownAbleApp {
             final List<TopicWrapper> updateItems = updatedTopics.getItems();
             for (final TopicWrapper topicWithFixedUrl : updateItems) {
                 for (final TopicWrapper topic : originalTopics) {
-                    final PropertyTagWrapper fixedUrlProp = topicWithFixedUrl.getProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
+                    final PropertyTagInTopicWrapper fixedUrlProp = topicWithFixedUrl.getProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
 
                     if (topic != null && topicWithFixedUrl.getId().equals(topic.getId())) {
-                        CollectionWrapper<PropertyTagWrapper> properties = topic.getProperties();
+                        CollectionWrapper<PropertyTagInTopicWrapper> properties = topic.getProperties();
                         if (properties == null) {
-                            properties = propertyTagProvider.newAssignedPropertyTagCollection();
+                            properties = propertyTagProvider.newPropertyTagInTopicCollection();
                         } else if (properties.getItems() != null) {
                             // remove any current url's
-                            final List<PropertyTagWrapper> propertyTags = new ArrayList<PropertyTagWrapper>(properties.getItems());
-                            for (final PropertyTagWrapper prop : propertyTags) {
+                            final List<PropertyTagInTopicWrapper> propertyTags = new ArrayList<PropertyTagInTopicWrapper>(
+                                    properties.getItems());
+                            for (final PropertyTagInTopicWrapper prop : propertyTags) {
                                 if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
                                     properties.remove(prop);
                                 }
@@ -3542,14 +3548,15 @@ public class DocbookBuilder implements ShutdownAbleApp {
                         final List<TopicWrapper> relatedTopics = topic.getOutgoingRelationships().getItems();
                         for (final TopicWrapper relatedTopic : relatedTopics) {
                             if (topicWithFixedUrl.getId().equals(relatedTopic.getId())) {
-                                CollectionWrapper<PropertyTagWrapper> relatedTopicProperties = relatedTopic.getProperties();
+                                CollectionWrapper<PropertyTagInTopicWrapper> relatedTopicProperties = relatedTopic.getProperties();
                                 if (relatedTopicProperties == null) {
-                                    relatedTopicProperties = propertyTagProvider.newAssignedPropertyTagCollection();
+                                    relatedTopicProperties = propertyTagProvider.newPropertyTagInTopicCollection();
                                 } else if (relatedTopicProperties.getItems() != null) {
                                     // remove any current url's
-                                    final List<PropertyTagWrapper> relatedTopicPropertyTags = new ArrayList<PropertyTagWrapper>(
+                                    final List<PropertyTagInTopicWrapper> relatedTopicPropertyTags = new
+                                            ArrayList<PropertyTagInTopicWrapper>(
                                             relatedTopicProperties.getItems());
-                                    for (final PropertyTagWrapper prop : relatedTopicPropertyTags) {
+                                    for (final PropertyTagInTopicWrapper prop : relatedTopicPropertyTags) {
                                         if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
                                             relatedTopicProperties.remove(prop);
                                         }

@@ -12,7 +12,7 @@ import java.util.Set;
 import com.redhat.contentspec.builder.utils.DocbookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
-import org.jboss.pressgang.ccms.contentspec.wrapper.BaseTopicWrapper;
+import org.jboss.pressgang.ccms.contentspec.wrapper.base.BaseTopicWrapper;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 
 public class SpecDatabase {
