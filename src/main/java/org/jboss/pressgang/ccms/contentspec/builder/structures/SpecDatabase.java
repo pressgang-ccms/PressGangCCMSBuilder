@@ -1,4 +1,4 @@
-package com.redhat.contentspec.structures;
+package org.jboss.pressgang.ccms.contentspec.builder.structures;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,9 +9,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import com.redhat.contentspec.builder.utils.DocbookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
+import org.jboss.pressgang.ccms.contentspec.builder.utils.DocbookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.wrapper.base.BaseTopicWrapper;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 

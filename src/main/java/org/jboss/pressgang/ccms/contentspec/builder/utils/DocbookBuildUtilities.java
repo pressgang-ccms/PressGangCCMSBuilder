@@ -1,4 +1,4 @@
-package com.redhat.contentspec.builder.utils;
+package org.jboss.pressgang.ccms.contentspec.builder.utils;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -11,12 +11,12 @@ import com.google.code.regexp.NamedMatcher;
 import com.google.code.regexp.NamedPattern;
 import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
-import com.redhat.contentspec.builder.constants.BuilderConstants;
-import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
-import org.jboss.pressgang.ccms.contentspec.wrapper.base.BaseTopicWrapper;
+import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.CSDocbookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.wrapper.TranslatedTopicWrapper;
+import org.jboss.pressgang.ccms.contentspec.wrapper.base.BaseTopicWrapper;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;

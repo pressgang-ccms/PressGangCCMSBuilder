@@ -1,4 +1,4 @@
-package com.redhat.contentspec.builder.constants;
+package org.jboss.pressgang.ccms.contentspec.builder.constants;
 
 import java.util.List;
 

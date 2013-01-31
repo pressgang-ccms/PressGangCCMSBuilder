@@ -1,4 +1,4 @@
-package com.redhat.contentspec.builder.utils;
+package org.jboss.pressgang.ccms.contentspec.builder.utils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -10,9 +10,9 @@ import java.util.TreeMap;
 
 import org.jboss.pressgang.ccms.contentspec.sort.TagWrapperNameComparator;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
-import org.jboss.pressgang.ccms.contentspec.wrapper.base.BaseTopicWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.TagWrapper;
 import org.jboss.pressgang.ccms.contentspec.wrapper.TranslatedTopicWrapper;
+import org.jboss.pressgang.ccms.contentspec.wrapper.base.BaseTopicWrapper;
 import org.jboss.pressgang.ccms.docbook.structures.TopicErrorData;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;

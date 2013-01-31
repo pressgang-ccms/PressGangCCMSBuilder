@@ -1,4 +1,4 @@
-package com.redhat.contentspec.builder.exception;
+package org.jboss.pressgang.ccms.contentspec.builder.exception;
 
 public class BuilderCreationException extends Exception {
 

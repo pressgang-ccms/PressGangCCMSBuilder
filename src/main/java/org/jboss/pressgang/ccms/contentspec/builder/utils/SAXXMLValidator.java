@@ -1,4 +1,4 @@
-package com.redhat.contentspec.builder.utils;
+package org.jboss.pressgang.ccms.contentspec.builder.utils;
 
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;

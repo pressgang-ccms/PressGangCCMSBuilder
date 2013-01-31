@@ -1,11 +1,11 @@
-package com.redhat.contentspec.builder;
+package org.jboss.pressgang.ccms.contentspec.builder;
 
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.redhat.contentspec.builder.exception.BuilderCreationException;
-import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
+import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.CSDocbookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
 import org.jboss.pressgang.ccms.contentspec.provider.BlobConstantProvider;
 import org.jboss.pressgang.ccms.contentspec.provider.DataProviderFactory;

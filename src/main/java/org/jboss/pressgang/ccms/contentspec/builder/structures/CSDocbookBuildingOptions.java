@@ -1,4 +1,4 @@
-package com.redhat.contentspec.structures;
+package org.jboss.pressgang.ccms.contentspec.builder.structures;
 
 import java.util.ArrayList;
 import java.util.HashMap;
