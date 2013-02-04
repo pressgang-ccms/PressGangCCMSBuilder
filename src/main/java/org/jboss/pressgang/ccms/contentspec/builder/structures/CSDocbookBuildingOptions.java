@@ -20,6 +20,7 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
     private Boolean draft = false;
     private List<String> revisionMessages = null;
     private Boolean useLatestVersions = false;
+    private Boolean flattenTopics = false;
 
     public CSDocbookBuildingOptions() {
 
@@ -144,5 +145,13 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
 
     public void setUseLatestVersions(Boolean useLatestVersions) {
         this.useLatestVersions = useLatestVersions;
+    }
+
+    public Boolean getFlattenTopics() {
+        return flattenTopics;
+    }
+
+    public void setFlattenTopics(Boolean flattenTopics) {
+        this.flattenTopics = flattenTopics;
     }
 }

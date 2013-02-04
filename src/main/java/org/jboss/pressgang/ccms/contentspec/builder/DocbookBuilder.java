@@ -252,6 +252,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
         contentsInlineElements = CollectionUtilities.toArrayList(contentsInlineElementsString.split("[\\s]*,[\\s]*"));
     }
 
+    protected CSDocbookBuildingOptions getDocbookBuildingOptions() {
+        return docbookBuildingOptions;
+    }
+
     @Override
     public void shutdown() {
         isShuttingDown.set(true);
@@ -1551,7 +1555,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 }
             } else if (node instanceof SpecTopic) {
                 final SpecTopic specTopic = (SpecTopic) node;
-                final String topicFileName = createTopicXMLFile(files, specTopic, useFixedUrls);
+                final String topicFileName = createTopicXMLFile(files, specTopic, BOOK_TOPICS_FOLDER, useFixedUrls);
 
                 if (topicFileName != null) {
                     bookXIncludes.append(
@@ -1565,7 +1569,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     escapedTitle + ".ent", "chapter");
             files.put(BOOK_LOCALE_FOLDER + "Translate.xml", StringUtilities.getStringBytes(
                     StringUtilities.cleanTextForXML(translateLinkChapter == null ? "" : translateLinkChapter)));
-            bookXIncludes.append("  <xi:include href=\"Translate.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
+            bookXIncludes.append("\t<xi:include href=\"Translate.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
         }
 
         /* add any compiler errors */
@@ -1574,7 +1578,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     escapedTitle + ".ent", "chapter");
             files.put(BOOK_LOCALE_FOLDER + "Errors.xml",
                     StringUtilities.getStringBytes(StringUtilities.cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
-            bookXIncludes.append("	<xi:include href=\"Errors.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
+            bookXIncludes.append("\t<xi:include href=\"Errors.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
         }
 
         /* add the report chapter */
@@ -1583,7 +1587,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     escapedTitle + ".ent", "chapter");
             files.put(BOOK_LOCALE_FOLDER + "Report.xml",
                     StringUtilities.getStringBytes(StringUtilities.cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
-            bookXIncludes.append("	<xi:include href=\"Report.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
+            bookXIncludes.append("\t<xi:include href=\"Report.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
         }
 
         /* build the content specification page */
@@ -2044,12 +2048,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // Create the chapter.xml
         final Element titleNode = chapter.createElement("title");
-        if (clazz == TranslatedTopicWrapper.class && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty())
+        if (clazz == TranslatedTopicWrapper.class && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty()) {
             titleNode.setTextContent(level.getTranslatedTitle());
-        else titleNode.setTextContent(level.getTitle());
+        } else {
+            titleNode.setTextContent(level.getTitle());
+        }
         chapter.getDocumentElement().appendChild(titleNode);
         chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
-        createSectionXML(files, level, chapter, chapter.getDocumentElement(), useFixedUrls);
+        createSectionXML(files, level, chapter, chapter.getDocumentElement(), BOOK_TOPICS_FOLDER + chapterName + "/", useFixedUrls);
 
         // Add the boiler plate text and add the chapter to the book
         final String chapterString = DocBookUtilities.addDocbook45XMLDoctype(
@@ -2075,7 +2081,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException TODO
      */
     protected Element createSubRootElementXML(final Map<String, byte[]> files, final Document doc, final Level level,
-            final boolean useFixedUrls) throws BuildProcessingException {
+            final String parentFileDirectory, final boolean useFixedUrls) throws BuildProcessingException {
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
             return null;
@@ -2104,7 +2110,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         else titleNode.setTextContent(level.getTitle());
         chapter.getDocumentElement().appendChild(titleNode);
         chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
-        createSectionXML(files, level, chapter, chapter.getDocumentElement(), useFixedUrls);
+        createSectionXML(files, level, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + "/", useFixedUrls);
 
         // Add the boiler plate text and add the chapter to the book
         final String chapterString = DocBookUtilities.addDocbook45XMLDoctype(
@@ -2136,7 +2142,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException TODO
      */
     protected void createSectionXML(final Map<String, byte[]> files, final Level level, final Document chapter, final Element parentNode,
-            final boolean useFixedUrls) throws BuildProcessingException {
+            final String parentFileLocation, final boolean useFixedUrls) throws BuildProcessingException {
         final LinkedList<org.jboss.pressgang.ccms.contentspec.Node> levelData = level.getChildNodes();
 
         /* Get the name of the element based on the type */
@@ -2160,7 +2166,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 final Level childLevel = (Level) node;
 
                 // Create a new file for the Chapter/Appendix
-                final Element xiInclude = createSubRootElementXML(files, chapter, childLevel, useFixedUrls);
+                final Element xiInclude = createSubRootElementXML(files, chapter, childLevel, parentFileLocation, useFixedUrls);
                 if (xiInclude != null) {
                     childNodes.add(xiInclude);
                 }
@@ -2188,18 +2194,23 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     }
                 } else {
                     // Add this sections child sections/topics
-                    createSectionXML(files, childLevel, chapter, sectionNode, useFixedUrls);
+                    createSectionXML(files, childLevel, chapter, sectionNode, parentFileLocation, useFixedUrls);
                 }
 
                 childNodes.add(sectionNode);
             } else if (node instanceof SpecTopic) {
                 final SpecTopic specTopic = (SpecTopic) node;
 
-                final String topicFileName = createTopicXMLFile(files, specTopic, useFixedUrls);
+                final String topicFileName = createTopicXMLFile(files, specTopic, parentFileLocation, useFixedUrls);
 
                 if (topicFileName != null) {
+                    // Remove the initial file location as we only where it lives in the topics directory
+                    final String fixedParentFileLocation = docbookBuildingOptions.getFlattenTopics() ? "topics/" : parentFileLocation
+                            .replace(
+                            BOOK_LOCALE_FOLDER, "");
+
                     final Element topicNode = chapter.createElement("xi:include");
-                    topicNode.setAttribute("href", "topics/" + topicFileName);
+                    topicNode.setAttribute("href", fixedParentFileLocation + topicFileName);
                     topicNode.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
 
                     if (specTopic.getParent() != null && specTopic.getParent().getType() == LevelType.PART) {
@@ -2224,12 +2235,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
     /**
      * Creates the Topic component of a chapter.xml for a specific SpecTopic.
      *
-     * @param files        The mapping of File Names/Locations to actual file content.
-     * @param specTopic    The SpecTopic object to get content from.
-     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
-     * @return The filename of the new topic XML file.
+     * @param files              The mapping of File Names/Locations to actual file content.
+     * @param specTopic          The SpecTopic object to get content from.
+     * @param parentFileLocation
+     * @param useFixedUrls       If Fixed URL Properties should be used for topic ID attributes.  @return The filename of the new topic
+     *                           XML file.
      */
-    protected String createTopicXMLFile(final Map<String, byte[]> files, final SpecTopic specTopic, final boolean useFixedUrls) {
+    protected String createTopicXMLFile(final Map<String, byte[]> files, final SpecTopic specTopic, final String parentFileLocation,
+            final boolean useFixedUrls) {
         String topicFileName;
         final BaseTopicWrapper<?> topic = specTopic.getTopic();
 
@@ -2246,11 +2259,13 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
             topicFileName += ".xml";
 
+            final String fixedParentFileLocation = docbookBuildingOptions.getFlattenTopics() ? BOOK_TOPICS_FOLDER : parentFileLocation;
+
             final String topicXML = DocBookUtilities.addDocbook45XMLDoctype(
                     XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements,
                             true), escapedTitle + ".ent", DocBookUtilities.TOPIC_ROOT_NODE_NAME);
             try {
-                files.put(BOOK_TOPICS_FOLDER + topicFileName, topicXML.getBytes("UTF-8"));
+                files.put(fixedParentFileLocation + topicFileName, topicXML.getBytes("UTF-8"));
             } catch (UnsupportedEncodingException e) {
                 /* UTF-8 is a valid format so this should exception should never get thrown */
                 log.error(e.getMessage());
