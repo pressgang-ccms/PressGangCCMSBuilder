@@ -2154,14 +2154,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
             try {
                 if (brandFile.exists() && brandFile.isFile()) {
                     final String file = FileUtilities.readFileContents(brandFile);
-                    if (file != null) {
+                    if (!file.isEmpty()) {
                         files.put(getBookLocaleFolder() + fileName, file.getBytes("UTF-8"));
                     }
                 } else {
                     final File commonBrandFile = new File(commonBrandDir + fileName);
                     if (commonBrandFile.exists() && commonBrandFile.isFile()) {
                         final String file = FileUtilities.readFileContents(commonBrandFile);
-                        if (file != null) {
+                        if (!file.isEmpty()) {
                             files.put(getBookLocaleFolder() + fileName, file.getBytes("UTF-8"));
                         }
                     }
