@@ -1412,8 +1412,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
             if (doc != null) {
                 /* process the conditional statements */
-                final String condition = specTopic.getConditionStatement(true);
-                DocbookBuildUtilities.processConditionalStatements(condition, doc);
+                if (!contentSpec.getPublicanCfg().contains("condition:")) {
+                    final String condition = specTopic.getConditionStatement(true);
+                    DocbookBuildUtilities.processConditionalStatements(condition, doc);
+                }
 
                 final boolean valid = processSpecTopicInjections(contentSpec, specTopic, xmlPreProcessor, relatedTopicsDatabase,
                         useFixedUrls);
