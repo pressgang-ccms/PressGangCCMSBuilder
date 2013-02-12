@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
+import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.CSDocbookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
@@ -64,10 +65,11 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
      * @param builderOptions The set of options what are to be when building the
      *                       book.
      * @return A byte array that is the zip file
-     * @throws Exception Any unexpected errors that occur during building.
+     * @throws BuildProcessingException Any unexpected errors that occur during building.
+     * @throws BuilderCreationException Any error that occurs while trying to setup/create the builder
      */
     public byte[] buildBook(final ContentSpec contentSpec, final UserWrapper requester,
-            final CSDocbookBuildingOptions builderOptions) throws Exception {
+            final CSDocbookBuildingOptions builderOptions) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
         } else if (requester == null) {
@@ -97,10 +99,12 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
      * @param builderOptions The set of options what are to be when building the book.
      * @param zanataDetails  The Zanata details to be used when editor links are turned on.
      * @return A byte array that is the zip file
-     * @throws Exception Any unexpected errors that occur during building.
+     * @throws BuildProcessingException Any unexpected errors that occur during building.
+     * @throws BuilderCreationException Any error that occurs while trying to setup/create the builder
      */
     public byte[] buildTranslatedBook(final ContentSpec contentSpec, final UserWrapper requester,
-            final CSDocbookBuildingOptions builderOptions, final ZanataDetails zanataDetails) throws Exception {
+            final CSDocbookBuildingOptions builderOptions,
+            final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
         } else if (requester == null) {
