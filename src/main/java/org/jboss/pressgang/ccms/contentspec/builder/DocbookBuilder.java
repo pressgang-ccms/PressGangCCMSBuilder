@@ -540,7 +540,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
         if (getBuildOptions().getBuildName() == null || getBuildOptions().getBuildName().isEmpty()) {
             getBuildOptions().setBuildName(
-                    (contentSpec.getId() != 0 ? (contentSpec.getId() + ", ") : "") + contentSpec.getTitle() + "-" + contentSpec
+                    (contentSpec.getId() != null ? (contentSpec.getId() + ", ") : "") + contentSpec.getTitle() + "-" + contentSpec
                             .getVersion() + "-" + contentSpec.getEdition());
         }
         if (!getBuildOptions().getDraft()) {
@@ -2884,7 +2884,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Add the revision information
         final Element listMemberEle = xmlDoc.createElement("member");
 
-        if (contentSpec.getId() > 0) {
+        if (contentSpec.getId() != null && contentSpec.getId() > 0) {
             if (contentSpec.getRevision() == null) {
                 listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(),
                         contentSpecProvider.getContentSpec(
