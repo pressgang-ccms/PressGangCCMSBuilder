@@ -1525,7 +1525,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             final List<Integer> genericInjectionErrors;
             final List<Integer> customInjectionErrors;
 
-            if (contentSpec.getOutputStyle().equalsIgnoreCase(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+            if (contentSpec.getOutputStyle().equalsIgnoreCase(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
                 /*
                  * create a collection of the tags that make up the topics types that will be included in generic injection
                  * points
@@ -1822,7 +1822,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         basicBook = basicBook.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
         basicBook = basicBook.replaceAll(BuilderConstants.DRAFT_REGEX, getBuildOptions().getDraft() ? "status=\"draft\"" : "");
 
-        if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+        if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
             // Add the preface to the book.xml
             basicBook = basicBook.replaceAll(BuilderConstants.PREFACE_REGEX,
                     "<xi:include href=\"Preface.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
@@ -1882,7 +1882,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         // Setup Preface.xml
-        if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+        if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
             String fixedPrefaceXml = prefaceXmlTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, getEscapedBookTitle());
 
             final String prefaceTitleTranslation = getConstantTranslatedStrings().getProperty("PREFACE");
@@ -1982,7 +1982,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             log.error(e.getMessage());
         }
 
-        if (contentSpec.getOutputStyle() != null && contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+        if (contentSpec.getOutputStyle() != null && contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
             final String jbossSvg = stringConstantProvider.getStringConstant(DocbookBuilderConstants.JBOSS_SVG_ID).getValue();
 
             final String yahooDomEventJs = stringConstantProvider.getStringConstant(
@@ -2032,7 +2032,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         bookInfo = bookInfo.replaceAll(BuilderConstants.EDITION_REGEX,
                 contentSpec.getEdition() == null ? BuilderConstants.DEFAULT_EDITION : contentSpec.getEdition());
 
-        if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+        if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
             bookInfo = bookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX,
                     contentSpec.getAbstract() == null ? BuilderConstants.DEFAULT_ABSTRACT : ("<abstract>\n\t\t<para>\n\t\t\t" +
                             contentSpec.getAbstract() + "\n\t\t</para>\n\t</abstract>\n"));
@@ -2065,7 +2065,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         // Remove the image width for CSP output
-        if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+        if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
             publicanCfg = publicanCfg.replaceFirst("max_image_width:\\s*\\d+\\s*(\\r)?\\n", "");
             publicanCfg = publicanCfg.replaceFirst("toc_section_depth:\\s*\\d+\\s*(\\r)?\\n", "");
         }
@@ -2657,7 +2657,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
             // If no authors were inserted then use a default value
             // Note: This should never happen but is used as a safety measure
-            if (!insertedAuthor && contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+            if (!insertedAuthor && contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
                 // Use the author "Skynet Alpha Build System"
                 final Element authorEle = authorDoc.createElement("author");
                 final Element firstNameEle = authorDoc.createElement("firstname");
