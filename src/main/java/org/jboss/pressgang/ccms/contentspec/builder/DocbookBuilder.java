@@ -1261,7 +1261,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 final Integer topicRevision = topic.getTopicRevision();
 
                 Document topicDoc = null;
-                final String topicXML = topic == null ? null : topic.getXml();
+                final String topicXML = topic.getXml();
 
                 // Check if the app should be shutdown
                 if (isShuttingDown.get()) {
