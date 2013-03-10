@@ -3532,7 +3532,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                     // Create the PropertyTagCollection to be used to update any data
                     final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
-                            .newPropertyTagInTopicCollection();
+                            .newPropertyTagInTopicCollection(
+                            topic);
 
                     // Get a list of all property tag items that exist for the current topic
                     /*final List<RESTAssignedPropertyTagCollectionItemV1> existingUniqueURLs = ComponentTopicV1.returnPropertyItems(topic,
@@ -3602,7 +3603,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                             // If we didn't find any tags then add a new one
                             if (!found) {
-                                final PropertyTagInTopicWrapper propertyTag = propertyTagProvider.newPropertyTagInTopic();
+                                final PropertyTagInTopicWrapper propertyTag = propertyTagProvider.newPropertyTagInTopic(topic);
                                 propertyTag.setId(CommonConstants.FIXED_URL_PROP_TAG_ID);
                                 propertyTag.setValue(baseUrlName + postFix);
 
@@ -3670,7 +3671,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
             /* Create a property tag if none exists */
             if (existingUniqueURL == null) {
-                existingUniqueURL = propertyTagProvider.newPropertyTagInTopic();
+                existingUniqueURL = propertyTagProvider.newPropertyTagInTopic(topic);
                 existingUniqueURL.setId(CommonConstants.FIXED_URL_PROP_TAG_ID);
                 topic.getProperties().addItem(existingUniqueURL);
             }
@@ -3718,7 +3719,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     if (topic != null && topicWithFixedUrl.getId().equals(topic.getId())) {
                         CollectionWrapper<PropertyTagInTopicWrapper> properties = topic.getProperties();
                         if (properties == null) {
-                            properties = propertyTagProvider.newPropertyTagInTopicCollection();
+                            properties = propertyTagProvider.newPropertyTagInTopicCollection(topic);
                         } else if (properties.getItems() != null) {
                             // remove any current url's
                             final List<PropertyTagInTopicWrapper> propertyTags = new ArrayList<PropertyTagInTopicWrapper>(
@@ -3744,7 +3745,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             if (topicWithFixedUrl.getId().equals(relatedTopic.getId())) {
                                 CollectionWrapper<PropertyTagInTopicWrapper> relatedTopicProperties = relatedTopic.getProperties();
                                 if (relatedTopicProperties == null) {
-                                    relatedTopicProperties = propertyTagProvider.newPropertyTagInTopicCollection();
+                                    relatedTopicProperties = propertyTagProvider.newPropertyTagInTopicCollection(relatedTopic);
                                 } else if (relatedTopicProperties.getItems() != null) {
                                     // remove any current url's
                                     final List<PropertyTagInTopicWrapper> relatedTopicPropertyTags = new
