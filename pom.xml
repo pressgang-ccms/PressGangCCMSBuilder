@@ -1,78 +1,65 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-	<parent>
-		<artifactId>contentspec-parent</artifactId>
-		<groupId>org.jboss.pressgang.ccms.contentspec</groupId>
-		<version>0.0.1-SNAPSHOT</version>
-		<relativePath>..</relativePath>
-	</parent>
+    <parent>
+        <artifactId>pressgang-parent</artifactId>
+        <groupId>org.jboss.pressgang</groupId>
+        <version>1.5</version>
+    </parent>
 
-	<artifactId>csbuilder</artifactId>
-	<version>0.1.7-SNAPSHOT</version>
-	<name>Content Specification Builder</name>
+    <artifactId>csbuilder</artifactId>
+    <version>0.1.7-SNAPSHOT</version>
+    <name>Content Specification Builder</name>
 
-	<properties>
-		<com.ibm.ico.version>4.8.1.1</com.ibm.ico.version>
-	</properties>
+    <properties>
+        <pressgang.ccms.version>1.0-SNAPSHOT</pressgang.ccms.version>
+        <com.ibm.ico.version>4.8.1.1</com.ibm.ico.version>
+        <slf4j.version>1.6.4</slf4j.version>
+    </properties>
 
-	<build>
-		<plugins>
-			<plugin>
-        <groupId>org.zanata</groupId>
-        <artifactId>zanata-maven-plugin</artifactId>
-        <version>1.7.1</version>
-      </plugin>
-		</plugins>
-	</build>
+    <dependencies>
+        <dependency>
+            <groupId>com.ibm.icu</groupId>
+            <artifactId>icu4j</artifactId>
+            <version>${com.ibm.ico.version}</version>
+        </dependency>
 
-	<pluginRepositories>
-    <pluginRepository>
-      <id>jboss-public-repository-group</id>
-      <name>JBoss Public Repository Group</name>
-      <url>http://repository.jboss.org/nexus/content/groups/public/</url>
-      <layout>default</layout>
-      <releases>
-        <enabled>true</enabled>
-        <updatePolicy>never</updatePolicy>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-        <updatePolicy>daily</updatePolicy>
-      </snapshots>
-    </pluginRepository>
-  </pluginRepositories>
+        <!-- PressGang CCMS libraries -->
+        <dependency>
+            <groupId>org.jboss.pressgang.ccms</groupId>
+            <artifactId>pressgang-ccms-utils</artifactId>
+            <version>${pressgang.ccms.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.pressgang.ccms</groupId>
+            <artifactId>pressgang-ccms-restv1</artifactId>
+            <version>${pressgang.ccms.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.pressgang.ccms</groupId>
+            <artifactId>pressgang-ccms-zanata</artifactId>
+            <version>${pressgang.ccms.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.pressgang.ccms</groupId>
+            <artifactId>pressgang-ccms-contentspec</artifactId>
+            <version>${pressgang.ccms.version}</version>
+        </dependency>
 
-	<dependencies>
-		<dependency>
-			<groupId>com.ibm.icu</groupId>
-			<artifactId>icu4j</artifactId>
-			<version>${com.ibm.ico.version}</version>
-		</dependency>
+        <!-- Logging Libraries -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
 
-		<!-- RESTEasy Libraries -->
-		<dependency>
-			<groupId>org.jboss.resteasy</groupId>
-			<artifactId>resteasy-atom-provider</artifactId>
-			<version>${resteasy.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.jboss.resteasy</groupId>
-			<artifactId>resteasy-jackson-provider</artifactId>
-			<version>${resteasy.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.jboss.resteasy</groupId>
-			<artifactId>resteasy-jaxrs</artifactId>
-			<version>${resteasy.version}</version>
-		</dependency>
-		<!--<dependency> 
-			<groupId>javax.ws.rs</groupId>
-			<artifactId>javax.ws.rs-api</artifactId> 
-			<version>2.0-m04</version>
-			<scope>provided</scope>
-		</dependency> -->
-
-	</dependencies>
+        <!-- Testing libraries -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>
