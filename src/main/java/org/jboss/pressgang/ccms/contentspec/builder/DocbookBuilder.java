@@ -1820,6 +1820,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
         String basicBook = bookXmlTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, getEscapedBookTitle());
         basicBook = basicBook.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
         basicBook = basicBook.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
+        basicBook = basicBook.replaceAll(BuilderConstants.PUBSNUMBER_REGEX, contentSpec.getPubsNumber() == null ? BuilderConstants
+                .DEFAULT_PUBSNUMBER : Integer.toString(contentSpec.getPubsNumber()));
         basicBook = basicBook.replaceAll(BuilderConstants.DRAFT_REGEX, getBuildOptions().getDraft() ? "status=\"draft\"" : "");
 
         if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
