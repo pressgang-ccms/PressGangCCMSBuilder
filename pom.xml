@@ -8,6 +8,7 @@
         <version>1.5</version>
     </parent>
 
+    <groupId>org.jboss.pressgang.ccms.contentspec</groupId>
     <artifactId>csbuilder</artifactId>
     <version>0.1.7-SNAPSHOT</version>
     <name>Content Specification Builder</name>
