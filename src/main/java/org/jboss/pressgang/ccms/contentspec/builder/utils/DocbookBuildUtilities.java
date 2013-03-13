@@ -1,8 +1,5 @@
 package org.jboss.pressgang.ccms.contentspec.builder.utils;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -251,72 +248,6 @@ public class DocbookBuildUtilities {
         }
 
         return topicXMLErrorTemplate;
-    }
-
-
-    /**
-     * Collects any nodes that have the "condition" attribute in the
-     * passed node or any of it's children nodes.
-     *
-     * @param node             The node to collect condition elements from.
-     * @param conditionalNodes A mapping of nodes to their conditions
-     */
-    public static void collectConditionalStatements(final Node node, final Map<Node, List<String>> conditionalNodes) {
-        final NamedNodeMap attributes = node.getAttributes();
-        if (attributes != null) {
-            final Node attr = attributes.getNamedItem("condition");
-
-            if (attr != null) {
-                final String conditionStatement = attr.getNodeValue();
-
-                final String[] conditions = conditionStatement.split("\\s*;\\s*");
-
-                conditionalNodes.put(node, Arrays.asList(conditions));
-            }
-        }
-
-        final NodeList elements = node.getChildNodes();
-        for (int i = 0; i < elements.getLength(); ++i) {
-            collectConditionalStatements(elements.item(i), conditionalNodes);
-        }
-    }
-
-    /**
-     * Check the XML Document and it's children for condition
-     * statements. If any are found then check if the condition
-     * matches the passed condition string. If they don't match
-     * then remove the nodes.
-     *
-     * @param condition The condition regex to be tested against.
-     * @param doc       The Document to check for conditional statements.
-     */
-    public static void processConditionalStatements(final String condition, final Document doc) {
-        final Map<Node, List<String>> conditionalNodes = new HashMap<Node, List<String>>();
-        collectConditionalStatements(doc.getDocumentElement(), conditionalNodes);
-
-        // Loop through each condition found and see if it matches
-        for (final Entry<Node, List<String>> entry : conditionalNodes.entrySet()) {
-            final Node node = entry.getKey();
-            final List<String> nodeConditions = entry.getValue();
-            boolean matched = false;
-
-            // Check to see if the condition matches
-            for (final String nodeCondition : nodeConditions) {
-                if (condition != null && nodeCondition.matches(condition)) {
-                    matched = true;
-                } else if (condition == null && nodeCondition.matches(BuilderConstants.DEFAULT_CONDITION)) {
-                    matched = true;
-                }
-            }
-
-            // If there was no match then remove the node
-            if (!matched) {
-                final Node parentNode = node.getParentNode();
-                if (parentNode != null) {
-                    parentNode.removeChild(node);
-                }
-            }
-        }
     }
 
     /**
