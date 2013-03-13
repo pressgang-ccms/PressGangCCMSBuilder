@@ -1480,8 +1480,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(
-                            specTopic.getRevision())) {
+                            .equals(specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             getTopicErrorDatabase().addWarning((T) topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -1820,8 +1819,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
         String basicBook = bookXmlTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, getEscapedBookTitle());
         basicBook = basicBook.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
         basicBook = basicBook.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
-        basicBook = basicBook.replaceAll(BuilderConstants.PUBSNUMBER_REGEX, contentSpec.getPubsNumber() == null ? BuilderConstants
-                .DEFAULT_PUBSNUMBER : Integer.toString(contentSpec.getPubsNumber()));
+        basicBook = basicBook.replaceAll(BuilderConstants.PUBSNUMBER_REGEX,
+                contentSpec.getPubsNumber() == null ? BuilderConstants.DEFAULT_PUBSNUMBER : Integer.toString(contentSpec.getPubsNumber()));
         basicBook = basicBook.replaceAll(BuilderConstants.DRAFT_REGEX, getBuildOptions().getDraft() ? "status=\"draft\"" : "");
 
         if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
@@ -2486,7 +2485,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                      * If the image is the failpenguin the that means that an error has already occurred most likely from not
                      * specifying an image file at all.
                      */
-                    if (imageID.equals("failpenguinPng")) {
+                    if (imageID.equals(BuilderConstants.FAILPENGUIN_PNG_NAME)) {
                         success = false;
                         getTopicErrorDatabase().addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES,
                                 "No image filename specified. Must be in the format [ImageFileID].extension e.g. 123.png, " +
@@ -2494,29 +2493,28 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     } else {
                         final ImageWrapper imageFile = imageProvider.getImage(Integer.parseInt(imageID));
                         // TODO Uncomment this once Image Revisions are fixed.
-                        /*
-                         * if (imageLocation.getRevision() == null) { imageFile =
-                         * providerFactory.getRESTClient().getJSONImage(Integer.parseInt(imageID), expandString); } else { imageFile
-                         * = providerFactory.getRESTClient().getJSONImageRevision(Integer.parseInt(imageID),
-                         * imageLocation.getRevision(), expandString); }
-                         */
+//                        if (imageLocation.getRevision() == null) {
+//                            imageFile = imageProvider.getImage(Integer.parseInt(imageID));
+//                        } else {
+//                            imageFile = imageProvider.getImage(Integer.parseInt(imageID), imageLocation.getRevision());
+//                        }
 
                         /* Find the image that matches this locale. If the locale isn't found then use the default locale */
-                        LanguageImageWrapper langaugeImageFile = null;
+                        LanguageImageWrapper languageImageFile = null;
                         if (imageFile.getLanguageImages() != null && imageFile.getLanguageImages().getItems() != null) {
                             final List<LanguageImageWrapper> languageImages = imageFile.getLanguageImages().getItems();
                             for (final LanguageImageWrapper image : languageImages) {
                                 if (image.getLocale().equals(locale)) {
-                                    langaugeImageFile = image;
-                                } else if (image.getLocale().equals(getDefaultBuildLocale()) && langaugeImageFile == null) {
-                                    langaugeImageFile = image;
+                                    languageImageFile = image;
+                                } else if (image.getLocale().equals(getDefaultBuildLocale()) && languageImageFile == null) {
+                                    languageImageFile = image;
                                 }
                             }
                         }
 
-                        if (langaugeImageFile != null && langaugeImageFile.getImageData() != null) {
+                        if (languageImageFile != null && languageImageFile.getImageData() != null) {
                             success = true;
-                            files.put(getBookLocaleFolder() + imageLocation.getImageName(), langaugeImageFile.getImageData());
+                            files.put(getBookLocaleFolder() + imageLocation.getImageName(), languageImageFile.getImageData());
                         } else {
                             getTopicErrorDatabase().addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES,
                                     "ImageFile ID " + imageID + " from image location " + imageLocation.getImageName() + " was not found!");
@@ -3294,7 +3292,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
              * Images have to be in the image folder in Publican. Here we loop through all the imagedata elements and fix up any
              * reference to an image that is not in the images folder.
              */
-            final List<Node> images = XMLUtilities.getNodes(specTopic.getXmlDocument(), "imagedata", "inlinegraphic");
+            final List<Node> images = XMLUtilities.getChildNodes(specTopic.getXmlDocument(), "imagedata", "inlinegraphic");
 
             for (final Node imageNode : images) {
                 final NamedNodeMap attributes = imageNode.getAttributes();
@@ -3303,7 +3301,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                     if (fileRefAttribute != null && (fileRefAttribute.getNodeValue() == null || fileRefAttribute.getNodeValue().isEmpty()
                     )) {
-                        fileRefAttribute.setNodeValue("images/failpenguinPng.jpg");
+                        fileRefAttribute.setNodeValue("images/" + BuilderConstants.FAILPENGUIN_PNG_NAME + ".jpg");
                         getImageLocations().add(new TopicImageData(topic, fileRefAttribute.getNodeValue()));
                     } else if (fileRefAttribute != null) {
                         // TODO Uncomment once image processing is fixed.
@@ -3473,7 +3471,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         if (tags != null && tags.getItems() != null && tags.getItems().size() > 0) {
             /* Find the sectioninfo node in the document, or create one if it doesn't exist */
             final Element sectionInfo;
-            final List<Node> sectionInfoNodes = XMLUtilities.findChildNodesWithName(doc.getDocumentElement(), "sectioninfo");
+            final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(doc.getDocumentElement(), "sectioninfo");
             if (sectionInfoNodes.size() == 1) {
                 sectionInfo = (Element) sectionInfoNodes.get(0);
             } else {
@@ -3534,8 +3532,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                     // Create the PropertyTagCollection to be used to update any data
                     final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
-                            .newPropertyTagInTopicCollection(
-                            topic);
+                            .newPropertyTagInTopicCollection(topic);
 
                     // Get a list of all property tag items that exist for the current topic
                     /*final List<RESTAssignedPropertyTagCollectionItemV1> existingUniqueURLs = ComponentTopicV1.returnPropertyItems(topic,
