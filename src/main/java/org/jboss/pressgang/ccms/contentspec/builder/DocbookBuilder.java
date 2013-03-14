@@ -98,6 +98,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             CSConstants.RELEASE_CATEGORY_ID, CSConstants.SEO_METADATA_CATEGORY_ID, CSConstants.COMMON_NAME_CATEGORY_ID,
             CSConstants.CONCERN_CATEGORY_ID, CSConstants.CONTENT_TYPE_CATEGORY_ID, CSConstants.PROGRAMMING_LANGUAGE_CATEGORY_ID);
     private static final Integer MAX_URL_LENGTH = 4000;
+    private static final String ENCODING = "UTF-8";
 
     protected final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
     protected final AtomicBoolean shutdown = new AtomicBoolean(false);
@@ -246,7 +247,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final URL defaultUrl = ClassLoader.getSystemResource("Constants.properties");
         if (defaultUrl != null) {
             try {
-                defaultProperties.load(new InputStreamReader(defaultUrl.openStream(), "UTF-8"));
+                defaultProperties.load(new InputStreamReader(defaultUrl.openStream(), ENCODING));
             } catch (IOException ex) {
                 log.debug(ex);
             }
@@ -651,7 +652,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final URL url = ClassLoader.getSystemResource("Constants-" + locale + ".properties");
         if (url != null) {
             try {
-                getConstantTranslatedStrings().load(new InputStreamReader(url.openStream(), "UTF-8"));
+                getConstantTranslatedStrings().load(new InputStreamReader(url.openStream(), ENCODING));
             } catch (IOException ex) {
                 log.debug(ex);
             }
@@ -1756,7 +1757,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 files.put(getBookLocaleFolder() + "Build_Content_Specification.xml", DocBookUtilities.buildAppendix(
                         DocBookUtilities.wrapInPara(
                                 "<programlisting>" + XMLUtilities.wrapStringInCDATA(contentSpec.toString()) + "</programlisting>"),
-                        "Build Content Specification").getBytes("UTF-8"));
+                        "Build Content Specification").getBytes(ENCODING));
             } catch (UnsupportedEncodingException e) {
                 /* UTF-8 is a valid format so this should exception should never get thrown */
                 log.error(e.getMessage());
@@ -1767,7 +1768,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         final String book = bookBase.replace(BuilderConstants.XIINCLUDES_INJECTION_STRING, bookXIncludes);
         try {
-            files.put(getBookLocaleFolder() + getEscapedBookTitle() + ".xml", book.getBytes("UTF-8"));
+            files.put(getBookLocaleFolder() + getEscapedBookTitle() + ".xml", book.getBytes(ENCODING));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this exception should never get thrown */
             log.error(e.getMessage());
@@ -1836,7 +1837,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Setup publican.cfg
         final String fixedPublicanCfg = buildPublicanCfgFile(publicanCfg, contentSpec);
         try {
-            files.put(getRootBookFolder() + "publican.cfg", fixedPublicanCfg.getBytes("UTF-8"));
+            files.put(getRootBookFolder() + "publican.cfg", fixedPublicanCfg.getBytes(ENCODING));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
             log.error(e.getMessage());
@@ -1846,9 +1847,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final String fixedBookInfo = buildBookInfoFile(bookInfoTemplate, contentSpec);
         try {
             if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-                files.put(getBookLocaleFolder() + "Article_Info.xml", fixedBookInfo.getBytes("UTF-8"));
+                files.put(getBookLocaleFolder() + "Article_Info.xml", fixedBookInfo.getBytes(ENCODING));
             } else {
-                files.put(getBookLocaleFolder() + "Book_Info.xml", fixedBookInfo.getBytes("UTF-8"));
+                files.put(getBookLocaleFolder() + "Book_Info.xml", fixedBookInfo.getBytes(ENCODING));
             }
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
@@ -1869,7 +1870,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     }
 
                     // Add the parsed file to the book
-                    files.put(getBookLocaleFolder() + "Author_Group.xml", buffer.toString().getBytes("UTF-8"));
+                    files.put(getBookLocaleFolder() + "Author_Group.xml", buffer.toString().getBytes(ENCODING));
                 } catch (Exception e) {
                     log.error(e.getMessage());
                     buildAuthorGroup(contentSpec, files);
@@ -1892,7 +1893,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             }
 
             try {
-                files.put(getBookLocaleFolder() + "Preface.xml", fixedPrefaceXml.getBytes("UTF-8"));
+                files.put(getBookLocaleFolder() + "Preface.xml", fixedPrefaceXml.getBytes(ENCODING));
             } catch (UnsupportedEncodingException e) {
                 /* UTF-8 is a valid format so this should exception should never get thrown */
                 log.error(e.getMessage());
@@ -1935,7 +1936,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     } else {
                         // Add the revision history directly to the book
                         try {
-                            files.put(getBookLocaleFolder() + "Revision_History.xml", buffer.toString().getBytes("UTF-8"));
+                            files.put(getBookLocaleFolder() + "Revision_History.xml", buffer.toString().getBytes(ENCODING));
                         } catch (UnsupportedEncodingException e) {
                             /* UTF-8 is a valid format so this should exception should never get thrown */
                             log.error(e.getMessage());
@@ -1956,7 +1957,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Build the book .ent file
         final String entFile = buildBookEntityFile(bookEntityTemplate, contentSpec);
         try {
-            files.put(getBookLocaleFolder() + getEscapedBookTitle() + ".ent", entFile.getBytes("UTF-8"));
+            files.put(getBookLocaleFolder() + getEscapedBookTitle() + ".ent", entFile.getBytes(ENCODING));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
             log.error(e.getMessage());
@@ -1977,7 +1978,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
     protected void addBookBaseFilesAndImages(final ContentSpec contentSpec, final Map<String, byte[]> files) {
         final String iconSvg = stringConstantProvider.getStringConstant(DocbookBuilderConstants.ICON_SVG_ID).getValue();
         try {
-            files.put(getBookImagesFolder() + "icon.svg", iconSvg.getBytes("UTF-8"));
+            files.put(getBookImagesFolder() + "icon.svg", iconSvg.getBytes(ENCODING));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
             log.error(e.getMessage());
@@ -2156,14 +2157,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 if (brandFile.exists() && brandFile.isFile()) {
                     final String file = FileUtilities.readFileContents(brandFile);
                     if (!file.isEmpty()) {
-                        files.put(getBookLocaleFolder() + fileName, file.getBytes("UTF-8"));
+                        files.put(getBookLocaleFolder() + fileName, file.getBytes(ENCODING));
                     }
                 } else {
                     final File commonBrandFile = new File(commonBrandDir + fileName);
                     if (commonBrandFile.exists() && commonBrandFile.isFile()) {
                         final String file = FileUtilities.readFileContents(commonBrandFile);
                         if (!file.isEmpty()) {
-                            files.put(getBookLocaleFolder() + fileName, file.getBytes("UTF-8"));
+                            files.put(getBookLocaleFolder() + fileName, file.getBytes(ENCODING));
                         }
                     }
                 }
@@ -2205,9 +2206,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // Create the title
         final String chapterName = level.getUniqueLinkId(useFixedUrls) + ".xml";
+        final String chapterXMLName = chapterName + ".xml";
 
         // Add to the list of XIncludes that will get set in the book.xml
-        bookXIncludes.append("\t<xi:include href=\"" + chapterName + "\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
+        bookXIncludes.append("\t<xi:include href=\"" + chapterXMLName + "\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />\n");
 
         // Create the chapter.xml
         final Element titleNode = chapter.createElement("title");
@@ -2225,7 +2227,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true),
                 getEscapedBookTitle() + ".ent", elementName);
         try {
-            files.put(getBookLocaleFolder() + chapterName, chapterString.getBytes("UTF-8"));
+            files.put(getBookLocaleFolder() + chapterXMLName, chapterString.getBytes(ENCODING));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
             log.error(e.getMessage());
@@ -2265,6 +2267,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // Create the title
         final String chapterName = level.getUniqueLinkId(useFixedUrls) + ".xml";
+        final String chapterXMLName = chapterName + ".xml";
 
         // Create the chapter.xml
         final Element titleNode = chapter.createElement("title");
@@ -2280,7 +2283,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true),
                 getEscapedBookTitle() + ".ent", elementName);
         try {
-            files.put(getBookLocaleFolder() + chapterName, chapterString.getBytes("UTF-8"));
+            files.put(getBookLocaleFolder() + chapterXMLName, chapterString.getBytes(ENCODING));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
             log.error(e.getMessage());
@@ -2288,7 +2291,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // Create the XIncludes that will get set in the book.xml
         final Element xiInclude = doc.createElement("xi:include");
-        xiInclude.setAttribute("href", chapterName);
+        xiInclude.setAttribute("href", chapterXMLName);
         xiInclude.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
 
         return xiInclude;
@@ -2426,7 +2429,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements,
                             true), getEscapedBookTitle() + ".ent", DocBookUtilities.TOPIC_ROOT_NODE_NAME);
             try {
-                files.put(fixedParentFileLocation + topicFileName, topicXML.getBytes("UTF-8"));
+                files.put(fixedParentFileLocation + topicFileName, topicXML.getBytes(ENCODING));
             } catch (UnsupportedEncodingException e) {
                 /* UTF-8 is a valid format so this should exception should never get thrown */
                 log.error(e.getMessage());
@@ -2695,7 +2698,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 XMLUtilities.convertNodeToString(authorDoc, verbatimElements, inlineElements, contentsInlineElements, true),
                 getEscapedBookTitle() + ".ent", "authorgroup");
         try {
-            files.put(getBookLocaleFolder() + "Author_Group.xml", fixedAuthorGroupXml.getBytes("UTF-8"));
+            files.put(getBookLocaleFolder() + "Author_Group.xml", fixedAuthorGroupXml.getBytes(ENCODING));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
             log.error(e.getMessage());
@@ -2783,7 +2786,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 XMLUtilities.convertNodeToString(revHistoryDoc, verbatimElements, inlineElements, contentsInlineElements, true),
                 getEscapedBookTitle() + ".ent", "appendix");
         try {
-            files.put(getBookLocaleFolder() + "Revision_History.xml", fixedRevisionHistoryXml.getBytes("UTF-8"));
+            files.put(getBookLocaleFolder() + "Revision_History.xml", fixedRevisionHistoryXml.getBytes(ENCODING));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
             log.error(e.getMessage());
@@ -3563,7 +3566,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                         for (int uniqueCount = 1; uniqueCount <= BuilderConstants.MAXIMUM_SET_PROP_TAG_NAME_RETRY; ++uniqueCount) {
                             final String query = "query;propertyTag" + CommonConstants.FIXED_URL_PROP_TAG_ID + "=" + URLEncoder.encode(
-                                    baseUrlName + postFix, "UTF-8");
+                                    baseUrlName + postFix, ENCODING);
                             final CollectionWrapper<TopicWrapper> queryTopics = topicProvider.getTopicsWithQuery(query);
 
                             if (queryTopics.size() != 0 || processedFileNames.contains(baseUrlName + postFix)) {
