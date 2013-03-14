@@ -2239,8 +2239,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 final String topicFileName = createTopicXMLFile(files, specTopic, parentFileLocation, useFixedUrls);
 
                 if (topicFileName != null) {
+                    // Remove the initial file location as we only where it lives in the topics directory
+                    final String fixedParentFileLocation = docbookBuildingOptions.getFlattenTopics() ? "topics/" : parentFileLocation
+                            .replace(
+                            BOOK_LOCALE_FOLDER, "");
+
                     final Element topicNode = chapter.createElement("xi:include");
-                    topicNode.setAttribute("href", parentFileLocation.replace(BOOK_LOCALE_FOLDER, "") + topicFileName);
+                    topicNode.setAttribute("href", fixedParentFileLocation + topicFileName);
                     topicNode.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
 
                     if (specTopic.getParent() != null && specTopic.getParent().getType() == LevelType.PART) {
@@ -2265,10 +2270,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Creates the Topic component of a chapter.xml for a specific SpecTopic.
      *
-     * @param files        The mapping of File Names/Locations to actual file content.
-     * @param specTopic    The SpecTopic object to get content from.
+     * @param files              The mapping of File Names/Locations to actual file content.
+     * @param specTopic          The SpecTopic object to get content from.
      * @param parentFileLocation
-     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
+     * @param useFixedUrls       If Fixed URL Properties should be used for topic ID attributes.
      * @return The filename of the new topic XML file.
      */
     protected String createTopicXMLFile(final Map<String, byte[]> files, final SpecTopic specTopic, final String parentFileLocation,
