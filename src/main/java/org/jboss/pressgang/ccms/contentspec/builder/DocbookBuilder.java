@@ -2077,7 +2077,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             if (contentSpec.getPublicanCfg().contains("git_branch")) {
                 publicanCfg = publicanCfg.replaceFirst("git_branch:\\s*.*(\\r)?(\\n)?", "");
             }
-            publicanCfg += contentSpec.getPublicanCfg();
+            publicanCfg += DocbookBuildUtilities.cleanUserPublicanCfg(contentSpec.getPublicanCfg());
 
             if (!publicanCfg.matches(".*\n$")) {
                 publicanCfg += "\n";

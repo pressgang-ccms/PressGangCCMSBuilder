@@ -334,4 +334,15 @@ public class DocbookBuildUtilities {
 
         return rev.toString();
     }
+
+    public static String cleanUserPublicanCfg(final String userPublicanCfg) {
+        // Remove any xml_lang statements
+        String retValue = userPublicanCfg.replaceAll("xml_lang\\:\\s*.*?($|\\r\\n|\\n)", "");
+        // Remove any type statements
+        retValue = retValue.replaceAll("type\\:\\s*.*($|\\r\\n|\\n)" + "", "");
+        // Remove any brand statements
+        retValue = retValue.replaceAll("brand\\:\\s*.*($|\\r\\n|\\n)" + "", "");
+
+        return retValue;
+    }
 }
