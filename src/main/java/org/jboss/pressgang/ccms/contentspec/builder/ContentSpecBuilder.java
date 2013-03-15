@@ -1,6 +1,7 @@
 package org.jboss.pressgang.ccms.contentspec.builder;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
@@ -58,18 +59,31 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
     /**
      * Builds a book into a zip file for the passed Content Specification.
      *
-     * @param contentSpec    The content specification that is to be built. It
-     *                       should have already been validated, if not errors
-     *                       may occur.
+     * @param contentSpec    The content specification that is to be built. It should have already been validated, if not errors may occur.
      * @param requester      The user who requested the book to be built.
-     * @param builderOptions The set of options what are to be when building the
-     *                       book.
+     * @param builderOptions The set of options what are to be when building the book.
      * @return A byte array that is the zip file
      * @throws BuildProcessingException Any unexpected errors that occur during building.
      * @throws BuilderCreationException Any error that occurs while trying to setup/create the builder
      */
     public byte[] buildBook(final ContentSpec contentSpec, final UserWrapper requester,
             final CSDocbookBuildingOptions builderOptions) throws BuilderCreationException, BuildProcessingException {
+        return buildBook(contentSpec, requester, builderOptions, new HashMap<String, byte[]>());
+    }
+
+    /**
+     * Builds a book into a zip file for the passed Content Specification.
+     *
+     * @param contentSpec    The content specification that is to be built. It should have already been validated, if not errors may occur.
+     * @param requester      The user who requested the book to be built.
+     * @param builderOptions The set of options what are to be when building the book.
+     * @param overrideFiles
+     * @return A byte array that is the zip file
+     * @throws BuildProcessingException Any unexpected errors that occur during building.
+     * @throws BuilderCreationException Any error that occurs while trying to setup/create the builder
+     */
+    public byte[] buildBook(final ContentSpec contentSpec, final UserWrapper requester, final CSDocbookBuildingOptions builderOptions,
+            final Map<String, byte[]> overrideFiles) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
         } else if (requester == null) {
@@ -78,7 +92,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 
         docbookBuilder = new DocbookBuilder(providerFactory, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
 
-        final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions);
+        final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, overrideFiles);
 
         // Create the zip file
         byte[] zipFile = null;
@@ -93,8 +107,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
     /**
      * Builds a book into a zip file for the passed Content Specification.
      *
-     * @param contentSpec    The content specification that is to be built. It should have already been validated, if not errors
-     *                       may occur.
+     * @param contentSpec    The content specification that is to be built. It should have already been validated, if not errors may occur.
      * @param requester      The user who requested the book to be built.
      * @param builderOptions The set of options what are to be when building the book.
      * @param zanataDetails  The Zanata details to be used when editor links are turned on.
@@ -105,6 +118,24 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
     public byte[] buildTranslatedBook(final ContentSpec contentSpec, final UserWrapper requester,
             final CSDocbookBuildingOptions builderOptions,
             final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
+        return buildTranslatedBook(contentSpec, requester, builderOptions, new HashMap<String, byte[]>(), zanataDetails);
+    }
+
+    /**
+     * Builds a book into a zip file for the passed Content Specification.
+     *
+     * @param contentSpec    The content specification that is to be built. It should have already been validated, if not errors may occur.
+     * @param requester      The user who requested the book to be built.
+     * @param builderOptions The set of options what are to be when building the book.
+     * @param zanataDetails  The Zanata details to be used when editor links are turned on.
+     * @param overrideFiles
+     * @return A byte array that is the zip file
+     * @throws BuildProcessingException Any unexpected errors that occur during building.
+     * @throws BuilderCreationException Any error that occurs while trying to setup/create the builder
+     */
+    public byte[] buildTranslatedBook(final ContentSpec contentSpec, final UserWrapper requester,
+            final CSDocbookBuildingOptions builderOptions, final Map<String, byte[]> overrideFiles,
+            final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
         } else if (requester == null) {
@@ -113,7 +144,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 
         docbookBuilder = new DocbookBuilder(providerFactory, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
 
-        final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, zanataDetails);
+        final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, overrideFiles, zanataDetails);
 
         // Create the zip file
         byte[] zipFile = null;

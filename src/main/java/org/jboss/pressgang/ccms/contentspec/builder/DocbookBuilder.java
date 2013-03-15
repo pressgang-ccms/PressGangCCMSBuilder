@@ -1,8 +1,8 @@
 package org.jboss.pressgang.ccms.contentspec.builder;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
@@ -146,6 +146,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
      */
     private CSDocbookBuildingOptions buildOptions;
     /**
+     * A mapping of override key's to their files.
+     */
+    private Map<String, byte[]> overrideFiles;
+    /**
      * The options that specify what injections are allowed when building.
      */
     private InjectionOptions injectionOptions;
@@ -281,6 +285,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
     protected void setBuildOptions(final CSDocbookBuildingOptions buildOptions) {
         this.buildOptions = buildOptions;
+    }
+
+    protected Map<String, byte[]> getOverrideFiles() {
+        return overrideFiles;
+    }
+
+    protected void setOverrideFiles(final Map<String, byte[]> overrideFiles) {
+        this.overrideFiles = overrideFiles;
     }
 
     protected InjectionOptions getInjectionOptions() {
@@ -495,7 +507,25 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param contentSpec     The content specification to build from.
      * @param requester       The user who requested the build.
      * @param buildingOptions The options to be used when building.
-     * @param zanataDetails   The Zanata server details to be used when populating links.
+     * @param overrideFiles
+     * @return Returns a mapping of file names/locations to files. This HashMap can be used to build a ZIP archive.
+     * @throws BuilderCreationException Thrown if the builder is unable to start due to incorrect passed variables.
+     * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
+     *                                  converted to a DOM Document.
+     */
+    public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final UserWrapper requester,
+            final CSDocbookBuildingOptions buildingOptions,
+            final Map<String, byte[]> overrideFiles) throws BuilderCreationException, BuildProcessingException {
+        return buildBook(contentSpec, requester, buildingOptions, overrideFiles, new ZanataDetails());
+    }
+
+    /**
+     * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.
+     *
+     * @param contentSpec     The content specification to build from.
+     * @param requester       The user who requested the build.
+     * @param buildingOptions The options to be used when building.
+     * @param zanataDetails   The Zanata server details to be used when populating links
      * @return Returns a mapping of file names/locations to files. This HashMap can be used to build a ZIP archive.
      * @throws BuilderCreationException Thrown if the builder is unable to start due to incorrect passed variables.
      * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
@@ -505,6 +535,26 @@ public class DocbookBuilder implements ShutdownAbleApp {
     public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final UserWrapper requester,
             final CSDocbookBuildingOptions buildingOptions,
             final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
+        return buildBook(contentSpec, requester, buildingOptions, new HashMap<String, byte[]>(), zanataDetails);
+    }
+
+    /**
+     * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.
+     *
+     * @param contentSpec     The content specification to build from.
+     * @param requester       The user who requested the build.
+     * @param buildingOptions The options to be used when building.
+     * @param overrideFiles
+     * @param zanataDetails   The Zanata server details to be used when populating links
+     * @return Returns a mapping of file names/locations to files. This HashMap can be used to build a ZIP archive.
+     * @throws BuilderCreationException Thrown if the builder is unable to start due to incorrect passed variables.
+     * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
+     *                                  converted to a DOM Document.
+     */
+    @SuppressWarnings("unchecked")
+    public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final UserWrapper requester,
+            final CSDocbookBuildingOptions buildingOptions, final Map<String, byte[]> overrideFiles,
+            final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
         }
@@ -512,6 +562,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Reset the builder
         resetBuilder();
 
+        setOverrideFiles(overrideFiles == null ? new HashMap<String, byte[]>() : overrideFiles);
         setZanataDetails(zanataDetails);
 
         if (contentSpec.getLocale() == null || contentSpec.getLocale().equals(getDefaultBuildLocale())) {
@@ -1857,30 +1908,17 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         // Setup Author_Group.xml
-        if (overrides.containsKey(CSConstants.AUTHOR_GROUP_OVERRIDE)) {
-            final File authorGrp = new File(overrides.get(CSConstants.AUTHOR_GROUP_OVERRIDE));
-            if (authorGrp.exists() && authorGrp.isFile()) {
-                try {
-                    final FileInputStream fis = new FileInputStream(authorGrp);
-                    final BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
-                    final StringBuilder buffer = new StringBuilder();
-                    String line = "";
-                    while ((line = reader.readLine()) != null) {
-                        buffer.append(line + "\n");
-                    }
-
-                    // Add the parsed file to the book
-                    files.put(getBookLocaleFolder() + "Author_Group.xml", buffer.toString().getBytes(ENCODING));
-                } catch (Exception e) {
-                    log.error(e.getMessage());
-                    buildAuthorGroup(contentSpec, files);
-                }
-            } else {
-                log.error("Author_Group.xml override is an invalid file. Using the default Author_Group.xml instead.");
-                buildAuthorGroup(contentSpec, files);
-            }
+        if (overrides.containsKey(CSConstants.AUTHOR_GROUP_OVERRIDE) && getOverrideFiles().containsKey(CSConstants.AUTHOR_GROUP_OVERRIDE)) {
+            // Add the override Author_Group.xml file to the book
+            files.put(getBookLocaleFolder() + "Author_Group.xml", getOverrideFiles().get(CSConstants.AUTHOR_GROUP_OVERRIDE));
         } else {
             buildAuthorGroup(contentSpec, files);
+        }
+
+        // Add the Feedback.xml if the override exists
+        if (overrides.containsKey(CSConstants.FEEDBACK_OVERRIDE) && getOverrideFiles().containsKey(CSConstants.FEEDBACK_OVERRIDE)) {
+            // Add the override Feedback.xml file to the book
+            files.put(getBookLocaleFolder() + "Feedback.xml", getOverrideFiles().get(CSConstants.FEEDBACK_OVERRIDE));
         }
 
         // Setup Preface.xml
@@ -1912,43 +1950,35 @@ public class DocbookBuilder implements ShutdownAbleApp {
         String fixedRevisionHistoryXml = revisionHistoryXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, getEscapedBookTitle());
 
         // Setup Revision_History.xml
-        if (overrides.containsKey(CSConstants.REVISION_HISTORY_OVERRIDE)) {
-            final File revHistory = new File(overrides.get(CSConstants.REVISION_HISTORY_OVERRIDE));
-            if (revHistory.exists() && revHistory.isFile()) {
+        if (overrides.containsKey(CSConstants.REVISION_HISTORY_OVERRIDE) && getOverrideFiles().containsKey(
+                CSConstants.REVISION_HISTORY_OVERRIDE)) {
+            byte[] revHistory = getOverrideFiles().get(CSConstants.REVISION_HISTORY_OVERRIDE);
+            if (getBuildOptions().getRevisionMessages() != null && !getBuildOptions().getRevisionMessages().isEmpty()) {
                 try {
-                    final FileInputStream fis = new FileInputStream(revHistory);
-                    final BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
+                    // Parse the Revision History and add the new entry/entries
+                    final ByteArrayInputStream bais = new ByteArrayInputStream(revHistory);
+                    final BufferedReader reader = new BufferedReader(new InputStreamReader(bais));
                     final StringBuilder buffer = new StringBuilder();
                     String line = "";
                     while ((line = reader.readLine()) != null) {
                         buffer.append(line + "\n");
                     }
 
-                    if (getBuildOptions().getRevisionMessages() != null && !getBuildOptions().getRevisionMessages().isEmpty()) {
-                        // Add a revision message to the Revision_History.xml
-                        final String revHistoryOverride = buffer.toString();
-                        final String docType = XMLUtilities.findDocumentType(revHistoryOverride);
-                        if (docType != null) {
-                            buildRevisionHistory(contentSpec, revHistoryOverride.replace(docType, ""), requester, files);
-                        } else {
-                            buildRevisionHistory(contentSpec, revHistoryOverride, requester, files);
-                        }
+                    // Add a revision message to the Revision_History.xml
+                    final String revHistoryOverride = buffer.toString();
+                    final String docType = XMLUtilities.findDocumentType(revHistoryOverride);
+                    if (docType != null) {
+                        buildRevisionHistory(contentSpec, revHistoryOverride.replace(docType, ""), requester, files);
                     } else {
-                        // Add the revision history directly to the book
-                        try {
-                            files.put(getBookLocaleFolder() + "Revision_History.xml", buffer.toString().getBytes(ENCODING));
-                        } catch (UnsupportedEncodingException e) {
-                            /* UTF-8 is a valid format so this should exception should never get thrown */
-                            log.error(e.getMessage());
-                        }
+                        buildRevisionHistory(contentSpec, revHistoryOverride, requester, files);
                     }
                 } catch (Exception e) {
                     log.error(e.getMessage());
                     buildRevisionHistory(contentSpec, fixedRevisionHistoryXml, requester, files);
                 }
             } else {
-                log.error("Revision_History.xml override is an invalid file. Using the default Revision_History.xml instead.");
-                buildRevisionHistory(contentSpec, fixedRevisionHistoryXml, requester, files);
+                // Add the revision history directly to the book
+                files.put(getBookLocaleFolder() + "Revision_History.xml", revHistory);
             }
         } else {
             buildRevisionHistory(contentSpec, fixedRevisionHistoryXml, requester, files);
@@ -3535,7 +3565,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                     // Create the PropertyTagCollection to be used to update any data
                     final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
-                            .newPropertyTagInTopicCollection(topic);
+                            .newPropertyTagInTopicCollection(
+                            topic);
 
                     // Get a list of all property tag items that exist for the current topic
                     /*final List<RESTAssignedPropertyTagCollectionItemV1> existingUniqueURLs = ComponentTopicV1.returnPropertyItems(topic,
