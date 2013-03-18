@@ -3,6 +3,7 @@ package com.redhat.contentspec.builder;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.redhat.contentspec.builder.constants.BuilderConstants;
 import com.redhat.contentspec.builder.exception.BuilderCreationException;
 import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
@@ -38,7 +39,8 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 
     public ContentSpecBuilder(final RESTManager restManager) throws InvalidParameterException, InternalProcessingException {
         this.restManager = restManager;
-        this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
+        this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.ROCBOOK_DTD_BLOB_ID,
+                BuilderConstants.BLOB_CONSTANT_EXPAND);
     }
 
     @Override

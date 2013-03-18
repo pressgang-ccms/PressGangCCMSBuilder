@@ -16,6 +16,8 @@ public class BuilderConstants
 	public static final String DOCBOOK_45_DTD = "docbookx.dtd";
 	public static final String ROCBOOK_45_DTD = "rocbookx.dtd";
 
+    public static final String BLOB_CONSTANT_EXPAND = "%7B%22branches%22%3A%5B%7B%22trunk%22%3A%7B%22name%22%3A%20%22value%22%7D%7D%5D%7D";
+
 	// Regex strings used to replace content
 	public static final String ESCAPED_TITLE_REGEX 		= "<<contentSpec\\.escapedTitle>>";
 	public static final String TITLE_REGEX 				= "<<contentSpec\\.title>>";

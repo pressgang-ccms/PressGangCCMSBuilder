@@ -220,7 +220,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             final String defaultLocale) throws InvalidParameterException, InternalProcessingException, BuilderCreationException {
         reader = restManager.getReader();
         this.restManager = restManager;
-        this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.ROCBOOK_DTD_BLOB_ID, "");
+        this.rocbookdtd = rocbookDtd;
         this.errorEmptyTopic = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.CSP_EMPTY_TOPIC_ERROR_XML_ID, "");
         this.errorInvalidInjectionTopic = restManager.getRESTClient().getJSONStringConstant(
                 DocbookBuilderConstants.CSP_INVALID_INJECTION_TOPIC_ERROR_XML_ID, "");
@@ -1860,11 +1860,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     "").getValue();
 
             final byte[] treeviewSpriteGif = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.TREEVIEW_SPRITE_GIF_ID,
-                    "").getValue();
+                    BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
             final byte[] treeviewLoadingGif = restManager.getRESTClient().getJSONBlobConstant(
-                    DocbookBuilderConstants.TREEVIEW_LOADING_GIF_ID, "").getValue();
-            final byte[] check1Gif = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.CHECK1_GIF_ID, "").getValue();
-            final byte[] check2Gif = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.CHECK2_GIF_ID, "").getValue();
+                    DocbookBuilderConstants.TREEVIEW_LOADING_GIF_ID, BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
+            final byte[] check1Gif = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.CHECK1_GIF_ID, BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
+            final byte[] check2Gif = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.CHECK2_GIF_ID, BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
 
             // these files are used by the YUI treeview
             files.put(BOOK_FILES_FOLDER + "yahoo-dom-event.js", StringUtilities.getStringBytes(yahooDomEventJs));
@@ -2334,7 +2334,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             final String locale) throws InvalidParameterException, InternalProcessingException {
         /* Load the database constants */
         final byte[] failpenguinPng = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.FAILPENGUIN_PNG_ID,
-                "").getValue();
+                BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
 
         /* download the image files that were identified in the processing stage */
         float imageProgress = 0;
