@@ -16,7 +16,7 @@ public class BuilderConstants
 	public static final String DOCBOOK_45_DTD = "docbookx.dtd";
 	public static final String ROCBOOK_45_DTD = "rocbookx.dtd";
 
-    public static final String BLOB_CONSTANT_EXPAND = "%7B%22branches%22%3A%5B%7B%22trunk%22%3A%7B%22name%22%3A%20%22value%22%7D%7D%5D%7D";
+    public static final String BLOB_CONSTANT_EXPAND = "{\"branches\":[{\"trunk\":{\"name\": \"value\"}}]}";
 
 	// Regex strings used to replace content
 	public static final String ESCAPED_TITLE_REGEX 		= "<<contentSpec\\.escapedTitle>>";
@@ -25,7 +25,7 @@ public class BuilderConstants
 	public static final String VERSION_REGEX 			= "<<contentSpec\\.version>>";
 	public static final String PRODUCT_REGEX 			= "<<contentSpec\\.product>>";
 	public static final String EDITION_REGEX 			= "<<contentSpec\\.edition>>";
-	public static final String PUBSNUMBER_REGEX			= "<<contentSpec\\.pubsNumber>>";
+	public static final String PUBSNUMBER_REGEX			= "\\<pubsnumber\\>.*\\</pubsnumber\\>";
 	public static final String SUBTITLE_REGEX 			= "<<contentSpec\\.subtitle>>";
 	public static final String BZPRODUCT_REGEX 			= "<<contentSpec\\.bzproduct>>";
 	public static final String BZCOMPONENT_REGEX 		= "<<contentSpec\\.bzcomponent>>";
