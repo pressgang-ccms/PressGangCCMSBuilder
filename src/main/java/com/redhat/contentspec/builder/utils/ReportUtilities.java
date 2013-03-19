@@ -86,22 +86,22 @@ public class ReportUtilities
 				topicIdString = "Topic " + translatedTopic.getTopicId() + ", Revision " + translatedTopic.getTopicRevision();
 				if (translatedTopic.getTopic() != null)
 				{
-					url = ComponentTopicV1.returnSkynetURL(translatedTopic.getTopic());
+					url = ComponentTopicV1.returnPressGangCCMSURL(translatedTopic.getTopic());
 				}
 				else
 				{
-					url = ComponentTranslatedTopicV1.returnSkynetURL(translatedTopic);
+					url = ComponentTranslatedTopicV1.returnPressGangCCMSURL(translatedTopic);
 				}
 			}
 			else
 			{
 				if (translatedTopic.getTopic() != null)
 				{
-					final String topicUrl = ComponentTopicV1.returnSkynetURL(translatedTopic.getTopic());
+					final String topicUrl = ComponentTopicV1.returnPressGangCCMSURL(translatedTopic.getTopic());
 					topicIdUrls.add(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(topicUrl, "Topic " + translatedTopic.getTopic().getId()))));
 				}
 				topicIdString = "Translated Topic " + translatedTopic.getTranslatedTopicId();
-				url = ComponentTranslatedTopicV1.returnSkynetURL(translatedTopic);
+				url = ComponentTranslatedTopicV1.returnPressGangCCMSURL(translatedTopic);
 			}
 			topicIdUrls.add(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(url, topicIdString))));
 			
@@ -116,7 +116,7 @@ public class ReportUtilities
 		}
 		else
 		{
-			url = ComponentTopicV1.returnSkynetURL((RESTTopicV1) topic);
+			url = ComponentTopicV1.returnPressGangCCMSURL((RESTTopicV1) topic);
 			final String topicIdString = "Topic " + topic.getId() + ", Revision " + topic.getRevision();
 			topicIdUrls.add(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(DocBookUtilities.buildULink(url, topicIdString))));
 			

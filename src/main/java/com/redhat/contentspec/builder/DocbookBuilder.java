@@ -2878,10 +2878,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 final String url;
                 if (topic instanceof RESTTranslatedTopicV1) {
                     tags = ComponentTranslatedTopicV1.getCommaSeparatedTagList(topic);
-                    url = ComponentTranslatedTopicV1.returnSkynetURL((RESTTranslatedTopicV1) topic);
+                    url = ComponentTranslatedTopicV1.returnPressGangCCMSURL((RESTTranslatedTopicV1) topic);
                 } else {
                     tags = ComponentTopicV1.getCommaSeparatedTagList(topic);
-                    url = ComponentTopicV1.returnSkynetURL((RESTTopicV1) topic);
+                    url = ComponentTopicV1.returnPressGangCCMSURL((RESTTopicV1) topic);
                 }
 
                 topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + tags));
