@@ -1021,9 +1021,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * Find the latest pushed and translated topics for a topic. We need to do this since translations are only added when some
      * content is added in Zanata. So if the latest translated topic doesn't match the topic revision of the latest pushed then
      * we will need to create a dummy topic for the latest pushed topic.
-     *
+     * 
      * @param topic The topic to find the latest translated topic and pushed translation.
-     * @param rev   The revision for the topic as specified in the ContentSpec.
+     * @param rev The revision for the topic as specified in the ContentSpec.
      * @return A Pair whose first element is the Latest Translated Topic and second element is the Latest Pushed Translation.
      */
     private Pair<TranslatedTopicWrapper, TranslatedTopicWrapper> getLatestTranslations(final TopicWrapper topic, final Integer rev) {
@@ -1444,8 +1444,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 return;
             }
 
-            if (log.isDebugEnabled()) log.debug("\tProcessing SpecTopic " + specTopic.getId() + (specTopic.getRevision() != null ? (", " +
-                    "Revision " + specTopic.getRevision()) : ""));
+            if (log.isDebugEnabled())
+                log.debug("\tProcessing SpecTopic " + specTopic.getId()
+                        + (specTopic.getRevision() != null ? (", Revision " + specTopic.getRevision()) : ""));
 
             ++current;
             final int percent = Math.round(current / total * 100);
@@ -1469,8 +1470,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     DocBookUtilities.processConditions(condition, doc, BuilderConstants.DEFAULT_CONDITION);
                 }
 
-                final boolean valid = processSpecTopicInjections(contentSpec, specTopic, xmlPreProcessor, relatedTopicsDatabase,
-                        useFixedUrls);
+                final boolean valid = processSpecTopicInjections(contentSpec, specTopic, xmlPreProcessor,
+                        relatedTopicsDatabase, useFixedUrls);
 
                 /*
                  * If the topic is a translated topic then check to see if the translated topic hasn't been pushed for
@@ -1478,11 +1479,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
                  */
                 if (topic instanceof TranslatedTopicWrapper) {
                     /* Check the topic itself isn't a dummy topic */
-                    if (EntityUtilities.isDummyTopic(topic) && EntityUtilities.hasBeenPushedForTranslation(
-                            (TranslatedTopicWrapper) topic)) {
-                        getTopicErrorDatabase().addWarning(topic, ErrorType.UNTRANSLATED, BuilderConstants.WARNING_UNTRANSLATED_TOPIC);
-                    } else if (EntityUtilities.isDummyTopic(topic)) {
-                        getTopicErrorDatabase().addWarning(topic, ErrorType.NOT_PUSHED_FOR_TRANSLATION,
+                    if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic)
+                            && ComponentTranslatedTopicV1.hasBeenPushedForTranslation((RESTTranslatedTopicV1) topic)) {
+                        errorDatabase.addWarning(topic, ErrorType.UNTRANSLATED, BuilderConstants.WARNING_UNTRANSLATED_TOPIC);
+                    } else if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic)) {
+                        errorDatabase.addWarning(topic, ErrorType.NOT_PUSHED_FOR_TRANSLATION,
                                 BuilderConstants.WARNING_NONPUSHED_TOPIC);
                     } else {
                         /* Check if the topic's content isn't fully translated */
@@ -1711,11 +1712,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
         if (attributes != null) {
             final Node idAttribute = attributes.getNamedItem("id");
             if (idAttribute != null) {
-                final String idAttibuteValue = idAttribute.getNodeValue();
+                final String idAttributeValue = idAttribute.getNodeValue();
                 if (!usedIdAttributes.containsKey(topicId)) {
                     usedIdAttributes.put(topicId, new HashSet<String>());
                 }
-                usedIdAttributes.get(topicId).add(idAttibuteValue);
+                usedIdAttributes.get(topicId).add(idAttributeValue);
             }
         }
 
@@ -1871,9 +1872,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
         String basicBook = bookXmlTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, getEscapedBookTitle());
         basicBook = basicBook.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
         basicBook = basicBook.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
-        basicBook = basicBook.replaceAll(BuilderConstants.PUBSNUMBER_REGEX,
-                contentSpec.getPubsNumber() == null ? BuilderConstants.DEFAULT_PUBSNUMBER : Integer.toString(contentSpec.getPubsNumber()));
-        basicBook = basicBook.replaceAll(BuilderConstants.DRAFT_REGEX, getBuildOptions().getDraft() ? "status=\"draft\"" : "");
+        basicBook = basicBook.replaceAll(BuilderConstants.DRAFT_REGEX, getBuildOptions().getDraft() ? "status=\"draft\""
+                : "");
 
         if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
             // Add the preface to the book.xml
@@ -2063,6 +2063,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
         bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
         bookInfo = bookInfo.replaceAll(BuilderConstants.EDITION_REGEX,
                 contentSpec.getEdition() == null ? BuilderConstants.DEFAULT_EDITION : contentSpec.getEdition());
+        final String pubsNumber = overrides.containsKey(CSConstants.PUBSNUMBER_OVERRIDE) ? overrides.get(
+                CSConstants.PUBSNUMBER_OVERRIDE) : (contentSpec.getPubsNumber() == null ? BuilderConstants.DEFAULT_PUBSNUMBER :
+                contentSpec.getPubsNumber().toString());
+        bookInfo = bookInfo.replaceAll(BuilderConstants.PUBSNUMBER_REGEX, "<pubsnumber>" + pubsNumber + "</pubsnumber>");
 
         if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
             bookInfo = bookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX,
@@ -2222,8 +2226,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         /* Get the name of the element based on the type */
-        final String elementName = level.getType() == LevelType.PROCESS ? "chapter" : level.getType().getTitle().toLowerCase(
-                Locale.ENGLISH);
+        final String elementName = level.getType() == LevelType.PROCESS ? "chapter" : level.getType().getTitle().toLowerCase();
 
         Document chapter = null;
         try {
@@ -2283,8 +2286,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         /* Get the name of the element based on the type */
-        final String elementName = level.getType() == LevelType.PROCESS ? "chapter" : level.getType().getTitle().toLowerCase(
-                Locale.ENGLISH);
+        final String elementName = level.getType() == LevelType.PROCESS ? "chapter" : level.getType().getTitle().toLowerCase();
 
         Document chapter = null;
         try {
@@ -2301,9 +2303,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // Create the chapter.xml
         final Element titleNode = chapter.createElement("title");
-        if (isTranslationBuild() && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty())
+        if (isTranslationBuild() && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty()) {
             titleNode.setTextContent(level.getTranslatedTitle());
-        else titleNode.setTextContent(level.getTitle());
+        } else {
+            titleNode.setTextContent(level.getTitle());
+        }
         chapter.getDocumentElement().appendChild(titleNode);
         chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
         createSectionXML(files, level, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + "/", useFixedUrls);
@@ -2342,8 +2346,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final LinkedList<org.jboss.pressgang.ccms.contentspec.Node> levelData = level.getChildNodes();
 
         /* Get the name of the element based on the type */
-        final String elementName = level.getType() == LevelType.PROCESS ? "chapter" : level.getType().getTitle().toLowerCase(
-                Locale.ENGLISH);
+        final String elementName = level.getType() == LevelType.PROCESS ? "chapter" : level.getType().getTitle().toLowerCase();
         final Element intro = chapter.createElement(elementName + "intro");
 
         /* Storage container to hold the levels so they can be added in proper order with the intro */
