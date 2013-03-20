@@ -1479,11 +1479,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
                  */
                 if (topic instanceof TranslatedTopicWrapper) {
                     /* Check the topic itself isn't a dummy topic */
-                    if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic)
-                            && ComponentTranslatedTopicV1.hasBeenPushedForTranslation((RESTTranslatedTopicV1) topic)) {
-                        errorDatabase.addWarning(topic, ErrorType.UNTRANSLATED, BuilderConstants.WARNING_UNTRANSLATED_TOPIC);
-                    } else if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic)) {
-                        errorDatabase.addWarning(topic, ErrorType.NOT_PUSHED_FOR_TRANSLATION,
+                    if (EntityUtilities.isDummyTopic(topic) && EntityUtilities.hasBeenPushedForTranslation(
+                            (TranslatedTopicWrapper) topic)) {
+                        getTopicErrorDatabase().addWarning(topic, ErrorType.UNTRANSLATED, BuilderConstants.WARNING_UNTRANSLATED_TOPIC);
+                    } else if (EntityUtilities.isDummyTopic(topic)) {
+                        getTopicErrorDatabase().addWarning(topic, ErrorType.NOT_PUSHED_FOR_TRANSLATION,
                                 BuilderConstants.WARNING_NONPUSHED_TOPIC);
                     } else {
                         /* Check if the topic's content isn't fully translated */
@@ -2055,6 +2055,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @return The Book_Info.xml file filled with content from the Content Spec.
      */
     protected String buildBookInfoFile(final String bookInfoTemplate, final ContentSpec contentSpec) {
+        final Map<String, String> overrides = getBuildOptions().getOverrides();
+
         String bookInfo = bookInfoTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, getEscapedBookTitle());
         bookInfo = bookInfo.replaceAll(BuilderConstants.TITLE_REGEX, contentSpec.getTitle());
         bookInfo = bookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX,
@@ -2238,7 +2240,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         // Create the title
-        final String chapterName = level.getUniqueLinkId(useFixedUrls) + ".xml";
+        final String chapterName = level.getUniqueLinkId(useFixedUrls);
         final String chapterXMLName = chapterName + ".xml";
 
         // Add to the list of XIncludes that will get set in the book.xml
@@ -2298,7 +2300,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         // Create the title
-        final String chapterName = level.getUniqueLinkId(useFixedUrls) + ".xml";
+        final String chapterName = level.getUniqueLinkId(useFixedUrls);
         final String chapterXMLName = chapterName + ".xml";
 
         // Create the chapter.xml

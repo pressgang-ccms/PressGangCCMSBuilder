@@ -26,7 +26,7 @@ public class BuilderConstants {
     public static final String VERSION_REGEX = "<<contentSpec\\.version>>";
     public static final String PRODUCT_REGEX = "<<contentSpec\\.product>>";
     public static final String EDITION_REGEX = "<<contentSpec\\.edition>>";
-    public static final String PUBSNUMBER_REGEX = "<<contentSpec\\.pubsNumber>>";
+    public static final String PUBSNUMBER_REGEX = "\\<pubsnumber\\>.*\\</pubsnumber\\>";
     public static final String SUBTITLE_REGEX = "<<contentSpec\\.subtitle>>";
     public static final String BZPRODUCT_REGEX = "<<contentSpec\\.bzproduct>>";
     public static final String BZCOMPONENT_REGEX = "<<contentSpec\\.bzcomponent>>";
