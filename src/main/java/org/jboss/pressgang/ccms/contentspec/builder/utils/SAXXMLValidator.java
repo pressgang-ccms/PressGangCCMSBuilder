@@ -23,11 +23,15 @@ import org.xml.sax.XMLReader;
  * @author lnewson
  */
 public class SAXXMLValidator implements ErrorHandler, EntityResolver {
+    private static final NamedPattern DOCTYPE_PATTERN = NamedPattern.compile(
+            "^\\s*<\\?xml.*?\\?>\\s*<\\!DOCTYPE\\s+(?<Name>.*?)\\s+((PUBLIC\\s+\".*?\"|SYSTEM)\\s+\"(?<SystemId>.*?)\")\\s*(" + "" +
+                    "(?<Entities>\\[(.|\n)*\\]\\s*))?>");
+
     protected boolean errorsDetected;
     private String errorText;
     private String dtdFileName;
     private byte[] dtdData;
-    final private boolean showErrors;
+    private final boolean showErrors;
 
     public SAXXMLValidator(final boolean showErrors) {
         this.showErrors = showErrors;
@@ -37,9 +41,27 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
         this.showErrors = false;
     }
 
+    /**
+     * Validates some piece of XML, by firstly converting it to a string to ensure that it is valid.
+     *
+     * @param doc         The XML DOM Document to be validated.
+     * @param dtdFileName The filename of the DTD data.
+     * @param dtdData     The DTD data to be used to validate against.
+     * @return True if the XML is valid, otherwise false.
+     */
     public boolean validateXML(final Document doc, final String dtdFileName, final byte[] dtdData) {
-        return doc == null || doc.getDocumentElement() == null ? false : validateXML(XMLUtilities.convertDocumentToString(doc), dtdFileName,
-                dtdData, doc.getDocumentElement().getNodeName());
+        if (doc == null || doc.getDocumentElement() == null){
+            return false;
+        } else {
+            final String xml;
+            if (doc.getXmlEncoding() == null) {
+                xml = XMLUtilities.convertDocumentToString(doc, "UTF-8");
+            } else {
+                xml = XMLUtilities.convertDocumentToString(doc);
+            }
+
+            return validateXML(xml, dtdFileName, dtdData, doc.getDocumentElement().getNodeName());
+        }
     }
 
     /**
@@ -49,7 +71,7 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
      * @param dtdFileName The filename of the DTD data.
      * @param dtdData     The DTD data to be used to validate against.
      * @param rootEleName The name of the root XML Element.
-     * @return
+     * @return True if the XML is valid, otherwise false.
      */
     public boolean validateXML(final String xml, final String dtdFileName, final byte[] dtdData, String rootEleName) {
         if (xml == null || dtdFileName == null || dtdData == null || rootEleName == null) return false;
@@ -81,7 +103,12 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
     }
 
     /**
-     * A function that will resolve the dtd file location to the dtd byte[] data specified.
+     * A function that will resolve the dtd file location to the dtd byte[] data specified, if the System ID matches the dtd filename.
+     * Otherwise a null InputSource will be returned.
+     *
+     * @param publicId The Public ID of the DTD to be resolved.
+     * @param systemId The System ID of the DTD to be resolved.
+     * @return An input stream that will read from the passed dtd byte array.
      */
     @Override
     public InputSource resolveEntity(String publicId, String systemId) throws SAXException, IOException {
@@ -125,22 +152,19 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
     }
 
     /**
-     * Sets the DTD for an xml file. If there are any entities then they are removed. This function will aslo add the preamble to the XML
+     * Sets the DTD for an xml file. If there are any entities then they are removed. This function will also add the preamble to the XML
      * if it doesn't exist.
      *
      * @param xml            The XML to add the DTD for.
      * @param dtdFileName    The file/url name of the DTD.
-     * @param dtdRootEleName The name of the root element in the XML that is inserted into the <!DOCTYPE > node.
+     * @param dtdRootEleName The name of the root element in the XML that is inserted into the {@code<!DOCTYPE >} node.
      * @return The xml with the dtd added.
      */
     private String setXmlDtd(final String xml, final String dtdFileName, final String dtdRootEleName) {
         String output = null;
 
-		/* Check if the XML already has a DOCTYPE. If it does then replace the values and remove entities for processing */
-        final NamedPattern pattern = NamedPattern.compile(
-                "<\\!DOCTYPE[ ]+(?<Name>.*?)[ ]+((PUBLIC[ ]+\".*?\"|SYSTEM)[ ]+\"(?<SystemId>.*?)\")[ ]*((?<Entities>\\[(.|\n)*\\][ ]*))"
-                        + "?>");
-        final NamedMatcher matcher = pattern.matcher(xml);
+        // Check if the XML already has a DOCTYPE. If it does then replace the values and remove entities for processing
+        final NamedMatcher matcher = DOCTYPE_PATTERN.matcher(xml);
         while (matcher.find()) {
             String name = matcher.group("Name");
             String systemId = matcher.group("SystemId");
@@ -154,7 +178,7 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
             return output;
         }
 
-		/* The XML doesn't have any doctype so add it */
+        // The XML doesn't have any doctype so add it
         final String preamble = XMLUtilities.findPreamble(xml);
         if (preamble != null) {
             output = xml.replace(preamble, preamble + "\n" + "<!DOCTYPE " + dtdRootEleName + " SYSTEM \"" + dtdFileName + "\">");
