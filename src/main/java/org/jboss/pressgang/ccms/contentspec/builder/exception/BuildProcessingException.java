@@ -6,4 +6,12 @@ public class BuildProcessingException extends Exception {
     public BuildProcessingException(final String message) {
         super(message);
     }
+
+    public BuildProcessingException(final String message, final Throwable cause) {
+        super(message, cause);
+    }
+
+    public BuildProcessingException(final Throwable cause) {
+        super(cause);
+    }
 }

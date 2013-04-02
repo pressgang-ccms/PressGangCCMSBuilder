@@ -9,8 +9,11 @@ import com.google.code.regexp.NamedPattern;
 import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
+import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildTopic;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.CSDocbookBuildingOptions;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.wrapper.TranslatedTopicWrapper;
@@ -32,15 +35,38 @@ public class DocbookBuildUtilities {
     private static final String STARTS_WITH_INVALID_SEQUENCE_RE = "^(?<InvalidSeq>[^\\w\\d]+)(?<EverythingElse>.*)$";
 
     /**
+     * Adds the levels and topics in the provided Level object to the local content spec database.
+     *
+     * @param level        The content spec level to be added to the database.
+     * @param useFixedUrls Whether fixed URL's are to be used for the level ID attributes.
+     */
+    public static void addLevelAndTopicsToDatabase(final BuildDatabase buildDatabase, final Level level, final boolean useFixedUrls) {
+        // Add the level to the database
+        buildDatabase.add(level, DocbookBuildUtilities.createURLTitle(level.getTitle()));
+
+        // Add the topics at this level to the database
+        for (final SpecTopic specTopic : level.getSpecTopics()) {
+            final BuildTopic buildTopic = new BuildTopic(specTopic);
+            buildDatabase.add(buildTopic, buildTopic.getUniqueLinkId(useFixedUrls));
+        }
+
+        // Add the child levels to the database
+        for (final Level childLevel : level.getChildLevels()) {
+            addLevelAndTopicsToDatabase(buildDatabase, childLevel, useFixedUrls);
+        }
+    }
+
+    /**
      * Sets the "id" attributes in the supplied XML node so that they will be
      * unique within the book.
      *
-     * @param specTopic        The topic the node belongs to.
+     * @param buildTopic       The topic the node belongs to.
      * @param node             The node to process for id attributes.
      * @param usedIdAttributes The list of usedIdAttributes.
      */
-    public static void setUniqueIds(final SpecTopic specTopic, final Node node, final Document doc,
+    public static void setUniqueIds(final BuildTopic buildTopic, final Node node, final Document doc,
             final Map<Integer, Set<String>> usedIdAttributes) {
+        final SpecTopic specTopic = buildTopic.getSpecTopic();
         final NamedNodeMap attributes = node.getAttributes();
         if (attributes != null) {
             final Node idAttribute = attributes.getNamedItem("id");
@@ -48,8 +74,8 @@ public class DocbookBuildUtilities {
                 final String idAttributeValue = idAttribute.getNodeValue();
                 String fixedIdAttributeValue = idAttributeValue;
 
-                if (specTopic.getDuplicateId() != null) {
-                    fixedIdAttributeValue += "-" + specTopic.getDuplicateId();
+                if (buildTopic.getDuplicateId() != null) {
+                    fixedIdAttributeValue += "-" + buildTopic.getDuplicateId();
                 }
 
                 if (!DocbookBuildUtilities.isUniqueAttributeId(fixedIdAttributeValue, specTopic.getDBId(), usedIdAttributes)) {
@@ -64,7 +90,7 @@ public class DocbookBuildUtilities {
 
         final NodeList elements = node.getChildNodes();
         for (int i = 0; i < elements.getLength(); ++i) {
-            setUniqueIds(specTopic, elements.item(i), doc, usedIdAttributes);
+            setUniqueIds(buildTopic, elements.item(i), doc, usedIdAttributes);
         }
     }
 
