@@ -11,46 +11,35 @@ import java.util.Set;
 
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
-import org.jboss.pressgang.ccms.contentspec.builder.utils.DocbookBuildUtilities;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.wrapper.base.BaseTopicWrapper;
 
 public class BuildDatabase {
-    private Map<Integer, List<BuildTopic>> topics = new HashMap<Integer, List<BuildTopic>>();
-    private Map<String, List<BuildTopic>> topicsTitles = new HashMap<String, List<BuildTopic>>();
-    private Map<String, List<BuildLevel>> levelTitles = new HashMap<String, List<BuildLevel>>();
+    private Map<Integer, List<SpecTopic>> topics = new HashMap<Integer, List<SpecTopic>>();
+    private Map<String, List<SpecTopic>> topicsKeys = new HashMap<String, List<SpecTopic>>();
+    private Map<String, List<Level>> levelTitles = new HashMap<String, List<Level>>();
 
     /**
      * Add a SpecTopic to the database.
      *
-     * @param topic        The SpecTopic object to be added.
-     * @param escapedTitle The escaped title of the SpecTopic.
+     * @param specTopic    The SpecTopic object to be added.
+     * @param key          A key that represents the Topic mapped to the SpecTopic
      */
-    public void add(final SpecTopic topic, final String escapedTitle) {
-        add(new BuildTopic(topic), escapedTitle);
-    }
+    public void add(final SpecTopic specTopic, final String key) {
+        if (specTopic == null) return;
 
-    /**
-     * Add a BuildTopic to the database.
-     *
-     * @param topic        The BuildTopic object to be added.
-     * @param escapedTitle The escaped title of the SpecTopic.
-     */
-    public void add(final BuildTopic topic, final String escapedTitle) {
-        if (topic == null) return;
-
-        final SpecTopic specTopic = topic.getSpecTopic();
         final Integer topicId = specTopic.getDBId();
-        if (!topics.containsKey(topicId)) topics.put(topicId, new LinkedList<BuildTopic>());
-
-        if (!topicsTitles.containsKey(escapedTitle)) topicsTitles.put(escapedTitle, new LinkedList<BuildTopic>());
-
-        if (topics.get(topicId).size() > 0 || topicsTitles.get(escapedTitle).size() > 0) {
-            topic.setDuplicateId(Integer.toString(topics.get(topicId).size()));
+        if (!topics.containsKey(topicId)) {
+            topics.put(topicId, new LinkedList<SpecTopic>());
         }
 
-        topics.get(topicId).add(topic);
-        topicsTitles.get(escapedTitle).add(topic);
+        // Make sure the key exists
+        if (!topicsKeys.containsKey(key)) {
+            topicsKeys.put(key, new LinkedList<SpecTopic>());
+        }
+
+        topics.get(topicId).add(specTopic);
+        topicsKeys.get(key).add(specTopic);
     }
 
     /**
@@ -60,20 +49,10 @@ public class BuildDatabase {
      * @param escapedTitle The escaped title of the Level.
      */
     public void add(final Level level, final String escapedTitle) {
-        add(new BuildLevel(level), escapedTitle);
-    }
-
-    /**
-     * Add a Level to the database.
-     *
-     * @param level        The BuildLevel object to be added.
-     * @param escapedTitle The escaped title of the Level.
-     */
-    public void add(final BuildLevel level, final String escapedTitle) {
         if (level == null) return;
 
         if (!levelTitles.containsKey(escapedTitle)) {
-            levelTitles.put(escapedTitle, new LinkedList<BuildLevel>());
+            levelTitles.put(escapedTitle, new LinkedList<Level>());
         }
 
         if (levelTitles.get(escapedTitle).size() > 0) {
@@ -88,34 +67,35 @@ public class BuildDatabase {
      *
      * @param usedIdAttributes A mapping of IDs to topics that exist for a book.
      */
-    public void setDatabaseDuplicateIds(final Map<Integer, Set<String>> usedIdAttributes) {
-        // Topics
-        for (final Entry<String, List<BuildTopic>> topicTitleEntry : topicsTitles.entrySet()) {
-            final List<BuildTopic> buildTopics = topicTitleEntry.getValue();
-            for (int i = 0; i < buildTopics.size(); i++) {
-                final BuildTopic topic = buildTopics.get(i);
-                final SpecTopic specTopic = topic.getSpecTopic();
-                String fixedIdAttributeValue = null;
+    public void setDatabaseDuplicateIds(final Map<Integer, Set<String>> usedIdAttributes, final boolean useFixedURLs) {
+        // Create the mapping of topic titles to spec topics
+        final Map<String, List<SpecTopic>> topicsTitles = new HashMap<String, List<SpecTopic>>();
+        for (final Entry<Integer, List<SpecTopic>> topicEntry : topics.entrySet()) {
+            final List<SpecTopic> specTopics = topicEntry.getValue();
+            for (final SpecTopic specTopic : specTopics) {
+                String topicTitle = specTopic.getUniqueLinkId(useFixedURLs);
 
-                if (i != 0) {
-                    fixedIdAttributeValue = Integer.toString(i);
+                if (!topicsTitles.containsKey(topicTitle)) {
+                    topicsTitles.put(topicTitle, new LinkedList<SpecTopic>());
                 }
 
-                if (!DocbookBuildUtilities.isUniqueAttributeId(topicTitleEntry.getKey(), specTopic.getDBId(), usedIdAttributes)) {
-                    if (fixedIdAttributeValue == null) {
-                        fixedIdAttributeValue = Integer.toString(specTopic.getStep());
-                    } else {
-                        fixedIdAttributeValue += "-" + specTopic.getStep();
-                    }
-                }
+                topicsTitles.get(topicTitle).add(specTopic);
+            }
+        }
 
-                topic.setDuplicateId(fixedIdAttributeValue);
+        // Set the spec topic duplicate ids based on topic title
+        for (final Entry<String, List<SpecTopic>> topicTitleEntry : topicsTitles.entrySet()) {
+            final List<SpecTopic> specTopics = topicTitleEntry.getValue();
+            if (specTopics.size() > 1) {
+                for (int i = 1; i < specTopics.size(); i++) {
+                    specTopics.get(i).setDuplicateId(Integer.toString(i));
+                }
             }
         }
 
         // Levels
-        for (final Entry<String, List<BuildLevel>> levelTitleEntry : levelTitles.entrySet()) {
-            final List<BuildLevel> levels = levelTitleEntry.getValue();
+        for (final Entry<String, List<Level>> levelTitleEntry : levelTitles.entrySet()) {
+            final List<Level> levels = levelTitleEntry.getValue();
             for (int i = 0; i < levels.size(); i++) {
                 if (i != 0) {
                     levels.get(i).setDuplicateId(Integer.toString(i));
@@ -152,28 +132,25 @@ public class BuildDatabase {
      * @return A List of SpecTopic objects whose Topic ID matches.
      */
     public List<SpecTopic> getSpecTopicsForTopicID(final Integer topicId) {
-        final LinkedList<SpecTopic> specTopics = new LinkedList<SpecTopic>();
         if (topics.containsKey(topicId)) {
-            for (final BuildTopic buildTopic : topics.get(topicId)) {
-                specTopics.add(buildTopic.getSpecTopic());
-            }
+            return topics.get(topicId);
         }
 
-        return specTopics;
+        return new LinkedList<SpecTopic>();
     }
 
     /**
-     * Get a List of all the BuildTopics in the Database for a Topic ID.
+     * Get a List of all the SpecTopics in the Database for a Topic ID.
      *
-     * @param topicId The Topic ID to find SpecTopics for.
-     * @return A List of BuildTopic objects whose Topic ID matches.
+     * @param key The Topic Key to find SpecTopics for.
+     * @return A List of SpecTopic objects whose Key matches.
      */
-    public List<BuildTopic> getBuildTopicsForTopicID(final Integer topicId) {
-        if (topics.containsKey(topicId)) {
-            return topics.get(topicId);
-        } else {
-            return new LinkedList<BuildTopic>();
+    public List<SpecTopic> getSpecTopicsForKey(final String key) {
+        if (topicsKeys.containsKey(key)) {
+            return topicsKeys.get(key);
         }
+
+        return new LinkedList<SpecTopic>();
     }
 
     /**
@@ -183,27 +160,11 @@ public class BuildDatabase {
      */
     public List<SpecTopic> getAllSpecTopics() {
         final ArrayList<SpecTopic> specTopics = new ArrayList<SpecTopic>();
-        for (final Entry<Integer, List<BuildTopic>> topicEntry : topics.entrySet()) {
-            for (final BuildTopic buildTopic : topicEntry.getValue()) {
-                specTopics.add(buildTopic.getSpecTopic());
-            }
+        for (final Entry<Integer, List<SpecTopic>> topicEntry : topics.entrySet()) {
+            specTopics.addAll(topicEntry.getValue());
         }
 
         return specTopics;
-    }
-
-    /**
-     * Get a List of all the BuildTopics in the Database.
-     *
-     * @return A list of BuildTopic objects.
-     */
-    public List<BuildTopic> getAllBuildTopics() {
-        final ArrayList<BuildTopic> buildTopics = new ArrayList<BuildTopic>();
-        for (final Entry<Integer, List<BuildTopic>> topicEntry : topics.entrySet()) {
-            buildTopics.addAll(topicEntry.getValue());
-        }
-
-        return buildTopics;
     }
 
     /**
@@ -213,23 +174,7 @@ public class BuildDatabase {
      */
     public List<Level> getAllLevels() {
         final ArrayList<Level> levels = new ArrayList<Level>();
-        for (final Entry<String, List<BuildLevel>> levelTitleEntry : levelTitles.entrySet()) {
-            for (final BuildLevel level : levelTitleEntry.getValue()) {
-                levels.add(level.getLevel());
-            }
-        }
-
-        return levels;
-    }
-
-    /**
-     * Get a List of all the build levels in the Database.
-     *
-     * @return A list of BuildLevel objects.
-     */
-    public List<BuildLevel> getAllBuildLevels() {
-        final ArrayList<BuildLevel> levels = new ArrayList<BuildLevel>();
-        for (final Entry<String, List<BuildLevel>> levelTitleEntry : levelTitles.entrySet()) {
+        for (final Entry<String, List<Level>> levelTitleEntry : levelTitles.entrySet()) {
             levels.addAll(levelTitleEntry.getValue());
         }
 
@@ -246,17 +191,17 @@ public class BuildDatabase {
         final Set<String> ids = new HashSet<String>();
 
         // Add all the level id attributes
-        for (final Entry<String, List<BuildLevel>> levelTitleEntry : levelTitles.entrySet()) {
-            final List<BuildLevel> levels = levelTitleEntry.getValue();
-            for (final BuildLevel level : levels) {
+        for (final Entry<String, List<Level>> levelTitleEntry : levelTitles.entrySet()) {
+            final List<Level> levels = levelTitleEntry.getValue();
+            for (final Level level : levels) {
                 ids.add(level.getUniqueLinkId(useFixedUrls));
             }
         }
 
         // Add all the topic id attributes
-        for (final Entry<Integer, List<BuildTopic>> topicEntry : topics.entrySet()) {
-            final List<BuildTopic> topics = topicEntry.getValue();
-            for (final BuildTopic topic : topics) {
+        for (final Entry<Integer, List<SpecTopic>> topicEntry : topics.entrySet()) {
+            final List<SpecTopic> topics = topicEntry.getValue();
+            for (final SpecTopic topic : topics) {
                 ids.add(topic.getUniqueLinkId(useFixedUrls));
             }
         }
@@ -284,7 +229,7 @@ public class BuildDatabase {
     @SuppressWarnings("unchecked")
     public <T extends BaseTopicWrapper<T>> List<T> getAllTopics(boolean ignoreRevisions) {
         final List<T> topics = new ArrayList<T>();
-        for (final Entry<Integer, List<BuildTopic>> entry : this.topics.entrySet()) {
+        for (final Entry<Integer, List<SpecTopic>> entry : this.topics.entrySet()) {
             final Integer topicId = entry.getKey();
             if (!this.topics.get(topicId).isEmpty()) {
                 if (ignoreRevisions) {
@@ -305,11 +250,11 @@ public class BuildDatabase {
      * @return A Unique list of Topics.
      */
     @SuppressWarnings("unchecked")
-    protected <T extends BaseTopicWrapper<T>> List<T> getUniqueTopicsFromSpecTopics(final List<BuildTopic> topics) {
+    protected <T extends BaseTopicWrapper<T>> List<T> getUniqueTopicsFromSpecTopics(final List<SpecTopic> topics) {
         // Find all the unique topics first
         final Map<Integer, T> revisionToTopic = new HashMap<Integer, T>();
-        for (final BuildTopic buildTopic : topics) {
-            final T topic = (T) buildTopic.getTopic();
+        for (final SpecTopic specTopic : topics) {
+            final T topic = (T) specTopic.getTopic();
 
             // Find the Topic Revision
             final Integer topicRevision = topic.getTopicRevision();
@@ -326,39 +271,5 @@ public class BuildDatabase {
         }
 
         return retValue;
-    }
-
-    /**
-     * Finds the build topic for a specific SpecTopic.
-     *
-     * @param specTopic A SpecTopic that is used in a BuildTopic
-     * @return The build topic object that wraps the passed content specification topic object.
-     */
-    public BuildTopic getBuildTopicForSpecTopic(final SpecTopic specTopic) {
-        final List<BuildTopic> topics = getBuildTopicsForTopicID(specTopic.getDBId());
-        for (final BuildTopic topic : topics) {
-            if (topic.getSpecTopic() == specTopic) {
-                return topic;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Finds the build level for a specific content specification Level.
-     *
-     * @param level A Level that is used in a BuildLevel
-     * @return The build level object that wraps the passed level object.
-     */
-    public BuildLevel getBuildLevelForSpecLevel(final Level level) {
-        final List<BuildLevel> levels = getAllBuildLevels();
-        for (final BuildLevel buildLevel : levels) {
-            if (buildLevel.getLevel() == level) {
-                return buildLevel;
-            }
-        }
-
-        return null;
     }
 }

@@ -1,5 +1,7 @@
 package org.jboss.pressgang.ccms.contentspec.builder.utils;
 
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -12,17 +14,26 @@ import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
+import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildTopic;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.CSDocbookBuildingOptions;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
+import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
+import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
+import org.jboss.pressgang.ccms.utils.structures.Pair;
+import org.jboss.pressgang.ccms.wrapper.TopicWrapper;
+import org.jboss.pressgang.ccms.wrapper.TranslatedCSNodeWrapper;
 import org.jboss.pressgang.ccms.wrapper.TranslatedTopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.base.BaseTopicWrapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 /**
  * A Utilities class that holds methods useful in the Docbook Builder.
@@ -30,29 +41,23 @@ import org.w3c.dom.NodeList;
  * @author lnewson
  */
 public class DocbookBuildUtilities {
-
+    private static final Logger log = LoggerFactory.getLogger(DocbookBuildUtilities.class);
     private static final String STARTS_WITH_NUMBER_RE = "^(?<Numbers>\\d+)(?<EverythingElse>.*)$";
     private static final String STARTS_WITH_INVALID_SEQUENCE_RE = "^(?<InvalidSeq>[^\\w\\d]+)(?<EverythingElse>.*)$";
 
     /**
-     * Adds the levels and topics in the provided Level object to the local content spec database.
+     * Adds the levels in the provided Level object to the content spec database.
      *
-     * @param level        The content spec level to be added to the database.
-     * @param useFixedUrls Whether fixed URL's are to be used for the level ID attributes.
+     * @param buildDatabase
+     * @param level         The content spec level to be added to the database.
      */
-    public static void addLevelAndTopicsToDatabase(final BuildDatabase buildDatabase, final Level level, final boolean useFixedUrls) {
+    public static void addLevelsToDatabase(final BuildDatabase buildDatabase, final Level level) {
         // Add the level to the database
         buildDatabase.add(level, DocbookBuildUtilities.createURLTitle(level.getTitle()));
 
-        // Add the topics at this level to the database
-        for (final SpecTopic specTopic : level.getSpecTopics()) {
-            final BuildTopic buildTopic = new BuildTopic(specTopic);
-            buildDatabase.add(buildTopic, buildTopic.getUniqueLinkId(useFixedUrls));
-        }
-
         // Add the child levels to the database
         for (final Level childLevel : level.getChildLevels()) {
-            addLevelAndTopicsToDatabase(buildDatabase, childLevel, useFixedUrls);
+            addLevelsToDatabase(buildDatabase, childLevel);
         }
     }
 
@@ -60,13 +65,12 @@ public class DocbookBuildUtilities {
      * Sets the "id" attributes in the supplied XML node so that they will be
      * unique within the book.
      *
-     * @param buildTopic       The topic the node belongs to.
+     * @param specTopic        The topic the node belongs to.
      * @param node             The node to process for id attributes.
      * @param usedIdAttributes The list of usedIdAttributes.
      */
-    public static void setUniqueIds(final BuildTopic buildTopic, final Node node, final Document doc,
+    public static void setUniqueIds(final SpecTopic specTopic, final Node node, final Document doc,
             final Map<Integer, Set<String>> usedIdAttributes) {
-        final SpecTopic specTopic = buildTopic.getSpecTopic();
         final NamedNodeMap attributes = node.getAttributes();
         if (attributes != null) {
             final Node idAttribute = attributes.getNamedItem("id");
@@ -74,8 +78,8 @@ public class DocbookBuildUtilities {
                 final String idAttributeValue = idAttribute.getNodeValue();
                 String fixedIdAttributeValue = idAttributeValue;
 
-                if (buildTopic.getDuplicateId() != null) {
-                    fixedIdAttributeValue += "-" + buildTopic.getDuplicateId();
+                if (specTopic.getDuplicateId() != null) {
+                    fixedIdAttributeValue += "-" + specTopic.getDuplicateId();
                 }
 
                 if (!DocbookBuildUtilities.isUniqueAttributeId(fixedIdAttributeValue, specTopic.getDBId(), usedIdAttributes)) {
@@ -90,7 +94,7 @@ public class DocbookBuildUtilities {
 
         final NodeList elements = node.getChildNodes();
         for (int i = 0; i < elements.getLength(); ++i) {
-            setUniqueIds(buildTopic, elements.item(i), doc, usedIdAttributes);
+            setUniqueIds(specTopic, elements.item(i), doc, usedIdAttributes);
         }
     }
 
@@ -107,8 +111,8 @@ public class DocbookBuildUtilities {
         final NamedNodeMap attributes = node.getAttributes();
         if (attributes != null) {
             for (int i = 0; i < attributes.getLength(); ++i) {
-                final String attibuteValue = attributes.item(i).getNodeValue();
-                if (attibuteValue.equals(id)) {
+                final String attributeValue = attributes.item(i).getNodeValue();
+                if (attributeValue.equals(id)) {
                     attributes.item(i).setNodeValue(fixedId);
                 }
             }
@@ -169,8 +173,8 @@ public class DocbookBuildUtilities {
             if (attributes != null) {
                 final Node idAttribute = attributes.getNamedItem("linkend");
                 if (idAttribute != null) {
-                    final String idAttibuteValue = idAttribute.getNodeValue();
-                    linkIds.add(idAttibuteValue);
+                    final String idAttributeValue = idAttribute.getNodeValue();
+                    linkIds.add(idAttributeValue);
                 }
             }
         }
@@ -189,12 +193,10 @@ public class DocbookBuildUtilities {
      */
     public static String createURLTitle(final String title) {
         String baseTitle = title;
-        /* Remove XML Elements from the Title. */
+        // Remove XML Elements from the Title.
         baseTitle = baseTitle.replaceAll("</(.*?)>", "").replaceAll("<(.*?)>", "");
 
-        /*
-         * Check if the title starts with an invalid sequence
-         */
+        // Check if the title starts with an invalid sequence
         final NamedPattern invalidSequencePattern = NamedPattern.compile(STARTS_WITH_INVALID_SEQUENCE_RE);
         final NamedMatcher invalidSequenceMatcher = invalidSequencePattern.matcher(baseTitle);
 
@@ -202,10 +204,7 @@ public class DocbookBuildUtilities {
             baseTitle = invalidSequenceMatcher.group("EverythingElse");
         }
 
-        /*
-         * start by removing any prefixed numbers (you can't
-         * start an xref id with numbers)
-         */
+        // Start by removing any prefixed numbers (you can't start an xref id with numbers)
         final NamedPattern pattern = NamedPattern.compile(STARTS_WITH_NUMBER_RE);
         final NamedMatcher matcher = pattern.matcher(baseTitle);
 
@@ -361,6 +360,12 @@ public class DocbookBuildUtilities {
         return rev.toString();
     }
 
+    /**
+     * Clean a user specified publican.cfg to remove content that should be set for a build.
+     *
+     * @param userPublicanCfg The User publican.cfg file to be cleaned.
+     * @return The cleaned publican.cfg file.
+     */
     public static String cleanUserPublicanCfg(final String userPublicanCfg) {
         // Remove any xml_lang statements
         String retValue = userPublicanCfg.replaceAll("xml_lang\\:\\s*.*?($|\\r\\n|\\n)", "");
@@ -370,5 +375,190 @@ public class DocbookBuildUtilities {
         retValue = retValue.replaceAll("brand\\:\\s*.*($|\\r\\n|\\n)" + "", "");
 
         return retValue;
+    }
+
+    /**
+     * Gets a Set of Topic ID's to Revisions from the content specification for each Spec Topic.
+     *
+     * @param contentSpec The content spec to scan for topics.
+     * @return A Set of Topic ID/Revision Pairs that represent the topics in the content spec.
+     */
+    public static Set<Pair<Integer, Integer>> getTopicIdsFromContentSpec(final ContentSpec contentSpec) {
+        // Add the topics at this level to the database
+        final Set<Pair<Integer, Integer>> topicIds = new HashSet<Pair<Integer, Integer>>();
+        final List<SpecTopic> specTopics = contentSpec.getSpecTopics();
+        for (final SpecTopic specTopic : specTopics) {
+            if (specTopic.getDBId() != 0) {
+                topicIds.add(new Pair<Integer, Integer>(specTopic.getDBId(), specTopic.getRevision()));
+            }
+        }
+
+        return topicIds;
+    }
+
+    /**
+     * Convert a DOM Document to a Docbook 4.5 Formatted String representation including the XML preamble and DOCTYPE.
+     *
+     * @param doc                 The DOM Document to be converted and formatted.
+     * @param elementName         The name that the root element should be.
+     * @param entityName          The name of the local entity file, if one exists.
+     * @param xmlFormatProperties The XML Formatting Properties.
+     * @return The converted XML String representation.
+     */
+    public static String convertDocumentToDocbook45FormattedString(final Document doc, final String elementName, final String entityName,
+            final XMLFormatProperties xmlFormatProperties) {
+        return DocBookUtilities.addDocbook45XMLDoctype(convertDocumentToFormattedString(doc, xmlFormatProperties), entityName, elementName);
+    }
+
+    /**
+     * Convert a DOM Document to a Formatted String representation and wrap it in a CDATA element.
+     *
+     * @param doc                 The DOM Document to be converted and formatted.
+     * @param xmlFormatProperties The XML Formatting Properties.
+     * @return The converted XML String representation.
+     */
+    public static String convertDocumentToCDATAFormattedString(final Document doc, final XMLFormatProperties xmlFormatProperties) {
+        return XMLUtilities.wrapStringInCDATA(convertDocumentToFormattedString(doc, xmlFormatProperties));
+    }
+
+    /**
+     * Convert a DOM Document to a Formatted String representation.
+     *
+     * @param doc                 The DOM Document to be converted and formatted.
+     * @param xmlFormatProperties The XML Formatting Properties.
+     * @return The converted XML String representation.
+     */
+    public static String convertDocumentToFormattedString(final Document doc, final XMLFormatProperties xmlFormatProperties) {
+        return XMLUtilities.convertNodeToString(doc, xmlFormatProperties.getVerbatimElements(), xmlFormatProperties.getInlineElements(),
+                xmlFormatProperties.getContentsInlineElements(), true);
+    }
+
+    /**
+     * Create a Key that can be used to store a topic in a build database.
+     *
+     * @param topic The topic to create the key for.
+     * @return The Key for the topic.
+     */
+    public static String getTopicBuildKey(final TopicWrapper topic) {
+        return getBaseTopicBuildKey(topic);
+    }
+
+    /**
+     * Create a Key that can be used to store a translated topic in a build database.
+     *
+     * @param translatedTopic The translated topic to create the key for.
+     * @return The Key for the translated topic.
+     */
+    public static String getTranslatedTopicBuildKey(final TranslatedTopicWrapper translatedTopic,
+            final TranslatedCSNodeWrapper translatedCSNode) {
+        String topicKey = getBaseTopicBuildKey(translatedTopic);
+        return translatedCSNode == null ? topicKey : (topicKey + "-" + translatedCSNode.getId());
+    }
+
+    /**
+     * Create a Key that can be used to store a topic in a build database.
+     *
+     * @param topic The topic to create the key for.
+     * @return The Key for the topic.
+     */
+    protected static String getBaseTopicBuildKey(final BaseTopicWrapper<?> topic) {
+        return topic.getTopicId() + "-" + topic.getTopicRevision();
+    }
+
+    /**
+     * Sets the topic xref id to the topic database id.
+     *
+     * @param topic        The topic to be used to set the id attribute.
+     * @param doc          The document object for the topics XML.
+     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
+     */
+    public static void processTopicID(final BaseTopicWrapper<?> topic, final Document doc, final boolean useFixedUrls) {
+        if (useFixedUrls) {
+            final String errorXRefID = topic.getXRefPropertyOrId(CommonConstants.FIXED_URL_PROP_TAG_ID);
+            doc.getDocumentElement().setAttribute("id", errorXRefID);
+        } else {
+            final String errorXRefID = topic.getXRefId();
+            doc.getDocumentElement().setAttribute("id", errorXRefID);
+        }
+
+        final Integer topicId = topic.getTopicId();
+        doc.getDocumentElement().setAttribute("remap", "TID_" + topicId);
+    }
+
+    /**
+     * Sets the XML of the topic to the specified error template.
+     *
+     * @param topic        The topic to be updated as having an error.
+     * @param template     The template for the Error Message.
+     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
+     * @return The Document Object that is initialised using the topic and error template.
+     * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
+     */
+    public static Document setTopicXMLForError(final BaseTopicWrapper<?> topic, final String template,
+            final boolean useFixedUrls) throws BuildProcessingException {
+        Document doc = null;
+        try {
+            doc = XMLUtilities.convertStringToDocument(template);
+        } catch (SAXException ex) {
+            // Exit since we shouldn't fail at converting a basic template
+            log.debug("Topic Error Template is not valid XML", ex);
+            throw new BuildProcessingException("Failed to convert the Topic Error template into a DOM document");
+        }
+        DocBookUtilities.setSectionTitle(topic.getTitle(), doc);
+        processTopicID(topic, doc, useFixedUrls);
+        return doc;
+    }
+
+    /**
+     * Sets the XML of the topic in the content spec to the error template provided.
+     *
+     * @param specTopic    The spec topic to be updated as having an error.
+     * @param template     The template for the Error Message.
+     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
+     * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
+     */
+    public static void setSpecTopicXMLForError(final SpecTopic specTopic, final String template,
+            final boolean useFixedUrls) throws BuildProcessingException {
+        final BaseTopicWrapper<?> topic = specTopic.getTopic();
+
+        Document doc = null;
+        try {
+            doc = XMLUtilities.convertStringToDocument(template);
+        } catch (SAXException ex) {
+            // Exit since we shouldn't fail at converting a basic template
+            log.debug("Topic Error Template is not valid XML", ex);
+            throw new BuildProcessingException("Failed to convert the Topic Error template into a DOM document");
+        }
+        specTopic.setXMLDocument(doc);
+        DocBookUtilities.setSectionTitle(topic.getTitle(), doc);
+        processTopicID(topic, doc, useFixedUrls);
+    }
+
+    /**
+     * This function scans the supplied XML node and it's children for id attributes, collecting them in the usedIdAttributes
+     * parameter.
+     *
+     * @param node             The current node being processed (will be the document root to start with, and then all the children as this
+     *                         function is recursively called)
+     * @param topicId          The ID of the topic that we are collecting attribute ID's for.
+     * @param usedIdAttributes The set of Used ID Attributes that should be added to.
+     */
+    public static void collectIdAttributes(final Integer topicId, final Node node, final Map<Integer, Set<String>> usedIdAttributes) {
+        final NamedNodeMap attributes = node.getAttributes();
+        if (attributes != null) {
+            final Node idAttribute = attributes.getNamedItem("id");
+            if (idAttribute != null) {
+                final String idAttributeValue = idAttribute.getNodeValue();
+                if (!usedIdAttributes.containsKey(topicId)) {
+                    usedIdAttributes.put(topicId, new HashSet<String>());
+                }
+                usedIdAttributes.get(topicId).add(idAttributeValue);
+            }
+        }
+
+        final NodeList elements = node.getChildNodes();
+        for (int i = 0; i < elements.getLength(); ++i) {
+            collectIdAttributes(topicId, elements.item(i), usedIdAttributes);
+        }
     }
 }
