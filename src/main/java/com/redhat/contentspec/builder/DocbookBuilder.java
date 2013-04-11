@@ -79,8 +79,6 @@ import org.jboss.pressgang.ccms.rest.v1.entities.RESTTranslatedTopicV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.RESTUserV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.base.RESTBaseTopicV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.join.RESTAssignedPropertyTagV1;
-import org.jboss.pressgang.ccms.rest.v1.exceptions.InternalProcessingException;
-import org.jboss.pressgang.ccms.rest.v1.exceptions.InvalidParameterException;
 import org.jboss.pressgang.ccms.rest.v1.expansion.ExpandDataDetails;
 import org.jboss.pressgang.ccms.rest.v1.expansion.ExpandDataTrunk;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
@@ -217,7 +215,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     protected Properties constantTranslatedStrings = new Properties();
 
     public DocbookBuilder(final RESTManager restManager, final RESTBlobConstantV1 rocbookDtd,
-            final String defaultLocale) throws InvalidParameterException, InternalProcessingException, BuilderCreationException {
+            final String defaultLocale) throws BuilderCreationException {
         reader = restManager.getReader();
         this.restManager = restManager;
         this.rocbookdtd = rocbookDtd;
@@ -300,14 +298,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @throws BuildProcessingException    Thrown if an unexpected Error occurs during processing. eg. A template file doesn't
      *                                     contain valid XML.
      * @throws BuilderCreationException    Thrown if the builder is unable to start due to incorrect passed variables.
-     * @throws InternalProcessingException If an error occurred during the REST API call.
-     * @throws InvalidParameterException   If an error occurred during the REST API call.
      * @throws BuildProcessingException    Any build issue that should not occur under normal circumstances. Ie a Template can't be
      *                                     converted to a DOM Document.
      */
     public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final RESTUserV1 requester,
-            final CSDocbookBuildingOptions buildingOptions) throws BuilderCreationException, BuildProcessingException,
-            InvalidParameterException, InternalProcessingException {
+            final CSDocbookBuildingOptions buildingOptions) throws BuilderCreationException, BuildProcessingException {
         return this.buildBook(contentSpec, requester, buildingOptions, new ZanataDetails());
     }
 
@@ -321,16 +316,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @throws BuildProcessingException    Thrown if an unexpected Error occurs during processing. eg. A template file doesn't
      *                                     contain valid XML.
      * @throws BuilderCreationException    Thrown if the builder is unable to start due to incorrect passed variables.
-     * @throws InternalProcessingException If an error occurred during the REST API call.
-     * @throws InvalidParameterException   If an error occurred during the REST API call.
      * @throws BuildProcessingException    Any build issue that should not occur under normal circumstances. Ie a Template can't be
      *                                     converted to a DOM Document.
      */
     @SuppressWarnings("unchecked")
     public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final RESTUserV1 requester,
             final CSDocbookBuildingOptions buildingOptions,
-            final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException, InvalidParameterException,
-            InternalProcessingException {
+            final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
         }
@@ -893,7 +885,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 return topicIds;
             }
 
-            if (specTopic.getDBId() != 0) {
+            if (specTopic.getDBId() != null) {
                 topicIds.add(new Pair<Integer, Integer>(specTopic.getDBId(), specTopic.getRevision()));
             }
         }
@@ -1375,7 +1367,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             final List<Integer> genericInjectionErrors;
             final List<Integer> customInjectionErrors;
 
-            if (contentSpec.getOutputStyle().equalsIgnoreCase(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+            if (contentSpec.getOutputStyle().equalsIgnoreCase(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
                 /*
                  * create a collection of the tags that make up the topics types that will be included in generic injection
                  * points
@@ -1531,13 +1523,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param requester    The User who requested the book be built.
      * @param useFixedUrls If during processing the fixed urls should be used.
      * @return A ZIP Archive containing all the information to build the book.
-     * @throws InternalProcessingException If an error occurred during the REST API call.
-     * @throws InvalidParameterException   If an error occurred during the REST API call.
      * @throws BuildProcessingException    Any build issue that should not occur under normal circumstances. Ie a Template can't be
      *                                     converted to a DOM Document.
      */
     private HashMap<String, byte[]> doBuildZipPass(final ContentSpec contentSpec, final RESTUserV1 requester,
-            final boolean useFixedUrls) throws InvalidParameterException, InternalProcessingException, BuildProcessingException {
+            final boolean useFixedUrls) throws BuildProcessingException {
         log.info("Building the ZIP file");
 
         final StringBuffer bookXIncludes = new StringBuffer();
@@ -1641,12 +1631,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param requester   The User who requested the book be built.
      * @param files       The mapping of file names/locations to files that will be packaged into the ZIP archive.
      * @return A Document object to be used in generating the book.xml
-     * @throws InternalProcessingException If an error occurred during the REST API call.
-     * @throws InvalidParameterException   If an error occurred during the REST API call.
      * @throws BuildProcessingException
      */
     protected String buildBookBase(final ContentSpec contentSpec, final RESTUserV1 requester,
-            final Map<String, byte[]> files) throws InvalidParameterException, InternalProcessingException, BuildProcessingException {
+            final Map<String, byte[]> files) throws BuildProcessingException {
         log.info("\tAdding standard files to Publican ZIP file");
 
         final Map<String, String> overrides = docbookBuildingOptions.getOverrides();
@@ -1680,7 +1668,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         basicBook = basicBook.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
         basicBook = basicBook.replaceAll(BuilderConstants.DRAFT_REGEX, docbookBuildingOptions.getDraft() ? "status=\"draft\"" : "");
 
-        if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+        if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
             // Add the preface to the book.xml
             basicBook = basicBook.replaceAll(BuilderConstants.PREFACE_REGEX,
                     "<xi:include href=\"Preface.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
@@ -1740,7 +1728,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         // Setup Preface.xml
-        if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+        if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
             String fixedPrefaceXml = prefaceXmlTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
 
             final String prefaceTitleTranslation = constantTranslatedStrings.getProperty("PREFACE");
@@ -1830,11 +1818,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      *
      * @param contentSpec The content specification object to be built.
      * @param files       The mapping of file names/locations to files that will be packaged into the ZIP archive.
-     * @throws InternalProcessingException If an error occurred during the REST API call.
-     * @throws InvalidParameterException   If an error occurred during the REST API call.
      */
     protected void addBookBaseFilesAndImages(final ContentSpec contentSpec,
-            final Map<String, byte[]> files) throws InvalidParameterException, InternalProcessingException {
+            final Map<String, byte[]> files) {
         final String iconSvg = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ICON_SVG_ID, "").getValue();
         try {
             files.put(BOOK_IMAGES_FOLDER + "icon.svg", iconSvg.getBytes("UTF-8"));
@@ -1843,7 +1829,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             log.error(e.getMessage());
         }
 
-        if (contentSpec.getOutputStyle() != null && contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+        if (contentSpec.getOutputStyle() != null && contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
             final String jbossSvg = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.JBOSS_SVG_ID, "").getValue();
 
             final String yahooDomEventJs = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.YAHOO_DOM_EVENT_JS_ID,
@@ -1901,7 +1887,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 contentSpec.getPubsNumber().toString());
         bookInfo = bookInfo.replaceAll(BuilderConstants.PUBSNUMBER_REGEX, "<pubsnumber>" + pubsNumber + "</pubsnumber>");
 
-        if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+        if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
             bookInfo = bookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX,
                     contentSpec.getAbstract() == null ? BuilderConstants.DEFAULT_ABSTRACT : ("<abstract>\n\t\t<para>\n\t\t\t" +
                             contentSpec.getAbstract() + "\n\t\t</para>\n\t</abstract>\n"));
@@ -1934,7 +1920,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         // Remove the image width for CSP output
-        if (!contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
+        if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
             publicanCfg = publicanCfg.replaceFirst("max_image_width:\\s*\\d+\\s*(\\r)?\\n", "");
             publicanCfg = publicanCfg.replaceFirst("toc_section_depth:\\s*\\d+\\s*(\\r)?\\n", "");
         }
@@ -1988,7 +1974,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         String entFile = entityFileTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
         entFile = entFile.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
         entFile = entFile.replaceAll(BuilderConstants.TITLE_REGEX, originalTitle);
-        entFile = entFile.replaceAll(BuilderConstants.YEAR_FORMAT_REGEX, Integer.toString(Calendar.getInstance().get(Calendar.YEAR)));
+        String year = contentSpec.getCopyrightYear() == null ? Integer.toString(Calendar.getInstance().get(Calendar.YEAR)) : contentSpec
+                .getCopyrightYear();
+        entFile = entFile.replaceAll(BuilderConstants.YEAR_FORMAT_REGEX, year);
         entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_COPYRIGHT_REGEX, contentSpec.getCopyrightHolder());
         entFile = entFile.replaceAll(BuilderConstants.BZPRODUCT_REGEX,
                 contentSpec.getBugzillaProduct() == null ? originalProduct : contentSpec.getBugzillaProduct());
@@ -2329,11 +2317,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      *
      * @param files  The mapping of File Names/Locations to actual file content.
      * @param locale The locale for the book.
-     * @throws InvalidParameterException   If an error occurred during a REST API call.
-     * @throws InternalProcessingException If an error occurred during a REST API call.
      */
     private void addImagesToBook(final HashMap<String, byte[]> files,
-            final String locale) throws InvalidParameterException, InternalProcessingException {
+            final String locale) {
         /* Load the database constants */
         final byte[] failpenguinPng = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.FAILPENGUIN_PNG_ID,
                 BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
@@ -2458,12 +2444,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      *
      * @param contentSpec The content spec used to build the book.
      * @param files       The mapping of File Names/Locations to actual file content.
-     * @throws InvalidParameterException   If an error occurred during a REST API call.
-     * @throws InternalProcessingException If an error occurred during a REST API call.
      * @throws BuildProcessingException
      */
     private void buildAuthorGroup(final ContentSpec contentSpec,
-            final Map<String, byte[]> files) throws InvalidParameterException, InternalProcessingException, BuildProcessingException {
+            final Map<String, byte[]> files) throws BuildProcessingException {
         log.info("\tBuilding Author_Group.xml");
 
         // Setup Author_Group.xml
@@ -2570,36 +2554,37 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             // If no authors were inserted then use a default value
             // Note: This should never happen but is used as a safety measure
-            if (!insertedAuthor && contentSpec.getOutputStyle().equals(CSConstants.SKYNET_OUTPUT_FORMAT)) {
-                // Use the author "Skynet Alpha Build System"
+            if (!insertedAuthor) {
                 final Element authorEle = authorDoc.createElement("author");
-                final Element firstNameEle = authorDoc.createElement("firstname");
-                firstNameEle.setTextContent("Skynet");
-                authorEle.appendChild(firstNameEle);
-                final Element lastNameEle = authorDoc.createElement("surname");
-                lastNameEle.setTextContent("Alpha Build System");
-                authorEle.appendChild(lastNameEle);
-                authorDoc.getDocumentElement().appendChild(authorEle);
+                if (!insertedAuthor && contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
+                    // Use the author "PressGang Alpha Build System"
+                    final Element firstNameEle = authorDoc.createElement("firstname");
+                    firstNameEle.setTextContent("");
+                    authorEle.appendChild(firstNameEle);
+                    final Element lastNameEle = authorDoc.createElement("surname");
+                    lastNameEle.setTextContent("PressGang Alpha Build System");
+                    authorEle.appendChild(lastNameEle);
+                    authorDoc.getDocumentElement().appendChild(authorEle);
+                } else if (!insertedAuthor) {
+                    // Use the author "Staff Writer"
+                    final Element firstNameEle = authorDoc.createElement("firstname");
+                    firstNameEle.setTextContent("");
+                    authorEle.appendChild(firstNameEle);
+                    final Element lastNameEle = authorDoc.createElement("surname");
+                    lastNameEle.setTextContent("Staff Writer");
+                    authorEle.appendChild(lastNameEle);
+                    authorDoc.getDocumentElement().appendChild(authorEle);
+                }
 
                 // Add the affiliation
                 final Element affiliationEle = authorDoc.createElement("affiliation");
                 final Element orgEle = authorDoc.createElement("orgname");
-                orgEle.setTextContent("Red Hat");
+                orgEle.setTextContent("Red&nbsp;Hat");
                 affiliationEle.appendChild(orgEle);
                 final Element orgDivisionEle = authorDoc.createElement("orgdiv");
-                orgDivisionEle.setTextContent("Enigineering Content Services");
+                orgDivisionEle.setTextContent("Engineering Content Services");
                 affiliationEle.appendChild(orgDivisionEle);
                 authorEle.appendChild(affiliationEle);
-            } else if (!insertedAuthor) {
-                // Use the author "Staff Writer"
-                final Element authorEle = authorDoc.createElement("author");
-                final Element firstNameEle = authorDoc.createElement("firstname");
-                firstNameEle.setTextContent("Staff");
-                authorEle.appendChild(firstNameEle);
-                final Element lastNameEle = authorDoc.createElement("surname");
-                lastNameEle.setTextContent("Writer");
-                authorEle.appendChild(lastNameEle);
-                authorDoc.getDocumentElement().appendChild(authorEle);
             }
         }
 
@@ -2622,12 +2607,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param revisionHistoryXml The Revision_History.xml file/template to add revision information to.
      * @param contentSpec        The content spec object used to build the book.
      * @param files              The mapping of File Names/Locations to actual file content.
-     * @throws InternalProcessingException If an error occurred during a REST API call.
-     * @throws InvalidParameterException   If an error occurred during a REST API call.
      * @throws BuildProcessingException
      */
     protected void buildRevisionHistory(final ContentSpec contentSpec, final String revisionHistoryXml, final RESTUserV1 requester,
-            final Map<String, byte[]> files) throws InvalidParameterException, InternalProcessingException, BuildProcessingException {
+            final Map<String, byte[]> files) throws BuildProcessingException {
         log.info("\tBuilding Revision_History.xml");
 
         Document revHistoryDoc;
@@ -3213,7 +3196,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
              * Images have to be in the image folder in Publican. Here we loop through all the imagedata elements and fix up any
              * reference to an image that is not in the images folder.
              */
-            final List<Node> images = XMLUtilities.getNodes(specTopic.getXmlDocument(), "imagedata", "inlinegraphic");
+            final List<Node> images = XMLUtilities.getChildNodes(specTopic.getXmlDocument(), "imagedata", "inlinegraphic");
 
             for (final Node imageNode : images) {
                 final NamedNodeMap attributes = imageNode.getAttributes();
@@ -3401,7 +3384,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         if (tags != null && tags.getItems() != null && tags.getItems().size() > 0) {
             /* Find the sectioninfo node in the document, or create one if it doesn't exist */
             final Element sectionInfo;
-            final List<Node> sectionInfoNodes = XMLUtilities.findChildNodesWithName(doc.getDocumentElement(), "sectioninfo");
+            final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(doc.getDocumentElement(), "sectioninfo");
             if (sectionInfoNodes.size() == 1) {
                 sectionInfo = (Element) sectionInfoNodes.get(0);
             } else {
