@@ -3266,16 +3266,29 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             return false;
         }
+
+        /* Check to ensure that if the topic has programlisting elements, that the language is a valid Publican value */
+        boolean validProgramListings = DocbookBuildUtilities.validateProgramListingLanguages(topicDoc);
         /* Check to ensure that if the topic has a table, that the table isn't missing any entries */
-        else if (!DocbookBuildUtilities.validateTopicTables(topicDoc)) {
+        boolean validTables = DocbookBuildUtilities.validateTopicTables(topicDoc);
+
+        if (!validProgramListings || ! validTables) {
             final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                     errorInvalidValidationTopic.getValue(), docbookBuildingOptions);
 
             final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(
                     XMLUtilities.convertNodeToString(topicDoc, verbatimElements, inlineElements, contentsInlineElements, true));
-            errorDatabase.addError(topic, ErrorType.INVALID_CONTENT,
-                    BuilderConstants.ERROR_INVALID_TOPIC_XML + " Table column declaration doesn't match the number of entry elements. The" +
-                            " processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+
+            if (!validTables) {
+                errorDatabase.addError(topic, ErrorType.INVALID_CONTENT,
+                        BuilderConstants.ERROR_INVALID_TOPIC_XML + " Table column declaration doesn't match the number of entry elements. The" +
+                                " processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+            }
+            if (!validProgramListings) {
+                errorDatabase.addError(topic, ErrorType.INVALID_CONTENT,
+                        BuilderConstants.ERROR_INVALID_TOPIC_XML + " Program Listing language is not a valid Publican language. The" +
+                                " processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+            }
             setSpecTopicXMLForError(specTopic, topicXMLErrorTemplate, useFixedUrls);
 
             return false;

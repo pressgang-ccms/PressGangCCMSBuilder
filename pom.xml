@@ -9,7 +9,7 @@
     </parent>
 
     <groupId>org.jboss.pressgang.ccms.contentspec</groupId>
-    <artifactId>csbuilder</artifactId>
+    <artifactId>builder</artifactId>
     <version>0.1.8-SNAPSHOT</version>
     <name>Content Specification Builder</name>
 

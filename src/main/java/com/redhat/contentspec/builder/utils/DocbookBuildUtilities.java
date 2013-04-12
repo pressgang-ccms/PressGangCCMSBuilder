@@ -263,7 +263,8 @@ public class DocbookBuildUtilities {
     public static String buildTopicErrorTemplate(final RESTBaseTopicV1<?, ?, ?> topic, final String errorTemplate, final CSDocbookBuildingOptions docbookBuildingOptions)
     {
         String topicXMLErrorTemplate = errorTemplate;
-        topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
+        topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX,
+                DocBookUtilities.escapeTitleString(topic.getTitle()));
 
         // Set the topic id in the error
         final String errorXRefID;
@@ -475,5 +476,28 @@ public class DocbookBuildUtilities {
         }
         
         return rev.toString();
+    }
+
+    /**
+     * Validates that the Languages for all {@code<programlisting>} elements has a valid Publican language attribute.
+     *
+     * @param doc The DOM XML Document to be validated.
+     * @return True if the document is valid, otherwise false.
+     */
+    public static boolean validateProgramListingLanguages(final Document doc) {
+        assert doc != null;
+        boolean valid = true;
+
+        final NodeList programListings = doc.getElementsByTagName("programlisting");
+        for (int i = 0; i < programListings.getLength(); i++) {
+            final Element programListing = (Element) programListings.item(i);
+            if (programListing.hasAttribute("language")) {
+                if (!BuilderConstants.VALID_PROGRAM_LISTING_LANGS.contains(programListing.getAttribute("language"))) {
+                    valid = false;
+                }
+            }
+        }
+
+        return valid;
     }
 }
