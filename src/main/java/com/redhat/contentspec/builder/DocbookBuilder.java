@@ -361,8 +361,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         if (docbookBuildingOptions.getInsertSurveyLink()) {
             docbookBuildingOptions.setInsertSurveyLink(contentSpec.isInjectSurveyLinks());
         }
-        if (docbookBuildingOptions.getInsertBugzillaLinks()) {
-            docbookBuildingOptions.setInsertBugzillaLinks(contentSpec.isInjectBugLinks());
+        if (docbookBuildingOptions.getForceInjectBugzillaLinks()) {
+            docbookBuildingOptions.setInsertBugzillaLinks(true);
+        } else {
+            if (docbookBuildingOptions.getInsertBugzillaLinks()) {
+                docbookBuildingOptions.setInsertBugzillaLinks(contentSpec.isInjectBugLinks());
+            }
         }
         if (docbookBuildingOptions.getBuildName() == null || docbookBuildingOptions.getBuildName().isEmpty()) {
             docbookBuildingOptions.setBuildName(
