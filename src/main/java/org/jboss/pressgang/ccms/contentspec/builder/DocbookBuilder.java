@@ -3414,8 +3414,6 @@ public class DocbookBuilder implements ShutdownAbleApp {
                                             relatedTopicProperties.getItems());
                                     for (final PropertyTagInTopicWrapper prop : relatedTopicPropertyTags) {
                                         if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
-                                            relatedTopicProperties                                    for (final PropertyTagInTopicWrapper prop : relatedTopicPropertyTags) {
-                                        if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
                                             relatedTopicProperties.remove(prop);
                                         }
                                     }
