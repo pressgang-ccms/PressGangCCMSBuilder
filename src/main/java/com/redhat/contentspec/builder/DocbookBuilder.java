@@ -370,7 +370,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
         if (docbookBuildingOptions.getBuildName() == null || docbookBuildingOptions.getBuildName().isEmpty()) {
             docbookBuildingOptions.setBuildName(
-                    (contentSpec.getId() != 0 ? (contentSpec.getId() + ", ") : "") + contentSpec.getTitle() + "-" + contentSpec
+                    (contentSpec.getId() != null ? (contentSpec.getId() + ", ") : "") + contentSpec.getTitle() + "-" + contentSpec
                             .getVersion() + "-" + contentSpec.getEdition());
         }
         if (!docbookBuildingOptions.getDraft()) {
@@ -2784,7 +2784,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         // Add the revision information
         final Element listMemberEle = xmlDoc.createElement("member");
 
-        if (contentSpec.getId() > 0) {
+        if (contentSpec.getId() != null && contentSpec.getId() > 0) {
             if (contentSpec.getRevision() == null) {
                 listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(), reader.getLatestCSRevById(
                         contentSpec.getId())) + (authorInfo.getAuthorId() > 0 ? (" by " + requester.getName()) : ""));

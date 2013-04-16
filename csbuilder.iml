@@ -41,8 +41,8 @@
     <orderEntry type="module" module-name="gozirra-pressgang" />
     <orderEntry type="library" name="Maven: commons-logging:commons-logging:1.1.1" level="project" />
     <orderEntry type="library" name="Maven: com.github.tony19:named-regexp:0.1.8" level="project" />
-    <orderEntry type="module" module-name="pressgang-ccms-restv1" />
-    <orderEntry type="module" module-name="pressgang-ccms-zanata" />
+    <orderEntry type="library" name="Maven: org.jboss.pressgang.ccms:pressgang-ccms-restv1:1.0-SNAPSHOT" level="project" />
+    <orderEntry type="library" name="Maven: org.jboss.pressgang.ccms:pressgang-ccms-zanata:1.0-SNAPSHOT" level="project" />
     <orderEntry type="library" name="Maven: org.zanata:zanata-rest-client:2.0.1" level="project" />
     <orderEntry type="library" name="Maven: org.zanata:zanata-common-api:2.0.0" level="project" />
     <orderEntry type="library" name="Maven: org.hibernate:hibernate-validator:3.1.0.GA" level="project" />
