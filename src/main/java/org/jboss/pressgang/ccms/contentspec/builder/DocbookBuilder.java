@@ -600,8 +600,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
         if (getBuildOptions().getInsertSurveyLink()) {
             getBuildOptions().setInsertSurveyLink(contentSpec.isInjectSurveyLinks());
         }
-        if (getBuildOptions().getInsertBugzillaLinks()) {
-            getBuildOptions().setInsertBugzillaLinks(contentSpec.isInjectBugLinks());
+        if (getBuildOptions().getForceInjectBugzillaLinks()) {
+            getBuildOptions().setInsertBugzillaLinks(true);
+        } else {
+            if (getBuildOptions().getInsertBugzillaLinks()) {
+                getBuildOptions().setInsertBugzillaLinks(contentSpec.isInjectBugLinks());
+            }
         }
         if (getBuildOptions().getBuildName() == null || getBuildOptions().getBuildName().isEmpty()) {
             getBuildOptions().setBuildName(
@@ -1360,7 +1364,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
                             .equals(
-                            specTopic.getRevision())) {
+                                    specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             getTopicErrorDatabase().addWarning((T) topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -1436,7 +1440,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             if ((!baseLevel.isSpecTopicInLevelByTopicID(
                                     relatedTranslatedTopic.getTopicId()) && !getBuildOptions().getIgnoreMissingCustomInjections()) ||
                                     baseLevel.isSpecTopicInLevelByTopicID(
-                                    relatedTranslatedTopic.getTopicId())) {
+                                            relatedTranslatedTopic.getTopicId())) {
                                 if (EntityUtilities.isDummyTopic(relatedTopic) && EntityUtilities.hasBeenPushedForTranslation(
                                         relatedTranslatedTopic)) {
                                     getTopicErrorDatabase().addWarning(topic, "Topic ID " + relatedTranslatedTopic.getTopicId() + ", " +
@@ -3191,7 +3195,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     // Create the PropertyTagCollection to be used to update any data
                     final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
                             .newPropertyTagInTopicCollection(
-                            topic);
+                                    topic);
 
                     // Get a list of all property tag items that exist for the current topic
                     /*final List<RESTAssignedPropertyTagCollectionItemV1> existingUniqueURLs = ComponentTopicV1.returnPropertyItems(topic,
@@ -3409,6 +3413,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                                             ArrayList<PropertyTagInTopicWrapper>(
                                             relatedTopicProperties.getItems());
                                     for (final PropertyTagInTopicWrapper prop : relatedTopicPropertyTags) {
+                                        if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
+                                            relatedTopicProperties                                    for (final PropertyTagInTopicWrapper prop : relatedTopicPropertyTags) {
                                         if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
                                             relatedTopicProperties.remove(prop);
                                         }
