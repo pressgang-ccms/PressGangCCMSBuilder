@@ -1264,7 +1264,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             if (doc != null) {
                 /* process the conditional statements */
                 final String condition = specTopic.getConditionStatement(true);
-                DocbookBuildUtilities.processConditionalStatements(condition, doc);
+                DocBookUtilities.processConditions(condition, doc);
 
                 final boolean valid = processSpecTopicInjections(contentSpec, specTopic, xmlPreProcessor, relatedTopicsDatabase,
                         useFixedUrls);
