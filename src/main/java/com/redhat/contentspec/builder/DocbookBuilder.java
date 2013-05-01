@@ -295,11 +295,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param requester       The user who requested the build.
      * @param buildingOptions The options to be used when building.
      * @return Returns a mapping of file names/locations to files. This HashMap can be used to build a ZIP archive.
-     * @throws BuildProcessingException    Thrown if an unexpected Error occurs during processing. eg. A template file doesn't
-     *                                     contain valid XML.
-     * @throws BuilderCreationException    Thrown if the builder is unable to start due to incorrect passed variables.
-     * @throws BuildProcessingException    Any build issue that should not occur under normal circumstances. Ie a Template can't be
-     *                                     converted to a DOM Document.
+     * @throws BuildProcessingException Thrown if an unexpected Error occurs during processing. eg. A template file doesn't
+     *                                  contain valid XML.
+     * @throws BuilderCreationException Thrown if the builder is unable to start due to incorrect passed variables.
+     * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
+     *                                  converted to a DOM Document.
      */
     public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final RESTUserV1 requester,
             final CSDocbookBuildingOptions buildingOptions) throws BuilderCreationException, BuildProcessingException {
@@ -313,11 +313,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param requester       The user who requested the build.
      * @param buildingOptions The options to be used when building.
      * @return Returns a mapping of file names/locations to files. This HashMap can be used to build a ZIP archive.
-     * @throws BuildProcessingException    Thrown if an unexpected Error occurs during processing. eg. A template file doesn't
-     *                                     contain valid XML.
-     * @throws BuilderCreationException    Thrown if the builder is unable to start due to incorrect passed variables.
-     * @throws BuildProcessingException    Any build issue that should not occur under normal circumstances. Ie a Template can't be
-     *                                     converted to a DOM Document.
+     * @throws BuildProcessingException Thrown if an unexpected Error occurs during processing. eg. A template file doesn't
+     *                                  contain valid XML.
+     * @throws BuilderCreationException Thrown if the builder is unable to start due to incorrect passed variables.
+     * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
+     *                                  converted to a DOM Document.
      */
     @SuppressWarnings("unchecked")
     public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final RESTUserV1 requester,
@@ -1527,8 +1527,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param requester    The User who requested the book be built.
      * @param useFixedUrls If during processing the fixed urls should be used.
      * @return A ZIP Archive containing all the information to build the book.
-     * @throws BuildProcessingException    Any build issue that should not occur under normal circumstances. Ie a Template can't be
-     *                                     converted to a DOM Document.
+     * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
+     *                                  converted to a DOM Document.
      */
     private HashMap<String, byte[]> doBuildZipPass(final ContentSpec contentSpec, final RESTUserV1 requester,
             final boolean useFixedUrls) throws BuildProcessingException {
@@ -1556,7 +1556,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 final Level level = (Level) node;
 
                 if (level.hasSpecTopics()) {
-                    createRootElementXML(files, bookXIncludes, level, useFixedUrls);
+                    boolean serverBuild = docbookBuildingOptions.getServerBuild();
+                    createRootElementXML(files, bookXIncludes, level, useFixedUrls, serverBuild);
                 } else if (docbookBuildingOptions.isAllowEmptySections()) {
                     bookXIncludes.append(DocBookUtilities.wrapInPara("No Content"));
                 }
@@ -1823,8 +1824,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param contentSpec The content specification object to be built.
      * @param files       The mapping of file names/locations to files that will be packaged into the ZIP archive.
      */
-    protected void addBookBaseFilesAndImages(final ContentSpec contentSpec,
-            final Map<String, byte[]> files) {
+    protected void addBookBaseFilesAndImages(final ContentSpec contentSpec, final Map<String, byte[]> files) {
         final String iconSvg = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ICON_SVG_ID, "").getValue();
         try {
             files.put(BOOK_IMAGES_FOLDER + "icon.svg", iconSvg.getBytes("UTF-8"));
@@ -1849,8 +1849,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
             final byte[] treeviewLoadingGif = restManager.getRESTClient().getJSONBlobConstant(
                     DocbookBuilderConstants.TREEVIEW_LOADING_GIF_ID, BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
-            final byte[] check1Gif = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.CHECK1_GIF_ID, BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
-            final byte[] check2Gif = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.CHECK2_GIF_ID, BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
+            final byte[] check1Gif = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.CHECK1_GIF_ID,
+                    BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
+            final byte[] check2Gif = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.CHECK2_GIF_ID,
+                    BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
 
             // these files are used by the YUI treeview
             files.put(BOOK_FILES_FOLDER + "yahoo-dom-event.js", StringUtilities.getStringBytes(yahooDomEventJs));
@@ -1978,8 +1980,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         String entFile = entityFileTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
         entFile = entFile.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
         entFile = entFile.replaceAll(BuilderConstants.TITLE_REGEX, originalTitle);
-        String year = contentSpec.getCopyrightYear() == null ? Integer.toString(Calendar.getInstance().get(Calendar.YEAR)) : contentSpec
-                .getCopyrightYear();
+        String year = contentSpec.getCopyrightYear() == null ? Integer.toString(
+                Calendar.getInstance().get(Calendar.YEAR)) : contentSpec.getCopyrightYear();
         entFile = entFile.replaceAll(BuilderConstants.YEAR_FORMAT_REGEX, year);
         entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_COPYRIGHT_REGEX, contentSpec.getCopyrightHolder());
         entFile = entFile.replaceAll(BuilderConstants.BZPRODUCT_REGEX,
@@ -2048,10 +2050,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param bookXIncludes The string based list of XIncludes to be used in the book.xml
      * @param level         The level to build the chapter from.
      * @param useFixedUrls  If Fixed URL Properties should be used for topic ID attributes.
+     * @param serverBuild   Whether the build is being done on a server.
      * @throws BuildProcessingException
      */
     protected void createRootElementXML(final Map<String, byte[]> files, final StringBuffer bookXIncludes, final Level level,
-            final boolean useFixedUrls) throws BuildProcessingException {
+            final boolean useFixedUrls, final boolean serverBuild) throws BuildProcessingException {
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
             return;
@@ -2085,7 +2088,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
         chapter.getDocumentElement().appendChild(titleNode);
         chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
-        createSectionXML(files, level, chapter, chapter.getDocumentElement(), BOOK_TOPICS_FOLDER + chapterName + "/", useFixedUrls);
+        createSectionXML(files, level, chapter, chapter.getDocumentElement(), BOOK_TOPICS_FOLDER + chapterName + "/", useFixedUrls,
+                serverBuild);
 
         // Add the boiler plate text and add the chapter to the book
         final String chapterString = DocBookUtilities.addDocbook45XMLDoctype(
@@ -2107,11 +2111,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param doc          The document object to add the child level content to.
      * @param level        The level to build the chapter from.
      * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
+     * @param serverBuild  Whether the build is being done on a server.
      * @return The Element that specifies the XiInclude for the chapter/appendix in the files.
      * @throws BuildProcessingException
      */
     protected Element createSubRootElementXML(final Map<String, byte[]> files, final Document doc, final Level level,
-            final String parentFileDirectory, final boolean useFixedUrls) throws BuildProcessingException {
+            final String parentFileDirectory, final boolean useFixedUrls, final boolean serverBuild) throws BuildProcessingException {
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
             return null;
@@ -2140,7 +2145,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         else titleNode.setTextContent(level.getTitle());
         chapter.getDocumentElement().appendChild(titleNode);
         chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
-        createSectionXML(files, level, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + "/", useFixedUrls);
+        createSectionXML(files, level, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + "/", useFixedUrls, serverBuild);
 
         // Add the boiler plate text and add the chapter to the book
         final String chapterString = DocBookUtilities.addDocbook45XMLDoctype(
@@ -2169,10 +2174,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param chapter      The chapter document object that this section is to be added to.
      * @param parentNode   The parent XML node of this section.
      * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
+     * @param serverBuild  Whether the build is being done on a server.
      * @throws BuildProcessingException
      */
     protected void createSectionXML(final Map<String, byte[]> files, final Level level, final Document chapter, final Element parentNode,
-            final String parentFileLocation, final boolean useFixedUrls) throws BuildProcessingException {
+            final String parentFileLocation, final boolean useFixedUrls, final boolean serverBuild) throws BuildProcessingException {
         final LinkedList<org.jboss.pressgang.ccms.contentspec.Node> levelData = level.getChildNodes();
 
         /* Get the name of the element based on the type */
@@ -2195,7 +2201,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 final Level childLevel = (Level) node;
 
                 // Create a new file for the Chapter/Appendix
-                final Element xiInclude = createSubRootElementXML(files, chapter, childLevel, parentFileLocation, useFixedUrls);
+                final Element xiInclude = createSubRootElementXML(files, chapter, childLevel, parentFileLocation, useFixedUrls, serverBuild);
                 if (xiInclude != null) {
                     childNodes.add(xiInclude);
                 }
@@ -2223,25 +2229,33 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     }
                 } else {
                     // Add this sections child sections/topics
-                    createSectionXML(files, childLevel, chapter, sectionNode, parentFileLocation, useFixedUrls);
+                    createSectionXML(files, childLevel, chapter, sectionNode, parentFileLocation, useFixedUrls, serverBuild);
                 }
 
                 childNodes.add(sectionNode);
             } else if (node instanceof SpecTopic) {
                 final SpecTopic specTopic = (SpecTopic) node;
+                Node topicNode = null;
+                if (serverBuild) {
+                    // Include the topic as is, into the chapter
+                    topicNode = chapter.importNode(specTopic.getXmlDocument().getDocumentElement(), true);
+                } else {
+                    // Create the topic file and add the reference to the chapter
+                    final String topicFileName = createTopicXMLFile(files, specTopic, parentFileLocation, useFixedUrls);
+                    if (topicFileName != null) {
 
-                final String topicFileName = createTopicXMLFile(files, specTopic, parentFileLocation, useFixedUrls);
+                        // Remove the initial file location as we only where it lives in the topics directory
+                        final String fixedParentFileLocation = docbookBuildingOptions.getFlattenTopics() ? "topics/" : parentFileLocation
+                                .replace(BOOK_LOCALE_FOLDER, "");
 
-                if (topicFileName != null) {
-                    // Remove the initial file location as we only where it lives in the topics directory
-                    final String fixedParentFileLocation = docbookBuildingOptions.getFlattenTopics() ? "topics/" : parentFileLocation
-                            .replace(
-                            BOOK_LOCALE_FOLDER, "");
+                        topicNode = chapter.createElement("xi:include");
+                        ((Element) topicNode).setAttribute("href", fixedParentFileLocation + topicFileName);
+                        ((Element) topicNode).setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
+                    }
+                }
 
-                    final Element topicNode = chapter.createElement("xi:include");
-                    topicNode.setAttribute("href", fixedParentFileLocation + topicFileName);
-                    topicNode.setAttribute("xmlns:xi", "http://www.w3.org/2001/XInclude");
-
+                // Add the node to the chapter
+                if (topicNode != null) {
                     if (specTopic.getParent() != null && specTopic.getParent().getType() == LevelType.PART) {
                         intro.appendChild(topicNode);
                     } else {
@@ -2268,14 +2282,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param specTopic          The SpecTopic object to get content from.
      * @param parentFileLocation
      * @param useFixedUrls       If Fixed URL Properties should be used for topic ID attributes.
-     * @return The filename of the new topic XML file.
+     * @return The filename of the new topic XML file, or the topic file itself if building on the server.
      */
     protected String createTopicXMLFile(final Map<String, byte[]> files, final SpecTopic specTopic, final String parentFileLocation,
             final boolean useFixedUrls) {
-        String topicFileName;
         final RESTBaseTopicV1<?, ?, ?> topic = specTopic.getTopic();
 
         if (topic != null) {
+            String topicFileName;
             if (topic instanceof RESTTranslatedTopicV1) {
                 if (useFixedUrls) {
                     topicFileName = ComponentTranslatedTopicV1.returnXrefPropertyOrId((RESTTranslatedTopicV1) topic,
@@ -2300,8 +2314,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             final String fixedParentFileLocation = docbookBuildingOptions.getFlattenTopics() ? BOOK_TOPICS_FOLDER : parentFileLocation;
 
             final String topicXML = DocBookUtilities.addDocbook45XMLDoctype(
-                    XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements,
-                            true), this.escapedTitle + ".ent", DocBookUtilities.TOPIC_ROOT_NODE_NAME);
+                    XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements,
+                            contentsInlineElements, true), this.escapedTitle + ".ent", DocBookUtilities.TOPIC_ROOT_NODE_NAME);
+
             try {
                 files.put(fixedParentFileLocation + topicFileName, topicXML.getBytes("UTF-8"));
             } catch (UnsupportedEncodingException e) {
@@ -2322,8 +2337,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param files  The mapping of File Names/Locations to actual file content.
      * @param locale The locale for the book.
      */
-    private void addImagesToBook(final HashMap<String, byte[]> files,
-            final String locale) {
+    private void addImagesToBook(final HashMap<String, byte[]> files, final String locale) {
         /* Load the database constants */
         final byte[] failpenguinPng = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.FAILPENGUIN_PNG_ID,
                 BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
@@ -2450,8 +2464,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param files       The mapping of File Names/Locations to actual file content.
      * @throws BuildProcessingException
      */
-    private void buildAuthorGroup(final ContentSpec contentSpec,
-            final Map<String, byte[]> files) throws BuildProcessingException {
+    private void buildAuthorGroup(final ContentSpec contentSpec, final Map<String, byte[]> files) throws BuildProcessingException {
         log.info("\tBuilding Author_Group.xml");
 
         // Setup Author_Group.xml
@@ -3276,7 +3289,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         /* Check to ensure that if the topic has a table, that the table isn't missing any entries */
         boolean validTables = DocbookBuildUtilities.validateTopicTables(topicDoc);
 
-        if (!validProgramListings || ! validTables) {
+        if (!validProgramListings || !validTables) {
             final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                     errorInvalidValidationTopic.getValue(), docbookBuildingOptions);
 
@@ -3285,7 +3298,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             if (!validTables) {
                 errorDatabase.addError(topic, ErrorType.INVALID_CONTENT,
-                        BuilderConstants.ERROR_INVALID_TOPIC_XML + " Table column declaration doesn't match the number of entry elements. The" +
+                        BuilderConstants.ERROR_INVALID_TOPIC_XML + " Table column declaration doesn't match the number of entry elements." +
+                                " The" +
                                 " processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
             }
             if (!validProgramListings) {

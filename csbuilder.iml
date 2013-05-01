@@ -32,7 +32,7 @@
     <orderEntry type="library" scope="TEST" name="Maven: org.powermock:powermock-api-support:sources:1.4.11" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.powermock:powermock-classloading-base:sources:1.4.11" level="project" />
     <orderEntry type="library" name="Maven: com.ibm.icu:icu4j:4.8.1.1" level="project" />
-    <orderEntry type="module" module-name="pressgang-ccms-utils" />
+    <orderEntry type="library" name="Maven: org.jboss.pressgang.ccms:pressgang-ccms-utils:1.0-SNAPSHOT" level="project" />
     <orderEntry type="library" name="Maven: commons-lang:commons-lang:2.6" level="project" />
     <orderEntry type="library" name="Maven: commons-codec:commons-codec:1.7" level="project" />
     <orderEntry type="library" name="Maven: xalan:xalan:2.7.1" level="project" />
