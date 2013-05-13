@@ -11,6 +11,7 @@ import java.util.Set;
 
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
+import org.jboss.pressgang.ccms.contentspec.enums.TopicType;
 import org.jboss.pressgang.ccms.rest.v1.entities.RESTTranslatedTopicV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.base.RESTBaseTopicV1;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
@@ -71,13 +72,16 @@ public class SpecDatabase {
      * 
      * @param usedIdAttributes A mapping of IDs to topics that exist for a book.
      */
-    public void setDatabaseDulicateIds(final Map<Integer, Set<String>> usedIdAttributes) {
-        /* Topics */
+    public void setDatabaseDuplicateIds(final Map<Integer, Set<String>> usedIdAttributes) {
+        // Topics
         for (final String topicTitle : specTopicsTitles.keySet()) {
             final List<SpecTopic> specTopics = specTopicsTitles.get(topicTitle);
             for (int i = 0; i < specTopics.size(); i++) {
                 final SpecTopic specTopic = specTopics.get(i);
                 String fixedIdAttributeValue = null;
+
+                // Ignore inner level topics
+                if (specTopic.getTopicType() == TopicType.LEVEL) continue;
 
                 if (i != 0) {
                     fixedIdAttributeValue = Integer.toString(i);
@@ -95,7 +99,7 @@ public class SpecDatabase {
             }
         }
 
-        /* Levels */
+        // Levels
         for (final String levelTitle : specLevels.keySet()) {
             final List<Level> levels = specLevels.get(levelTitle);
             for (int i = 0; i < levels.size(); i++) {
@@ -178,7 +182,7 @@ public class SpecDatabase {
         final Set<String> ids = new HashSet<String>();
 
         // Add all the level id attributes
-        for (final String levelTitle : this.specLevels.keySet()) {
+        for (final String levelTitle : specLevels.keySet()) {
             final List<Level> levels = specLevels.get(levelTitle);
             for (final Level level : levels) {
                 ids.add(level.getUniqueLinkId(useFixedUrls));
@@ -186,10 +190,12 @@ public class SpecDatabase {
         }
 
         // Add all the topic id attributes
-        for (final Integer topicId : this.specTopics.keySet()) {
+        for (final Integer topicId : specTopics.keySet()) {
             final List<SpecTopic> topics = specTopics.get(topicId);
             for (final SpecTopic topic : topics) {
-                ids.add(topic.getUniqueLinkId(useFixedUrls));
+                if (topic.getTopicType() != TopicType.LEVEL) {
+                    ids.add(topic.getUniqueLinkId(useFixedUrls));
+                }
             }
         }
 

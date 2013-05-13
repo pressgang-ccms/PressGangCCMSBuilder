@@ -704,7 +704,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         /* Set the duplicate id's for each topic */
-        specDatabase.setDatabaseDulicateIds(usedIdAttributes);
+        specDatabase.setDatabaseDuplicateIds(usedIdAttributes);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -876,10 +876,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param useFixedUrls Whether fixed URL's are to be used for the level ID attributes.
      */
     private void addLevelAndTopicsToDatabase(final Level level, final boolean useFixedUrls) {
-        /* Add the level to the database */
-        specDatabase.add(level, DocbookBuildUtilities.createURLTitle(level.getTitle()));
+        // Add the level to the database
+        final String levelTitle = DocbookBuildUtilities.createURLTitle(level.getTitle());
+        specDatabase.add(level, levelTitle);
+        if (level.getInnerTopic() != null) {
+            specDatabase.add(level.getInnerTopic(), levelTitle);
+        }
 
-        /* Add the topics at this level to the database */
+        // Add the topics at this level to the database
         for (final SpecTopic specTopic : level.getSpecTopics()) {
             // Check if the app should be shutdown
             if (isShuttingDown.get()) {
@@ -889,7 +893,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             specDatabase.add(specTopic, specTopic.getUniqueLinkId(useFixedUrls));
         }
 
-        /* Add the child levels to the database */
+        // Add the child levels to the database
         for (final Level childLevel : level.getChildLevels()) {
             // Check if the app should be shutdown
             if (isShuttingDown.get()) {
@@ -935,8 +939,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @return A Set of Topic ID/Revision Pairs that represent the topics in the level.
      */
     private Set<Pair<Integer, Integer>> getTopicIdsFromLevel(final Level level) {
-        /* Add the topics at this level to the database */
         final Set<Pair<Integer, Integer>> topicIds = new HashSet<Pair<Integer, Integer>>();
+        /* Add the topics at this level to the database */
+        if (level.getInnerTopic() != null) {
+            topicIds.add(new Pair<Integer, Integer>(level.getInnerTopic().getDBId(), level.getInnerTopic().getRevision()));
+        }
+
         for (final SpecTopic specTopic : level.getSpecTopics()) {
             // Check if the app should be shutdown
             if (isShuttingDown.get()) {
@@ -2125,14 +2133,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             return;
         }
 
-        /* Get the name of the element based on the type */
+        // Get the name of the element based on the type
         final String elementName = level.getLevelType() == LevelType.PROCESS ? "chapter" : level.getLevelType().getTitle().toLowerCase();
 
         Document chapter = null;
         try {
             chapter = XMLUtilities.convertStringToDocument("<" + elementName + "></" + elementName + ">");
         } catch (SAXException ex) {
-            /* Exit since we shouldn't fail at converting a basic chapter */
+            // Exit since we shouldn't fail at converting a basic chapter
             log.debug(ex);
             throw new BuildProcessingException("Failed to create a basic XML document");
         }
@@ -2153,17 +2161,24 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
         chapter.getDocumentElement().appendChild(titleNode);
         chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
+
+        // Add the intro text from the inner topic if it exists
+        if (level.getInnerTopic() != null) {
+            addTopicContentsToLevelDocument(level.getInnerTopic(), chapter.getDocumentElement(), chapter);
+        }
+
+        // Create and add the chapter/level contents
         createSectionXML(files, level, chapter, chapter.getDocumentElement(), BOOK_TOPICS_FOLDER + chapterName + "/", useFixedUrls,
                 serverBuild);
 
         // Add the boiler plate text and add the chapter to the book
         final String chapterString = DocBookUtilities.addDocbook45XMLDoctype(
                 XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true),
-                this.escapedTitle + ".ent", elementName);
+                escapedTitle + ".ent", elementName);
         try {
             files.put(BOOK_LOCALE_FOLDER + chapterXMLName, chapterString.getBytes("UTF-8"));
         } catch (UnsupportedEncodingException e) {
-            /* UTF-8 is a valid format so this should exception should never get thrown */
+            // UTF-8 is a valid format so this should exception should never get thrown
             log.error(e);
         }
     }
@@ -2210,6 +2225,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         else titleNode.setTextContent(level.getTitle());
         chapter.getDocumentElement().appendChild(titleNode);
         chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
+
+        // Add the intro text from the inner topic if it exists
+        if (level.getInnerTopic() != null) {
+            addTopicContentsToLevelDocument(level.getInnerTopic(), chapter.getDocumentElement(), chapter);
+        }
+
+        // Create and add the chapter/level contents
         createSectionXML(files, level, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + "/", useFixedUrls,
                 serverBuild);
 
@@ -2285,6 +2307,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 sectionNode.appendChild(sectionTitleNode);
                 sectionNode.setAttribute("id", childLevel.getUniqueLinkId(useFixedUrls));
 
+                // Add the intro text from the inner topic if it exists
+                if (childLevel.getInnerTopic() != null) {
+                    addTopicContentsToLevelDocument(childLevel.getInnerTopic(), sectionNode, chapter);
+                }
+
                 // Ignore sections that have no spec topics
                 if (!childLevel.hasSpecTopics()) {
                     if (docbookBuildingOptions.isAllowEmptySections()) {
@@ -2333,13 +2360,36 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             }
         }
 
-        /* Add the child nodes and intro to the parent */
+        // Add the child nodes and intro to the parent
         if (intro.hasChildNodes()) {
             parentNode.appendChild(intro);
         }
 
         for (final Node node : childNodes) {
             parentNode.appendChild(node);
+        }
+    }
+
+    /**
+     * TODO
+     *
+     * @param specTopic
+     * @param doc
+     */
+    protected void addTopicContentsToLevelDocument(final SpecTopic specTopic, final Element parentNode, final Document doc) {
+        final Node section = doc.importNode(specTopic.getXmlDocument().getDocumentElement(), true);
+
+        // Remove the sectioninfo and title
+        final List<Node> nodes = XMLUtilities.getDirectChildNodes(section, DocBookUtilities.TOPIC_ROOT_TITLE_NODE_NAME,
+                DocBookUtilities.TOPIC_ROOT_SECTIONINFO_NODE_NAME);
+        for (final Node removeNode : nodes) {
+            section.removeChild(removeNode);
+        }
+
+        // Move the contents of the section to the chapter/level
+        final NodeList sectionChildren = section.getChildNodes();
+        for (int i = 0; i < sectionChildren.getLength(); i++) {
+            parentNode.appendChild(sectionChildren.item(i));
         }
     }
 
