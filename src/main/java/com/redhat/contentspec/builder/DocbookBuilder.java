@@ -44,6 +44,7 @@ import org.jboss.pressgang.ccms.contentspec.entities.AuthorInformation;
 import org.jboss.pressgang.ccms.contentspec.entities.InjectionOptions;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
 import org.jboss.pressgang.ccms.contentspec.enums.LevelType;
+import org.jboss.pressgang.ccms.contentspec.enums.TopicType;
 import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
 import org.jboss.pressgang.ccms.contentspec.rest.RESTManager;
 import org.jboss.pressgang.ccms.contentspec.rest.RESTReader;
@@ -65,6 +66,7 @@ import org.jboss.pressgang.ccms.rest.v1.collections.base.RESTBaseCollectionItemV
 import org.jboss.pressgang.ccms.rest.v1.collections.base.RESTBaseCollectionV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.items.join.RESTAssignedPropertyTagCollectionItemV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.join.RESTAssignedPropertyTagCollectionV1;
+import org.jboss.pressgang.ccms.rest.v1.components.ComponentBaseTopicV1;
 import org.jboss.pressgang.ccms.rest.v1.components.ComponentTagV1;
 import org.jboss.pressgang.ccms.rest.v1.components.ComponentTopicV1;
 import org.jboss.pressgang.ccms.rest.v1.components.ComponentTranslatedTopicV1;
@@ -192,7 +194,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * Holds the compiler errors that form the Errors.xml file in the compiled docbook.
      */
     protected TopicErrorDatabase<T> errorDatabase;
-    ;
 
     /**
      * Holds the SpecTopics and their XML that exist within the content specification.
@@ -607,7 +608,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         log.info("Doing " + locale + " Populate Database Pass");
 
         /* Calculate the ids of all the topics to get */
-        final Set<Pair<Integer, Integer>> topicToRevisions = getTopicIdsFromLevel(contentSpec.getBaseLevel());
+        final Set<Pair<Integer, Integer>> topicToRevisions = getTopicIdsFromContentSpec(contentSpec);
 
         /*
          * Determine which topics we need to fetch the latest topics for and which topics we need to fetch revisions for.
@@ -687,7 +688,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         /* Add all the levels and topics to the database first */
-        addLevelAndTopicsToDatabase(contentSpec.getBaseLevel(), fixedUrlsSuccess);
+        addContentSpecLevelsAndTopicsToDatabase(contentSpec, fixedUrlsSuccess);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -846,6 +847,31 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Adds the levels and topics in the provided Level object to the local content spec database.
      *
+     * @param contentSpec  The content spec whose levels and topics are to be added to the database.
+     * @param useFixedUrls Whether fixed URL's are to be used for the level ID attributes.
+     */
+    private void addContentSpecLevelsAndTopicsToDatabase(final ContentSpec contentSpec, final boolean useFixedUrls) {
+        addLevelAndTopicsToDatabase(contentSpec.getBaseLevel(), useFixedUrls);
+
+        // Add the feedback topic
+        if (contentSpec.getFeedback() != null) {
+            specDatabase.add(contentSpec.getFeedback(), contentSpec.getFeedback().getUniqueLinkId(useFixedUrls));
+        }
+
+        // Add the Revision History topic
+        if (contentSpec.getRevisionHistory() != null) {
+            specDatabase.add(contentSpec.getRevisionHistory(), contentSpec.getRevisionHistory().getUniqueLinkId(useFixedUrls));
+        }
+
+        // Add the Legal Notice topic
+        if (contentSpec.getLegalNotice() != null) {
+            specDatabase.add(contentSpec.getLegalNotice(), contentSpec.getLegalNotice().getUniqueLinkId(useFixedUrls));
+        }
+    }
+
+    /**
+     * Adds the levels and topics in the provided Level object to the local content spec database.
+     *
      * @param level        The content spec level to be added to the database.
      * @param useFixedUrls Whether fixed URL's are to be used for the level ID attributes.
      */
@@ -872,6 +898,34 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             addLevelAndTopicsToDatabase(childLevel, useFixedUrls);
         }
+    }
+
+    /**
+     * Gets a Set of Topic ID's to Revisions from the content specification for each Spec Topic.
+     *
+     * @param contentSpec The Content Spec to scan for topics.
+     * @return A Set of Topic ID/Revision Pairs that represent the topics in the level.
+     */
+    private Set<Pair<Integer, Integer>> getTopicIdsFromContentSpec(final ContentSpec contentSpec) {
+        final Set<Pair<Integer, Integer>> topicIds = getTopicIdsFromLevel(contentSpec.getBaseLevel());
+
+        // Add the feedback topic
+        if (contentSpec.getFeedback() != null && contentSpec.getFeedback().getDBId() != null) {
+            topicIds.add(new Pair<Integer, Integer>(contentSpec.getFeedback().getDBId(), contentSpec.getFeedback().getRevision()));
+        }
+
+        // Add the Revision History topic
+        if (contentSpec.getRevisionHistory() != null && contentSpec.getRevisionHistory().getDBId() != null) {
+            topicIds.add(
+                    new Pair<Integer, Integer>(contentSpec.getRevisionHistory().getDBId(), contentSpec.getRevisionHistory().getRevision()));
+        }
+
+        // Add the Legal Notice topic
+        if (contentSpec.getLegalNotice() != null && contentSpec.getLegalNotice().getDBId() != null) {
+            topicIds.add(new Pair<Integer, Integer>(contentSpec.getLegalNotice().getDBId(), contentSpec.getLegalNotice().getRevision()));
+        }
+
+        return topicIds;
     }
 
     /**
@@ -1112,6 +1166,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     topicRevision = topic.getRevision();
                 }
 
+                boolean revHistoryTopic = ComponentBaseTopicV1.hasTag(topic, CSConstants.REVISION_HISTORY_TAG_ID);
+                boolean legalNoticeTopic = ComponentTopicV1.hasTag(topic, CSConstants.LEGAL_NOTICE_TAG_ID);
+
                 Document topicDoc = null;
                 final String topicXML = topic == null ? null : topic.getXml();
 
@@ -1143,11 +1200,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     try {
                         topicDoc = XMLUtilities.convertStringToDocument(topic.getXml());
 
-                        if (topicDoc != null) {
-                            /* Ensure the topic is wrapped in a section and the title matches the topic */
-                            DocBookUtilities.wrapDocumentInSection(topicDoc);
-                            DocBookUtilities.setSectionTitle(topic.getTitle(), topicDoc);
-                        } else {
+                        if (topicDoc == null) {
                             final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                                     errorInvalidValidationTopic.getValue(), docbookBuildingOptions);
                             final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(topic.getXml());
@@ -1168,17 +1221,28 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     }
                 }
 
+                // Make sure the topic has the correct root element and other items
+                if (revHistoryTopic) {
+                    DocBookUtilities.wrapDocumentInAppendix(topicDoc);
+                    topicDoc.getDocumentElement().setAttribute("id", "appe-" + escapedTitle + "-Revision_History");
+                } else if (legalNoticeTopic) {
+                    DocBookUtilities.wrapDocumentInLegalNotice(topicDoc);
+                } else {
+                    // Ensure the topic is wrapped in a section and the title matches the topic
+                    DocBookUtilities.wrapDocumentInSection(topicDoc);
+                    DocBookUtilities.setSectionTitle(topic.getTitle(), topicDoc);
+
+                    processTopicSectionInfo(topic, topicDoc);
+                    processTopicID(topic, topicDoc, useFixedUrls);
+                }
+
                 /*
                  * Extract the id attributes used in this topic. We'll use this data in the second pass to make sure that
                  * individual topics don't repeat id attributes.
                  */
                 collectIdAttributes(topicId, topicDoc, usedIdAttributes);
 
-                processTopicSectionInfo(topic, topicDoc);
-
-                processTopicID(topic, topicDoc, useFixedUrls);
-
-                /* Add the document & topic to the database spec topics */
+                // Add the document & topic to the database spec topics
                 final List<SpecTopic> specTopics = specDatabase.getSpecTopicsForTopicID(topicId);
                 for (final SpecTopic specTopic : specTopics) {
                     // Check if the app should be shutdown
@@ -1689,7 +1753,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             files.put(BOOK_FOLDER + "publican.cfg", fixedPublicanCfg.getBytes("UTF-8"));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
-            log.error(e.getMessage());
+            log.error(e);
         }
 
         // Setup Book_Info.xml
@@ -1702,7 +1766,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             }
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
-            log.error(e.getMessage());
+            log.error(e);
         }
 
         // Setup Author_Group.xml
@@ -1721,7 +1785,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     // Add the parsed file to the book
                     files.put(BOOK_LOCALE_FOLDER + "Author_Group.xml", buffer.toString().getBytes("UTF-8"));
                 } catch (Exception e) {
-                    log.error(e.getMessage());
+                    log.error(e);
                     buildAuthorGroup(contentSpec, files);
                 }
             } else {
@@ -1745,7 +1809,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 files.put(BOOK_LOCALE_FOLDER + "Preface.xml", fixedPrefaceXml.getBytes("UTF-8"));
             } catch (UnsupportedEncodingException e) {
                 /* UTF-8 is a valid format so this should exception should never get thrown */
-                log.error(e.getMessage());
+                log.error(e);
             }
         }
 
@@ -1755,17 +1819,15 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     docbookBuildingOptions.getCommonContentDirectory(), files);
         }
 
-        // Replace the basic injection data inside the revision history
-        final String revisionHistoryXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.REVISION_HISTORY_XML_ID,
-                "").getValue();
-        String fixedRevisionHistoryXml = revisionHistoryXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
+        // Setup the revision history
+        buildRevisionHistory(contentSpec, overrides, requester, files);
 
-        // Setup Revision_History.xml
-        if (overrides.containsKey(CSConstants.REVISION_HISTORY_OVERRIDE)) {
-            final File revHistory = new File(overrides.get(CSConstants.REVISION_HISTORY_OVERRIDE));
-            if (revHistory.exists() && revHistory.isFile()) {
+        // Setup Feedback.xml
+        if (overrides.containsKey(CSConstants.FEEDBACK_OVERRIDE)) {
+            final File authorGrp = new File(overrides.get(CSConstants.FEEDBACK_OVERRIDE));
+            if (authorGrp.exists() && authorGrp.isFile()) {
                 try {
-                    final FileInputStream fis = new FileInputStream(revHistory);
+                    final FileInputStream fis = new FileInputStream(authorGrp);
                     final BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
                     final StringBuilder buffer = new StringBuilder();
                     String line = "";
@@ -1773,34 +1835,37 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         buffer.append(line + "\n");
                     }
 
-                    if (docbookBuildingOptions.getRevisionMessages() != null && !docbookBuildingOptions.getRevisionMessages().isEmpty()) {
-                        // Add a revision message to the Revision_History.xml
-                        final String revHistoryOverride = buffer.toString();
-                        final String docType = XMLUtilities.findDocumentType(revHistoryOverride);
-                        if (docType != null) {
-                            buildRevisionHistory(contentSpec, revHistoryOverride.replace(docType, ""), requester, files);
-                        } else {
-                            buildRevisionHistory(contentSpec, revHistoryOverride, requester, files);
-                        }
-                    } else {
-                        // Add the revision history directly to the book
-                        try {
-                            files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", buffer.toString().getBytes("UTF-8"));
-                        } catch (UnsupportedEncodingException e) {
-                            /* UTF-8 is a valid format so this should exception should never get thrown */
-                            log.error(e.getMessage());
-                        }
-                    }
+                    // Add the parsed file to the book
+                    files.put(BOOK_LOCALE_FOLDER + "Feedback.xml", buffer.toString().getBytes("UTF-8"));
                 } catch (Exception e) {
-                    log.error(e.getMessage());
-                    buildRevisionHistory(contentSpec, fixedRevisionHistoryXml, requester, files);
+                    log.error(e);
                 }
             } else {
-                log.error("Revision_History.xml override is an invalid file. Using the default Revision_History.xml instead.");
-                buildRevisionHistory(contentSpec, fixedRevisionHistoryXml, requester, files);
+                log.error("Feedback.xml override is an invalid file. Using the default Author_Group.xml instead.");
             }
-        } else {
-            buildRevisionHistory(contentSpec, fixedRevisionHistoryXml, requester, files);
+        } else if (contentSpec.getFeedback() != null) {
+            final String feedbackXML = DocBookUtilities.addDocbook45XMLDoctype(
+                    XMLUtilities.convertNodeToString(contentSpec.getFeedback().getXmlDocument(), verbatimElements, inlineElements,
+                            contentsInlineElements, true), escapedTitle + ".ent", "section");
+            try {
+                files.put(BOOK_LOCALE_FOLDER + "Feedback.xml", feedbackXML.getBytes("UTF-8"));
+            } catch (UnsupportedEncodingException e) {
+                /* UTF-8 is a valid format so this should exception should never get thrown */
+                log.error(e);
+            }
+        }
+
+        // Setup Legal_Notice.xml
+        if (contentSpec.getLegalNotice() != null) {
+            final String feedbackXML = DocBookUtilities.addDocbook45XMLDoctype(
+                    XMLUtilities.convertNodeToString(contentSpec.getFeedback().getXmlDocument(), verbatimElements, inlineElements,
+                            contentsInlineElements, true), escapedTitle + ".ent", "section");
+            try {
+                files.put(BOOK_LOCALE_FOLDER + "Legal_Notice.xml", feedbackXML.getBytes("UTF-8"));
+            } catch (UnsupportedEncodingException e) {
+                /* UTF-8 is a valid format so this should exception should never get thrown */
+                log.error(e);
+            }
         }
 
         // Build the book .ent file
@@ -2061,14 +2126,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         /* Get the name of the element based on the type */
-        final String elementName = level.getType() == LevelType.PROCESS ? "chapter" : level.getType().getTitle().toLowerCase();
+        final String elementName = level.getLevelType() == LevelType.PROCESS ? "chapter" : level.getLevelType().getTitle().toLowerCase();
 
         Document chapter = null;
         try {
             chapter = XMLUtilities.convertStringToDocument("<" + elementName + "></" + elementName + ">");
         } catch (SAXException ex) {
             /* Exit since we shouldn't fail at converting a basic chapter */
-            log.debug(ExceptionUtilities.getStackTrace(ex));
+            log.debug(ex);
             throw new BuildProcessingException("Failed to create a basic XML document");
         }
 
@@ -2099,7 +2164,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             files.put(BOOK_LOCALE_FOLDER + chapterXMLName, chapterString.getBytes("UTF-8"));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
-            log.error(e.getMessage());
+            log.error(e);
         }
     }
 
@@ -2123,14 +2188,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         /* Get the name of the element based on the type */
-        final String elementName = level.getType() == LevelType.PROCESS ? "chapter" : level.getType().getTitle().toLowerCase();
+        final String elementName = level.getLevelType() == LevelType.PROCESS ? "chapter" : level.getLevelType().getTitle().toLowerCase();
 
         Document chapter = null;
         try {
             chapter = XMLUtilities.convertStringToDocument("<" + elementName + "></" + elementName + ">");
         } catch (SAXException ex) {
             /* Exit since we shouldn't fail at converting a basic chapter */
-            log.debug(ExceptionUtilities.getStackTrace(ex));
+            log.debug(ex);
             throw new BuildProcessingException("Failed to create a basic XML document");
         }
 
@@ -2145,7 +2210,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         else titleNode.setTextContent(level.getTitle());
         chapter.getDocumentElement().appendChild(titleNode);
         chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
-        createSectionXML(files, level, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + "/", useFixedUrls, serverBuild);
+        createSectionXML(files, level, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + "/", useFixedUrls,
+                serverBuild);
 
         // Add the boiler plate text and add the chapter to the book
         final String chapterString = DocBookUtilities.addDocbook45XMLDoctype(
@@ -2155,7 +2221,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             files.put(BOOK_LOCALE_FOLDER + chapterXMLName, chapterString.getBytes("UTF-8"));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
-            log.error(e.getMessage());
+            log.error(e);
         }
 
         // Create the XIncludes that will get set in the book.xml
@@ -2182,7 +2248,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         final LinkedList<org.jboss.pressgang.ccms.contentspec.Node> levelData = level.getChildNodes();
 
         /* Get the name of the element based on the type */
-        final String elementName = level.getType() == LevelType.PROCESS ? "chapter" : level.getType().getTitle().toLowerCase();
+        final String elementName = level.getLevelType() == LevelType.PROCESS ? "chapter" : level.getLevelType().getTitle().toLowerCase();
         final Element intro = chapter.createElement(elementName + "intro");
 
         /* Storage container to hold the levels so they can be added in proper order with the intro */
@@ -2196,12 +2262,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 return;
             }
 
-            if (node instanceof Level && node.getParent() != null && (((Level) node).getParent().getType() == LevelType.BASE || ((Level)
-                    node).getParent().getType() == LevelType.PART)) {
+            if (node instanceof Level && node.getParent() != null && (((Level) node).getParent().getLevelType() == LevelType.BASE || (
+                    (Level) node).getParent().getLevelType() == LevelType.PART)) {
                 final Level childLevel = (Level) node;
 
                 // Create a new file for the Chapter/Appendix
-                final Element xiInclude = createSubRootElementXML(files, chapter, childLevel, parentFileLocation, useFixedUrls, serverBuild);
+                final Element xiInclude = createSubRootElementXML(files, chapter, childLevel, parentFileLocation, useFixedUrls,
+                        serverBuild);
                 if (xiInclude != null) {
                     childNodes.add(xiInclude);
                 }
@@ -2246,7 +2313,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
                         // Remove the initial file location as we only where it lives in the topics directory
                         final String fixedParentFileLocation = docbookBuildingOptions.getFlattenTopics() ? "topics/" : parentFileLocation
-                                .replace(BOOK_LOCALE_FOLDER, "");
+                                .replace(
+                                BOOK_LOCALE_FOLDER, "");
 
                         topicNode = chapter.createElement("xi:include");
                         ((Element) topicNode).setAttribute("href", fixedParentFileLocation + topicFileName);
@@ -2256,7 +2324,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
                 // Add the node to the chapter
                 if (topicNode != null) {
-                    if (specTopic.getParent() != null && specTopic.getParent().getType() == LevelType.PART) {
+                    if (specTopic.getParent() != null && ((Level) specTopic.getParent()).getLevelType() == LevelType.PART) {
                         intro.appendChild(topicNode);
                     } else {
                         childNodes.add(topicNode);
@@ -2314,8 +2382,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             final String fixedParentFileLocation = docbookBuildingOptions.getFlattenTopics() ? BOOK_TOPICS_FOLDER : parentFileLocation;
 
             final String topicXML = DocBookUtilities.addDocbook45XMLDoctype(
-                    XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements,
-                            contentsInlineElements, true), this.escapedTitle + ".ent", DocBookUtilities.TOPIC_ROOT_NODE_NAME);
+                    XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements,
+                            true), this.escapedTitle + ".ent", DocBookUtilities.TOPIC_ROOT_NODE_NAME);
 
             try {
                 files.put(fixedParentFileLocation + topicFileName, topicXML.getBytes("UTF-8"));
@@ -2608,12 +2676,93 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         // Add the Author_Group.xml to the book
         fixedAuthorGroupXml = DocBookUtilities.addDocbook45XMLDoctype(
                 XMLUtilities.convertNodeToString(authorDoc, verbatimElements, inlineElements, contentsInlineElements, true),
-                this.escapedTitle + ".ent", "authorgroup");
+                escapedTitle + ".ent", "authorgroup");
         try {
             files.put(BOOK_LOCALE_FOLDER + "Author_Group.xml", fixedAuthorGroupXml.getBytes("UTF-8"));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
-            log.error(e.getMessage());
+            log.error(e);
+        }
+    }
+
+    /**
+     * Builds the revision history for the book. The revision history used will be determined in the following order:<br/>
+     * <br />
+     * 1. Revision History Override<br/>
+     * 2. Content Spec Revision History Topic<br/>
+     * 3. Revision History Template
+     *
+     * @param requester   The user who requested the build action.
+     * @param overrides   The overrides to use for the build.
+     * @param contentSpec The content spec object used to build the book.
+     * @param files       The mapping of File Names/Locations to actual file content.
+     * @throws BuildProcessingException
+     */
+    protected void buildRevisionHistory(final ContentSpec contentSpec, final Map<String, String> overrides, final RESTUserV1 requester,
+            final Map<String, byte[]> files) throws BuildProcessingException {
+        // Replace the basic injection data inside the revision history
+        final String revisionHistoryXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.REVISION_HISTORY_XML_ID,
+                "").getValue();
+        String fixedRevisionHistoryXml = revisionHistoryXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
+
+        // Setup Revision_History.xml
+        if (overrides.containsKey(CSConstants.REVISION_HISTORY_OVERRIDE)) {
+            final File revHistory = new File(overrides.get(CSConstants.REVISION_HISTORY_OVERRIDE));
+            if (revHistory.exists() && revHistory.isFile()) {
+                try {
+                    final FileInputStream fis = new FileInputStream(revHistory);
+                    final BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
+                    final StringBuilder buffer = new StringBuilder();
+                    String line = "";
+                    while ((line = reader.readLine()) != null) {
+                        buffer.append(line + "\n");
+                    }
+
+                    if (docbookBuildingOptions.getRevisionMessages() != null && !docbookBuildingOptions.getRevisionMessages().isEmpty()) {
+                        // Add a revision message to the Revision_History.xml
+                        final String revHistoryOverride = buffer.toString();
+                        final String docType = XMLUtilities.findDocumentType(revHistoryOverride);
+                        if (docType != null) {
+                            buildRevisionHistoryFromTemplate(contentSpec, revHistoryOverride.replace(docType, ""), requester, files);
+                        } else {
+                            buildRevisionHistoryFromTemplate(contentSpec, revHistoryOverride, requester, files);
+                        }
+                    } else {
+                        // Add the revision history directly to the book
+                        try {
+                            files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", buffer.toString().getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            /* UTF-8 is a valid format so this should exception should never get thrown */
+                            log.error(e.getMessage());
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error(e.getMessage());
+                    buildRevisionHistoryFromTemplate(contentSpec, fixedRevisionHistoryXml, requester, files);
+                }
+            } else {
+                log.error("Revision_History.xml override is an invalid file. Using the default Revision_History.xml instead.");
+                buildRevisionHistoryFromTemplate(contentSpec, fixedRevisionHistoryXml, requester, files);
+            }
+        } else if (contentSpec.getRevisionHistory() != null) {
+            final String revisionHistoryXML = DocBookUtilities.addDocbook45XMLDoctype(
+                    XMLUtilities.convertNodeToString(contentSpec.getRevisionHistory().getXmlDocument(), verbatimElements, inlineElements,
+                            contentsInlineElements, true), escapedTitle + ".ent", "appendix");
+            if (docbookBuildingOptions.getRevisionMessages() != null && !docbookBuildingOptions.getRevisionMessages().isEmpty()) {
+                buildRevisionHistoryFromTemplate(contentSpec, revisionHistoryXML, requester, files);
+            } else if (errorDatabase.hasErrorData((T) contentSpec.getRevisionHistory().getTopic())) {
+                buildRevisionHistoryFromTemplate(contentSpec, revisionHistoryXML, requester, files);
+            } else {
+                // Add the revision history directly to the book
+                try {
+                    files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", revisionHistoryXML.getBytes("UTF-8"));
+                } catch (UnsupportedEncodingException e) {
+                    // UTF-8 is a valid format so this should exception should never get thrown */
+                    log.error(e.getMessage());
+                }
+            }
+        } else {
+            buildRevisionHistoryFromTemplate(contentSpec, fixedRevisionHistoryXml, requester, files);
         }
     }
 
@@ -2626,8 +2775,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param files              The mapping of File Names/Locations to actual file content.
      * @throws BuildProcessingException
      */
-    protected void buildRevisionHistory(final ContentSpec contentSpec, final String revisionHistoryXml, final RESTUserV1 requester,
-            final Map<String, byte[]> files) throws BuildProcessingException {
+    protected void buildRevisionHistoryFromTemplate(final ContentSpec contentSpec, final String revisionHistoryXml,
+            final RESTUserV1 requester, final Map<String, byte[]> files) throws BuildProcessingException {
         log.info("\tBuilding Revision_History.xml");
 
         Document revHistoryDoc;
@@ -2635,7 +2784,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             revHistoryDoc = XMLUtilities.convertStringToDocument(revisionHistoryXml);
         } catch (SAXException ex) {
             /* Exit since we shouldn't fail at converting the basic revision history */
-            log.debug(ExceptionUtilities.getStackTrace(ex));
+            log.debug(ex);
             throw new BuildProcessingException("Failed to convert the Revision_History.xml template into a DOM document");
         }
 
@@ -2656,8 +2805,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         if (revHistories.getLength() > 0) {
             revHistory = (Element) revHistories.item(0);
         } else {
-            revHistory = null;
-            throw new BuildProcessingException("Revision_History.xml Template has no revhistory block to add revisions to.");
+            final Element simpara = revHistoryDoc.createElement("simpara");
+            revHistory = revHistoryDoc.createElement("revhistory");
+            simpara.appendChild(revHistory);
+            revHistoryDoc.getDocumentElement().appendChild(simpara);
         }
 
         final List<RESTTagV1> authorList = requester == null ? new ArrayList<RESTTagV1>() : reader.getTagsByName(requester.getName());
@@ -3284,29 +3435,24 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             return false;
         }
 
-        /* Check to ensure that if the topic has programlisting elements, that the language is a valid Publican value */
-        boolean validProgramListings = DocbookBuildUtilities.validateProgramListingLanguages(topicDoc);
-        /* Check to ensure that if the topic has a table, that the table isn't missing any entries */
-        boolean validTables = DocbookBuildUtilities.validateTopicTables(topicDoc);
-
-        if (!validProgramListings || !validTables) {
+        // Check the content of the XML for things not picked up by DTD validation
+        final List<String> xmlErrors = DocbookBuildUtilities.checkTopicForInvalidContent(topic, topicDoc);
+        if (xmlErrors.size() > 0) {
             final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                     errorInvalidValidationTopic.getValue(), docbookBuildingOptions);
 
             final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(
                     XMLUtilities.convertNodeToString(topicDoc, verbatimElements, inlineElements, contentsInlineElements, true));
 
-            if (!validTables) {
-                errorDatabase.addError(topic, ErrorType.INVALID_CONTENT,
-                        BuilderConstants.ERROR_INVALID_TOPIC_XML + " Table column declaration doesn't match the number of entry elements." +
-                                " The" +
-                                " processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
-            }
-            if (!validProgramListings) {
-                errorDatabase.addError(topic, ErrorType.INVALID_CONTENT,
-                        BuilderConstants.ERROR_INVALID_TOPIC_XML + " Program Listing language is not a valid Publican language. The" +
-                                " processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
-            }
+
+            // Add the error and processed XML to the error message
+            final String errorMessage = CollectionUtilities.toSeperatedString(xmlErrors,
+                    "</para><para>" + BuilderConstants.ERROR_INVALID_TOPIC_XML + " ");
+            errorDatabase.addError(topic, ErrorType.INVALID_CONTENT,
+                    BuilderConstants.ERROR_INVALID_TOPIC_XML + " " + errorMessage + "</para><para>The processed XML is <programlisting>" +
+                            xmlStringInCDATA +
+                            "</programlisting>");
+
             setSpecTopicXMLForError(specTopic, topicXMLErrorTemplate, useFixedUrls);
 
             return false;
@@ -3321,7 +3467,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param topic        The topic to be updated as having an error.
      * @param template     The template for the Error Message.
      * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
-     * @return The Document Object that is intialised using the topic and error template.
+     * @return The Document Object that is initialised using the topic and error template.
      * @throws BuildProcessingException
      */
     protected Document setTopicXMLForError(final T topic, final String template,
@@ -3356,12 +3502,16 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             doc = XMLUtilities.convertStringToDocument(template);
         } catch (SAXException ex) {
             /* Exit since we shouldn't fail at converting a basic template */
-            log.debug(ExceptionUtilities.getStackTrace(ex));
+            log.debug(ex);
             throw new BuildProcessingException("Failed to convert the Topic Error template into a DOM document");
         }
         specTopic.setXmlDocument(doc);
-        DocBookUtilities.setSectionTitle(topic.getTitle(), doc);
-        processTopicID(topic, doc, useFixedUrls);
+
+        // Make sure the topic title and id is set for the error XML for normal topics
+        if (specTopic.getTopicType() == TopicType.NORMAL) {
+            DocBookUtilities.setSectionTitle(topic.getTitle(), doc);
+            processTopicID(topic, doc, useFixedUrls);
+        }
     }
 
     /**
