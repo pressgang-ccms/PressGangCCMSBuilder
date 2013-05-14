@@ -385,6 +385,11 @@ public class DocbookBuildUtilities {
         if (!DocbookBuildUtilities.validateTopicTables(topicDoc)) {
             xmlErrors.add("The Program Listing language is not a valid Publican language.");
         }
+        // Check that the root element matches the topic type
+        final String rootElementErrors = checkTopicRootElement(topic, topicDoc);
+        if (rootElementErrors != null) {
+            xmlErrors.add(rootElementErrors);
+        }
         // Check that the content matches the topic type
         final String contentErrors = checkTopicContentBasedOnType(topic, topicDoc);
         if (contentErrors != null) {
@@ -392,6 +397,31 @@ public class DocbookBuildUtilities {
         }
 
         return xmlErrors;
+    }
+
+    /**
+     *
+     * @param topic
+     * @param doc
+     * @return
+     */
+    protected static String checkTopicRootElement(final RESTBaseTopicV1<?, ?, ?> topic, final Document doc) {
+        final StringBuilder xmlErrors = new StringBuilder();
+        if (ComponentBaseTopicV1.hasTag(topic, CSConstants.REVISION_HISTORY_TAG_ID)) {
+            if (!doc.getDocumentElement().getNodeName().equals("appendix")) {
+                xmlErrors.append("Revision History topics must be an &lt;appendix&gt;.\n");
+            }
+        } else if (ComponentBaseTopicV1.hasTag(topic, CSConstants.LEGAL_NOTICE_TAG_ID)) {
+            if (!doc.getDocumentElement().getNodeName().equals("legalnotice")) {
+                xmlErrors.append("Legal Notice topics must be a &lt;legalnotice&gt;.\n");
+            }
+        } else {
+            if (!doc.getDocumentElement().getNodeName().equals(DocBookUtilities.TOPIC_ROOT_NODE_NAME)) {
+                xmlErrors.append("Topics must be a &lt;" + DocBookUtilities.TOPIC_ROOT_NODE_NAME + "&gt;.\n");
+            }
+        }
+
+        return xmlErrors.length() == 0 ? null : xmlErrors.toString();
     }
 
     /**

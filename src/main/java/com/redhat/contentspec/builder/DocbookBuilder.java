@@ -1959,8 +1959,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : contentSpec.getSubtitle());
         bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
         bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
-        bookInfo = bookInfo.replaceAll(BuilderConstants.EDITION_REGEX,
-                contentSpec.getEdition() == null ? BuilderConstants.DEFAULT_EDITION : contentSpec.getEdition());
+        if (contentSpec.getEdition() == null) {
+            bookInfo = bookInfo.replaceAll("<edition>.*</edition>(\r)?\n", "");
+        } else {
+            bookInfo = bookInfo.replaceAll(BuilderConstants.EDITION_REGEX, contentSpec.getEdition());
+        }
         final String pubsNumber = overrides.containsKey(CSConstants.PUBSNUMBER_OVERRIDE) ? overrides.get(
                 CSConstants.PUBSNUMBER_OVERRIDE) : (contentSpec.getPubsNumber() == null ? BuilderConstants.DEFAULT_PUBSNUMBER :
                 contentSpec.getPubsNumber().toString());
@@ -2162,11 +2165,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         chapter.getDocumentElement().appendChild(titleNode);
         chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
 
-        // Add the intro text from the inner topic if it exists
-        if (level.getInnerTopic() != null) {
-            addTopicContentsToLevelDocument(level.getInnerTopic(), chapter.getDocumentElement(), chapter);
-        }
-
         // Create and add the chapter/level contents
         createSectionXML(files, level, chapter, chapter.getDocumentElement(), BOOK_TOPICS_FOLDER + chapterName + "/", useFixedUrls,
                 serverBuild);
@@ -2226,11 +2224,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         chapter.getDocumentElement().appendChild(titleNode);
         chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
 
-        // Add the intro text from the inner topic if it exists
-        if (level.getInnerTopic() != null) {
-            addTopicContentsToLevelDocument(level.getInnerTopic(), chapter.getDocumentElement(), chapter);
-        }
-
         // Create and add the chapter/level contents
         createSectionXML(files, level, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + "/", useFixedUrls,
                 serverBuild);
@@ -2238,11 +2231,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         // Add the boiler plate text and add the chapter to the book
         final String chapterString = DocBookUtilities.addDocbook45XMLDoctype(
                 XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true),
-                this.escapedTitle + ".ent", elementName);
+                escapedTitle + ".ent", elementName);
         try {
             files.put(BOOK_LOCALE_FOLDER + chapterXMLName, chapterString.getBytes("UTF-8"));
         } catch (UnsupportedEncodingException e) {
-            /* UTF-8 is a valid format so this should exception should never get thrown */
+            // UTF-8 is a valid format so this should exception should never get thrown
             log.error(e);
         }
 
@@ -2269,11 +2262,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             final String parentFileLocation, final boolean useFixedUrls, final boolean serverBuild) throws BuildProcessingException {
         final LinkedList<org.jboss.pressgang.ccms.contentspec.Node> levelData = level.getChildNodes();
 
-        /* Get the name of the element based on the type */
+        // Get the name of the element based on the type
         final String elementName = level.getLevelType() == LevelType.PROCESS ? "chapter" : level.getLevelType().getTitle().toLowerCase();
         final Element intro = chapter.createElement(elementName + "intro");
 
-        /* Storage container to hold the levels so they can be added in proper order with the intro */
+        // Storage container to hold the levels so they can be added in proper order with the intro
         final LinkedList<Node> childNodes = new LinkedList<Node>();
 
         // Add the section and topics for this level to the chapter.xml
@@ -2306,11 +2299,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 else sectionTitleNode.setTextContent(childLevel.getTitle());
                 sectionNode.appendChild(sectionTitleNode);
                 sectionNode.setAttribute("id", childLevel.getUniqueLinkId(useFixedUrls));
-
-                // Add the intro text from the inner topic if it exists
-                if (childLevel.getInnerTopic() != null) {
-                    addTopicContentsToLevelDocument(childLevel.getInnerTopic(), sectionNode, chapter);
-                }
 
                 // Ignore sections that have no spec topics
                 if (!childLevel.hasSpecTopics()) {
@@ -2360,6 +2348,15 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             }
         }
 
+        // Add the intro text from the inner topic if it exists
+        if (level.getInnerTopic() != null) {
+            if (level.getLevelType() == LevelType.PART) {
+                addTopicContentsToLevelDocument(level, level.getInnerTopic(), intro, chapter);
+            } else {
+                addTopicContentsToLevelDocument(level, level.getInnerTopic(), parentNode, chapter);
+            }
+        }
+
         // Add the child nodes and intro to the parent
         if (intro.hasChildNodes()) {
             parentNode.appendChild(intro);
@@ -2376,13 +2373,43 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param specTopic
      * @param doc
      */
-    protected void addTopicContentsToLevelDocument(final SpecTopic specTopic, final Element parentNode, final Document doc) {
+    protected void addTopicContentsToLevelDocument(final Level level, final SpecTopic specTopic, final Element parentNode,
+            final Document doc) {
         final Node section = doc.importNode(specTopic.getXmlDocument().getDocumentElement(), true);
 
-        // Remove the sectioninfo and title
-        final List<Node> nodes = XMLUtilities.getDirectChildNodes(section, DocBookUtilities.TOPIC_ROOT_TITLE_NODE_NAME,
+        if (level.getLevelType() != LevelType.PART) {
+            // Reposition the section intro
+            final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(section, DocBookUtilities.TOPIC_ROOT_SECTIONINFO_NODE_NAME);
+            if (sectionInfoNodes.size() != 0) {
+                final String introType = parentNode.getNodeName() + "info";
+
+                // Check if the parent already has the intro text
+                final List<Node> intros = XMLUtilities.getDirectChildNodes(parentNode, introType);
+                final Node introNode;
+                if (intros.size() == 0) {
+                    introNode = doc.createElement(introType);
+                    parentNode.insertBefore(introNode, parentNode.getFirstChild());
+                } else {
+                    introNode = intros.get(0);
+                }
+
+                // Merge the info text
+                final NodeList sectionIntroChildren = sectionInfoNodes.get(0).getChildNodes();
+                final Node firstNode = introNode.getFirstChild();
+                for (int i = 0; i < sectionIntroChildren.getLength(); i++) {
+                    if (firstNode != null) {
+                        introNode.insertBefore(sectionIntroChildren.item(i), firstNode);
+                    } else {
+                        introNode.appendChild(sectionIntroChildren.item(i));
+                    }
+                }
+            }
+        }
+
+        // Remove the title and sectioninfo
+        final List<Node> titleNodes = XMLUtilities.getDirectChildNodes(section, DocBookUtilities.TOPIC_ROOT_TITLE_NODE_NAME,
                 DocBookUtilities.TOPIC_ROOT_SECTIONINFO_NODE_NAME);
-        for (final Node removeNode : nodes) {
+        for (final Node removeNode : titleNodes) {
             section.removeChild(removeNode);
         }
 
@@ -2433,12 +2460,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             final String topicXML = DocBookUtilities.addDocbook45XMLDoctype(
                     XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements,
-                            true), this.escapedTitle + ".ent", DocBookUtilities.TOPIC_ROOT_NODE_NAME);
+                            true), escapedTitle + ".ent", DocBookUtilities.TOPIC_ROOT_NODE_NAME);
 
             try {
                 files.put(fixedParentFileLocation + topicFileName, topicXML.getBytes("UTF-8"));
             } catch (UnsupportedEncodingException e) {
-                /* UTF-8 is a valid format so this should exception should never get thrown */
+                // UTF-8 is a valid format so this should exception should never get thrown
                 log.error(e.getMessage());
             }
 
@@ -3493,7 +3520,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(
                     XMLUtilities.convertNodeToString(topicDoc, verbatimElements, inlineElements, contentsInlineElements, true));
-
 
             // Add the error and processed XML to the error message
             final String errorMessage = CollectionUtilities.toSeperatedString(xmlErrors,
