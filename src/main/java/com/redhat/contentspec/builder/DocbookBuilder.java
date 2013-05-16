@@ -879,9 +879,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         // Add the level to the database
         final String levelTitle = DocbookBuildUtilities.createURLTitle(level.getTitle());
         specDatabase.add(level, levelTitle);
-        if (level.getInnerTopic() != null) {
-            specDatabase.add(level.getInnerTopic(), levelTitle);
-        }
 
         // Add the topics at this level to the database
         for (final SpecTopic specTopic : level.getSpecTopics()) {
