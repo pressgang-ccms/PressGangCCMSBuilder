@@ -1829,10 +1829,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         // Setup Feedback.xml
         if (overrides.containsKey(CSConstants.FEEDBACK_OVERRIDE)) {
-            final File authorGrp = new File(overrides.get(CSConstants.FEEDBACK_OVERRIDE));
-            if (authorGrp.exists() && authorGrp.isFile()) {
+            final File feedback = new File(overrides.get(CSConstants.FEEDBACK_OVERRIDE));
+            if (feedback.exists() && feedback.isFile()) {
                 try {
-                    final FileInputStream fis = new FileInputStream(authorGrp);
+                    final FileInputStream fis = new FileInputStream(feedback);
                     final BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
                     final StringBuilder buffer = new StringBuilder();
                     String line = "";
