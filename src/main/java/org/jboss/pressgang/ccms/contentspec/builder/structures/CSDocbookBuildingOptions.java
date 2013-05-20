@@ -22,6 +22,7 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
     private Boolean useLatestVersions = false;
     private Boolean flattenTopics = false;
     private Boolean forceInjectBugzillaLinks = false;
+    private Boolean serverBuild = false;
 
     public CSDocbookBuildingOptions() {
 
@@ -162,5 +163,13 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
 
     public void setForceInjectBugzillaLinks(Boolean forceInjectBugzillaLinks) {
         this.forceInjectBugzillaLinks = forceInjectBugzillaLinks;
+    }
+
+    public Boolean getServerBuild() {
+        return serverBuild;
+    }
+
+    public void setServerBuild(Boolean serverBuild) {
+        this.serverBuild = serverBuild;
     }
 }

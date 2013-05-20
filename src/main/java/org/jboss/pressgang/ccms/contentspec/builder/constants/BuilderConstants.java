@@ -1,5 +1,6 @@
 package org.jboss.pressgang.ccms.contentspec.builder.constants;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
@@ -11,7 +12,7 @@ public class BuilderConstants {
     public static final Integer MAXIMUM_SET_PROP_TAGS_RETRY = 5;
     public static final Integer MAXIMUM_SET_PROP_TAG_NAME_RETRY = 50;
 
-    public static final String BUILDER_VERSION = "1.7";
+    public static final String BUILDER_VERSION = "2.0";
     public static final String BUILD_NAME = "CSProcessor Builder Version " + BUILDER_VERSION;
 
     public static final String DOCBOOK_45_DTD = "docbookx.dtd";
@@ -119,7 +120,7 @@ public class BuilderConstants {
     // Glossary Defs for warning messages
     public static final List<String> WARNING_NO_CONTENT_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(
             new String[]{"The topic doesn't have any XML Content to display.", "To fix this warning, " +
-                    "" + "open the topic URL and add some content."});
+                    "open the topic URL and add some content."});
 
     public static final List<String> WARNING_UNTRANSLATED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(
             new String[]{"The topic hasn't been translated yet by the Translator(s), as such the topic will be displayed using the " +
@@ -128,24 +129,24 @@ public class BuilderConstants {
 
     public static final List<String> WARNING_NONPUSHED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(
             new String[]{"The topic hasn't been pushed for translation yet, as such the topic will be displayed using the original " +
-                    "topic's content.", "To fix this warning, please send a request to the User responsible for pushing Translations to "
-                    + "Zanata and request that the topic be pushed for translation."});
+                    "topic's content.", "To fix this warning, please send a request to the User responsible for pushing Translations to " +
+                    "Zanata and request that the topic be pushed for translation."});
 
     public static final List<String> WARNING_INCOMPLETE_TRANSLATED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(
             new String[]{"The topic hasn't finished being translated by the Translator(s) yet, as such the topic will be displayed using " +
-                    "" + "incomplete translated content.", "To fix this warning, please contact the Translator(s) responsible for " +
-                    "translating " + "the topics in this locale."});
+                    "incomplete translated content.", "To fix this warning, please contact the Translator(s) responsible for translating " +
+                    "the topics in this locale."});
 
     public static final List<String> WARNING_FUZZY_TRANSLATED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(
             new String[]{"The topic hasn't finished being translated by the Translator(s) yet, as such the topic will be displayed using " +
-                    "" + "translated content that may not be 100% correct.", "To fix this warning, " +
-                    "" + "please contact the Translator(s) responsible for translating the topics in this locale."});
+                    "translated content that may not be 100% correct.", "To fix this warning, " +
+                    "please contact the Translator(s) responsible for translating the topics in this locale."});
 
     public static final List<String> WARNING_OLD_UNTRANSLATED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(
             new String[]{"A previous revision of this topic has been pushed to Zanata, and has not yet been translated." + "This previous" +
                     " revision has been included in the book, but will display content that is older than what was defined by the Content" +
-                    " Specification.", "To fix this warning, please send a request to the User responsible for pushing Translations to "
-                    + "Zanata and request that the topic be pushed for translation."});
+                    " Specification.", "To fix this warning, please send a request to the User responsible for pushing Translations to " +
+                    "Zanata and request that the topic be pushed for translation."});
 
     public static final List<String> WARNING_OLD_TRANSLATED_TOPIC_DEFINTIION = CollectionUtilities.toArrayList(
             new String[]{"A previous revision of this topic has been pushed to Zanata, and has been translated." + " This previous " +
@@ -162,13 +163,15 @@ public class BuilderConstants {
 
     public static final List<String> ERROR_BAD_XML_STRUCTURE_DEFINTIION = CollectionUtilities.toArrayList(
             new String[]{"The topic XML is not well-formed XML and maybe missing opening or closing element statements.",
-                    "To fix this error please ensure that all XML elements having an opening and closing statement and all XML reserved "
-                            + "characters are represented as XML entities."});
+                    "To fix this error please ensure that all XML elements having an opening and closing statement and all XML reserved " +
+                            "characters are represented as XML entities."});
 
     public static final List<String> ERROR_INVALID_TOPIC_XML_DEFINTIION = CollectionUtilities.toArrayList(
-            new String[]{"The topic XML is not valid against the Docbook 4.5 DTD.", "To fix this error please ensure that all XML " +
-                    "elements are valid Docbook elements . Also check to ensure all XML sub elements are valid for the root XML element."});
+            new String[]{"The topic XML is not valid against the Docbook 4.5 DTD.", "To fix this error please ensure that all XML elements are valid Docbook elements . Also check to ensure all XML sub elements are valid for the root XML element."});
 
     public static final List<String> ERROR_INVALID_INJECTIONS_DEFINTIION = CollectionUtilities.toArrayList(
             new String[]{"The topic XML contains Injection Points that cannot be resolved into links.", "To fix this error please ensure that all the topics referred to by Injection Points are included in the build and/or have adequate relationships."});
+
+    public static final List<String> VALID_PROGRAM_LISTING_LANGS = Arrays.asList("Java", "SQL", "C", "C++", "Bash", "Perl", "JavaScript",
+            "Python", "XML", "Ruby", "C#", "HTML", "CSS", "Javadoc", "Haskell", "Lua", "Makefile", "Pascal", "RPM Spec", "Diff");
 }
