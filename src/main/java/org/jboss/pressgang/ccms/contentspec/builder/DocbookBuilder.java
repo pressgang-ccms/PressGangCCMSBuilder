@@ -1436,7 +1436,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Setup Legal_Notice.xml
         if (contentSpec.getLegalNotice() != null) {
             final String legalNoticeXML = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
-                    contentSpec.getFeedback().getXMLDocument(), "legalnotice", buildData.getEntityFileName(), getXMLFormatProperties());
+                    contentSpec.getLegalNotice().getXMLDocument(), "legalnotice", buildData.getEntityFileName(), getXMLFormatProperties());
             try {
                 files.put(buildData.getBookLocaleFolder() + "Legal_Notice.xml", legalNoticeXML.getBytes("UTF-8"));
             } catch (UnsupportedEncodingException e) {
