@@ -1436,8 +1436,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Setup Legal_Notice.xml
         if (contentSpec.getLegalNotice() != null) {
             final String legalNoticeXML = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
-                    contentSpec.getFeedback().getXMLDocument(), "legalnotice", buildData.getEntityFileName(),
-                    getXMLFormatProperties());
+                    contentSpec.getFeedback().getXMLDocument(), "legalnotice", buildData.getEntityFileName(), getXMLFormatProperties());
             try {
                 files.put(buildData.getBookLocaleFolder() + "Legal_Notice.xml", legalNoticeXML.getBytes("UTF-8"));
             } catch (UnsupportedEncodingException e) {
@@ -1908,10 +1907,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
     /**
      * Adds a Topics contents as the introduction text for a Level.
      *
-     * @param level The level the intro topic is being added for.
-     * @param specTopic The Topic that contains the introduction content.
+     * @param level      The level the intro topic is being added for.
+     * @param specTopic  The Topic that contains the introduction content.
      * @param parentNode The DOM parent node the intro content is to be appended to.
-     * @param doc The DOM Document the content is to be added to.
+     * @param doc        The DOM Document the content is to be added to.
      */
     protected void addTopicContentsToLevelDocument(final Level level, final SpecTopic specTopic, final Element parentNode,
             final Document doc) {
@@ -1919,7 +1918,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         if (level.getLevelType() != LevelType.PART) {
             // Reposition the section intro
-            final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(section, DocBookUtilities.TOPIC_ROOT_SECTIONINFO_NODE_NAME);
+            final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(section,
+                    DocBookUtilities.TOPIC_ROOT_SECTIONINFO_NODE_NAME);
             if (sectionInfoNodes.size() != 0) {
                 final String introType = parentNode.getNodeName() + "info";
 
@@ -2988,15 +2988,23 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
             return false;
         }
-        // Check to ensure that if the topic has a table, that the table isn't missing any entries
-        else if (!DocbookBuildUtilities.validateTopicTables(topicDoc)) {
+
+        // Check the content of the XML for things not picked up by DTD validation
+        final List<String> xmlErrors = DocbookBuildUtilities.checkTopicForInvalidContent(topic, topicDoc);
+        if (xmlErrors.size() > 0) {
             final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                     getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
 
             final String xmlStringInCDATA = DocbookBuildUtilities.convertDocumentToCDATAFormattedString(topicDoc, getXMLFormatProperties());
+
+            // Add the error and processed XML to the error message
+            final String errorMessage = CollectionUtilities.toSeperatedString(xmlErrors,
+                    "</para><para>" + BuilderConstants.ERROR_INVALID_TOPIC_XML + " ");
             buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
-                    BuilderConstants.ERROR_INVALID_TOPIC_XML + " Table column declaration doesn't match the number of entry elements. The" +
-                            " processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+                    BuilderConstants.ERROR_INVALID_TOPIC_XML + " " + errorMessage + "</para><para>The processed XML is <programlisting>" +
+                            xmlStringInCDATA +
+                            "</programlisting>");
+
             DocbookBuildUtilities.setSpecTopicXMLForError(specTopic, topicXMLErrorTemplate, useFixedUrls);
 
             return false;

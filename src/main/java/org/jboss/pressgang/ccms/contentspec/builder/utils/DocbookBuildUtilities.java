@@ -1,5 +1,6 @@
 package org.jboss.pressgang.ccms.contentspec.builder.utils;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +19,7 @@ import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingExc
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.CSDocbookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.XMLFormatProperties;
+import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
 import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
@@ -560,5 +562,97 @@ public class DocbookBuildUtilities {
         for (int i = 0; i < elements.getLength(); ++i) {
             collectIdAttributes(topicId, elements.item(i), usedIdAttributes);
         }
+    }
+
+    /**
+     * Validates that the Languages for all {@code<programlisting>} elements has a valid Publican language attribute.
+     *
+     * @param doc The DOM XML Document to be validated.
+     * @return True if the document is valid, otherwise false.
+     */
+    public static boolean validateProgramListingLanguages(final Document doc) {
+        assert doc != null;
+        boolean valid = true;
+
+        final NodeList programListings = doc.getElementsByTagName("programlisting");
+        for (int i = 0; i < programListings.getLength(); i++) {
+            final Element programListing = (Element) programListings.item(i);
+            if (programListing.hasAttribute("language")) {
+                if (!BuilderConstants.VALID_PROGRAM_LISTING_LANGS.contains(programListing.getAttribute("language"))) {
+                    valid = false;
+                }
+            }
+        }
+
+        return valid;
+    }
+
+    public static List<String> checkTopicForInvalidContent(final BaseTopicWrapper<?> topic, final Document topicDoc) {
+        final List<String> xmlErrors = new ArrayList<String>();
+        // Check to ensure that if the topic has programlisting elements, that the language is a valid Publican value
+        if (!DocbookBuildUtilities.validateProgramListingLanguages(topicDoc)) {
+            xmlErrors.add("Table column declaration doesn't match the number of entry elements.");
+        }
+        // Check to ensure that if the topic has a table, that the table isn't missing any entries
+        if (!DocbookBuildUtilities.validateTopicTables(topicDoc)) {
+            xmlErrors.add("The Program Listing language is not a valid Publican language.");
+        }
+        // Check that the root element matches the topic type
+        final String rootElementErrors = checkTopicRootElement(topic, topicDoc);
+        if (rootElementErrors != null) {
+            xmlErrors.add(rootElementErrors);
+        }
+        // Check that the content matches the topic type
+        final String contentErrors = checkTopicContentBasedOnType(topic, topicDoc);
+        if (contentErrors != null) {
+            xmlErrors.add(contentErrors);
+        }
+
+        return xmlErrors;
+    }
+
+    /**
+     *
+     * @param topic
+     * @param doc
+     * @return
+     */
+    protected static String checkTopicRootElement(final BaseTopicWrapper<?> topic, final Document doc) {
+        final StringBuilder xmlErrors = new StringBuilder();
+        if (topic.hasTag(CSConstants.REVISION_HISTORY_TAG_ID)) {
+            if (!doc.getDocumentElement().getNodeName().equals("appendix")) {
+                xmlErrors.append("Revision History topics must be an &lt;appendix&gt;.\n");
+            }
+        } else if (topic.hasTag(CSConstants.LEGAL_NOTICE_TAG_ID)) {
+            if (!doc.getDocumentElement().getNodeName().equals("legalnotice")) {
+                xmlErrors.append("Legal Notice topics must be a &lt;legalnotice&gt;.\n");
+            }
+        } else {
+            if (!doc.getDocumentElement().getNodeName().equals(DocBookUtilities.TOPIC_ROOT_NODE_NAME)) {
+                xmlErrors.append("Topics must be a &lt;" + DocBookUtilities.TOPIC_ROOT_NODE_NAME + "&gt;.\n");
+            }
+        }
+
+        return xmlErrors.length() == 0 ? null : xmlErrors.toString();
+    }
+
+    /**
+     * Check a topic and return an error messages if the content doesn't match the topic type.
+     *
+     * @param topic
+     * @param doc
+     * @return
+     */
+    protected static String checkTopicContentBasedOnType(final BaseTopicWrapper<?> topic, final Document doc) {
+        final StringBuilder xmlErrors = new StringBuilder();
+        if (topic.hasTag(CSConstants.REVISION_HISTORY_TAG_ID)) {
+            // Check to make sure that a revhistory entry exists
+            final NodeList revHistoryList = doc.getElementsByTagName("revhistory");
+            if (revHistoryList.getLength() == 0) {
+                xmlErrors.append("No &lt;revhistory&gt; element found. A &lt;revhistory&gt; must exist for Revision Histories.\n");
+            }
+        }
+
+        return xmlErrors.length() == 0 ? null : xmlErrors.toString();
     }
 }
