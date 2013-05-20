@@ -1862,11 +1862,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         // Setup Legal_Notice.xml
         if (contentSpec.getLegalNotice() != null) {
-            final String feedbackXML = DocBookUtilities.addDocbook45XMLDoctype(
-                    XMLUtilities.convertNodeToString(contentSpec.getFeedback().getXmlDocument(), verbatimElements, inlineElements,
-                            contentsInlineElements, true), escapedTitle + ".ent", "section");
+            final String legalNoticeXML = DocBookUtilities.addDocbook45XMLDoctype(
+                    XMLUtilities.convertNodeToString(contentSpec.getLegalNotice().getXmlDocument(), verbatimElements, inlineElements,
+                            contentsInlineElements, true), escapedTitle + ".ent", "legalnotice");
             try {
-                files.put(BOOK_LOCALE_FOLDER + "Legal_Notice.xml", feedbackXML.getBytes("UTF-8"));
+                files.put(BOOK_LOCALE_FOLDER + "Legal_Notice.xml", legalNoticeXML.getBytes("UTF-8"));
             } catch (UnsupportedEncodingException e) {
                 /* UTF-8 is a valid format so this should exception should never get thrown */
                 log.error(e);
