@@ -1521,9 +1521,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
         bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
         // Set the book product version
         bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
-        // Set the book edition
-        bookInfo = bookInfo.replaceAll(BuilderConstants.EDITION_REGEX,
-                contentSpec.getEdition() == null ? BuilderConstants.DEFAULT_EDITION : contentSpec.getEdition());
+        // Set or remove the book edition
+        if (contentSpec.getEdition() == null) {
+            bookInfo = bookInfo.replaceAll("<edition>.*</edition>(\r)?\n", "");
+        } else {
+            bookInfo = bookInfo.replaceAll(BuilderConstants.EDITION_REGEX, contentSpec.getEdition());
+        }
         // Set the book pubsnumber
         final String pubsNumber = overrides.containsKey(CSConstants.PUBSNUMBER_OVERRIDE) ? overrides.get(
                 CSConstants.PUBSNUMBER_OVERRIDE) : (contentSpec.getPubsNumber() == null ? BuilderConstants.DEFAULT_PUBSNUMBER :
