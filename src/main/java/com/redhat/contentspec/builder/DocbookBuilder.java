@@ -1200,7 +1200,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     return;
                 }
 
-                /* make sure we have valid XML */
+                // make sure we have valid XML
                 if (xmlValid) {
                     try {
                         topicDoc = XMLUtilities.convertStringToDocument(topic.getXml());
@@ -1214,7 +1214,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                                             xmlStringInCDATA + "</programlisting>");
                             topicDoc = setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
                         }
-                    } catch (SAXException ex) {
+                    } catch (Exception ex) {
                         final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                                 errorInvalidValidationTopic.getValue(), docbookBuildingOptions);
                         final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(topic.getXml());
@@ -2139,7 +2139,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         Document chapter = null;
         try {
             chapter = XMLUtilities.convertStringToDocument("<" + elementName + "></" + elementName + ">");
-        } catch (SAXException ex) {
+        } catch (Exception ex) {
             // Exit since we shouldn't fail at converting a basic chapter
             log.debug(ex);
             throw new BuildProcessingException("Failed to create a basic XML document");
@@ -2203,7 +2203,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         Document chapter = null;
         try {
             chapter = XMLUtilities.convertStringToDocument("<" + elementName + "></" + elementName + ">");
-        } catch (SAXException ex) {
+        } catch (Exception ex) {
             /* Exit since we shouldn't fail at converting a basic chapter */
             log.debug(ex);
             throw new BuildProcessingException("Failed to create a basic XML document");
@@ -2617,7 +2617,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         try {
             authorDoc = XMLUtilities.convertStringToDocument(fixedAuthorGroupXml);
         } catch (SAXException ex) {
-            /* Exit since we shouldn't fail at converting the basic author group */
+            // Exit since we shouldn't fail at converting the basic author group
             log.debug(ExceptionUtilities.getStackTrace(ex));
             throw new BuildProcessingException("Failed to convert the Author_Group.xml template into a DOM document");
         }
@@ -2856,8 +2856,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         Document revHistoryDoc;
         try {
             revHistoryDoc = XMLUtilities.convertStringToDocument(revisionHistoryXml);
-        } catch (SAXException ex) {
-            /* Exit since we shouldn't fail at converting the basic revision history */
+        } catch (Exception ex) {
+            // Exit since we shouldn't fail at converting the basic revision history
             log.debug(ex);
             throw new BuildProcessingException("Failed to convert the Revision_History.xml template into a DOM document");
         }
@@ -2873,7 +2873,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             DocBookUtilities.setRootElementTitle(reportHistoryTitleTranslation, revHistoryDoc);
         }
 
-        /* Find the revhistory node */
+        // Find the revhistory node
         final Element revHistory;
         final NodeList revHistories = revHistoryDoc.getElementsByTagName("revhistory");
         if (revHistories.getLength() > 0) {
@@ -3556,8 +3556,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         Document doc = null;
         try {
             doc = XMLUtilities.convertStringToDocument(template);
-        } catch (SAXException ex) {
-            /* Exit since we shouldn't fail at converting a basic template */
+        } catch (Exception ex) {
+            // Exit since we shouldn't fail at converting a basic template
             log.debug(ExceptionUtilities.getStackTrace(ex));
             throw new BuildProcessingException("Failed to convert the Topic Error template into a DOM document");
         }
@@ -3581,8 +3581,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         Document doc = null;
         try {
             doc = XMLUtilities.convertStringToDocument(template);
-        } catch (SAXException ex) {
-            /* Exit since we shouldn't fail at converting a basic template */
+        } catch (Exception ex) {
+            // Exit since we shouldn't fail at converting a basic template
             log.debug(ex);
             throw new BuildProcessingException("Failed to convert the Topic Error template into a DOM document");
         }
