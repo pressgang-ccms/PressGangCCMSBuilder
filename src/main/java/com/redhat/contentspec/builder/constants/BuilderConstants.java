@@ -12,7 +12,7 @@ public class BuilderConstants {
     public static final Integer MAXIMUM_SET_PROP_TAGS_RETRY = 5;
     public static final Integer MAXIMUM_SET_PROP_TAG_NAME_RETRY = 50;
 
-    public static final String BUILDER_VERSION = "1.9";
+    public static final String BUILDER_VERSION = "1.10";
     public static final String BUILD_NAME = "CSProcessor Builder Version " + BUILDER_VERSION;
 
     public static final String DOCBOOK_45_DTD = "docbookx.dtd";
@@ -94,6 +94,15 @@ public class BuilderConstants {
             "<!ENTITY BZURL \"<<contentSpec.bugzillaUrl>>\">\n" +
             "<!ENTITY BZCOMPONENT \"<<contentSpec.bzcomponent>>\">\n" +
             "<!ENTITY BZPRODUCT \"<<contentSpec.bzproduct>>\">";
+
+    public static final String DUMMY_CS_NAME_ENT_FILE = "<!ENTITY PRODUCT \"Product\">\n" +
+            "<!ENTITY BOOKID \"BOOKID\">\n" +
+            "<!ENTITY YEAR \"YYYY\">\n" +
+            "<!ENTITY TITLE \"TITLE\">\n" +
+            "<!ENTITY HOLDER \"HOLDER\">\n" +
+            "<!ENTITY BZURL \"BZURL\">\n" +
+            "<!ENTITY BZCOMPONENT \"BZCOMPONENT\">\n" +
+            "<!ENTITY BZPRODUCT \"BZPRODUCT\">";
 
     public static final String LEGAL_NOTICE_XML = "<xi:include href=\"Legal_Notice.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\">\n"
             + "\t<xi:fallback xmlns:xi=\"http://www.w3.org/2001/XInclude\">\n" + "\t\t<xi:include href=\"Common_Content/Legal_Notice" +

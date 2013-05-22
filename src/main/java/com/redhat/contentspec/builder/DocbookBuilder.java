@@ -3493,9 +3493,17 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             final boolean useFixedUrls) throws BuildProcessingException {
         final T topic = (T) specTopic.getTopic();
 
+        byte[] entityData = new byte[0];
+        try {
+            entityData = BuilderConstants.DUMMY_CS_NAME_ENT_FILE.getBytes("UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            /* UTF-8 is a valid format so this should exception should never get thrown */
+            log.error("", e);
+        }
+
         // Validate the topic against its DTD/Schema
         final SAXXMLValidator validator = new SAXXMLValidator();
-        if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue())) {
+        if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue(), "Book.ent", entityData)) {
             final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                     errorInvalidValidationTopic.getValue(), docbookBuildingOptions);
 
