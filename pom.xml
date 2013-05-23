@@ -23,6 +23,7 @@
         <pressgang.ccms.version>1.1-SNAPSHOT</pressgang.ccms.version>
         <com.ibm.ico.version>4.8.1.1</com.ibm.ico.version>
         <xerces.version>2.11.0</xerces.version>
+        <jodatime.version>2.1</jodatime.version>
         <slf4j.version>1.6.4</slf4j.version>
         <ipsedixit.version>1.0.2</ipsedixit.version>
         <!-- Can't move to Mockito 1.9.5 and PowerMock 1.5 yet due to bug -->
@@ -93,17 +94,22 @@
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j.version}</version>
         </dependency>
-        <dependency>
-            <groupId>xerces</groupId>
-            <artifactId>xercesImpl</artifactId>
-            <version>${xerces.version}</version>
-        </dependency>
 
         <!-- Other Libraries -->
         <dependency>
             <groupId>com.ibm.icu</groupId>
             <artifactId>icu4j</artifactId>
             <version>${com.ibm.ico.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>xerces</groupId>
+            <artifactId>xercesImpl</artifactId>
+            <version>${xerces.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+            <version>${jodatime.version}</version>
         </dependency>
 
         <!-- Testing libraries -->
