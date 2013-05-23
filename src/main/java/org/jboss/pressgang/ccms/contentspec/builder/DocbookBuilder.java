@@ -93,7 +93,6 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
 
 public class DocbookBuilder implements ShutdownAbleApp {
     protected static final Logger log = Logger.getLogger(DocbookBuilder.class);
@@ -887,6 +886,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 final Integer topicId = topic.getTopicId();
                 final Integer topicRevision = topic.getTopicRevision();
 
+                boolean revHistoryTopic = topic.hasTag(CSConstants.REVISION_HISTORY_TAG_ID);
+                boolean legalNoticeTopic = topic.hasTag(CSConstants.LEGAL_NOTICE_TAG_ID);
+
                 Document topicDoc = null;
                 final String topicXML = topic.getXml();
 
@@ -931,7 +933,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                                             xmlStringInCDATA + "</programlisting>");
                             topicDoc = DocbookBuildUtilities.setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
                         }
-                    } catch (SAXException ex) {
+                    } catch (Exception ex) {
                         final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                                 getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
                         final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(topic.getXml());
@@ -943,15 +945,26 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     }
                 }
 
+                // Make sure the topic has the correct root element and other items
+                if (revHistoryTopic) {
+                    DocBookUtilities.wrapDocumentInAppendix(topicDoc);
+                    topicDoc.getDocumentElement().setAttribute("id", "appe-" + buildData.getEscapedBookTitle() + "-Revision_History");
+                } else if (legalNoticeTopic) {
+                    DocBookUtilities.wrapDocumentInLegalNotice(topicDoc);
+                } else {
+                    // Ensure the topic is wrapped in a section and the title matches the topic
+                    DocBookUtilities.wrapDocumentInSection(topicDoc);
+                    DocBookUtilities.setSectionTitle(topic.getTitle(), topicDoc);
+
+                    processTopicSectionInfo(topic, topicDoc);
+                    DocbookBuildUtilities.processTopicID(topic, topicDoc, useFixedUrls);
+                }
+
                 /*
                  * Extract the id attributes used in this topic. We'll use this data in the second pass to make sure that
                  * individual topics don't repeat id attributes.
                  */
                 DocbookBuildUtilities.collectIdAttributes(topicId, topicDoc, usedIdAttributes);
-
-                processTopicSectionInfo(topic, topicDoc);
-
-                DocbookBuildUtilities.processTopicID(topic, topicDoc, useFixedUrls);
 
                 // Add the document & topic to the database spec topics
                 final List<SpecTopic> specTopics = buildData.getBuildDatabase().getSpecTopicsForKey(key);
@@ -1696,9 +1709,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
         Document chapter = null;
         try {
             chapter = XMLUtilities.convertStringToDocument("<" + elementName + "></" + elementName + ">");
-        } catch (SAXException ex) {
+        } catch (Exception ex) {
             // Exit since we shouldn't fail at converting a basic chapter
-            log.debug(ExceptionUtilities.getStackTrace(ex));
+            log.debug("", ex);
             throw new BuildProcessingException("Failed to create a basic XML document");
         }
 
@@ -1758,9 +1771,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
         Document chapter = null;
         try {
             chapter = XMLUtilities.convertStringToDocument("<" + elementName + "></" + elementName + ">");
-        } catch (SAXException ex) {
+        } catch (Exception ex) {
             // Exit since we shouldn't fail at converting a basic chapter
-            log.debug(ExceptionUtilities.getStackTrace(ex));
+            log.debug("", ex);
             throw new BuildProcessingException("Failed to create a basic XML document");
         }
 
@@ -2136,7 +2149,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         Document authorDoc = null;
         try {
             authorDoc = XMLUtilities.convertStringToDocument(fixedAuthorGroupXml);
-        } catch (SAXException ex) {
+        } catch (Exception ex) {
             // Exit since we shouldn't fail at converting the basic author group
             log.debug("", ex);
             throw new BuildProcessingException("Failed to convert the " + AUTHOR_GROUP_FILE_NAME + " template into a DOM document");
@@ -2342,9 +2355,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
         Document revHistoryDoc;
         try {
             revHistoryDoc = XMLUtilities.convertStringToDocument(revisionHistoryXml);
-        } catch (SAXException ex) {
+        } catch (Exception ex) {
             // Exit since we shouldn't fail at converting the basic revision history
-            log.debug(ExceptionUtilities.getStackTrace(ex));
+            log.debug("", ex);
             throw new BuildProcessingException("Failed to convert the " + REVISION_HISTORY_FILE_NAME + " template into a DOM document");
         }
 
@@ -2977,9 +2990,17 @@ public class DocbookBuilder implements ShutdownAbleApp {
             final boolean useFixedUrls) throws BuildProcessingException {
         final BaseTopicWrapper<?> topic = specTopic.getTopic();
 
+        byte[] entityData = new byte[0];
+        try {
+            entityData = BuilderConstants.DUMMY_CS_NAME_ENT_FILE.getBytes(ENCODING);
+        } catch (UnsupportedEncodingException e) {
+            // UTF-8 is a valid format so this should exception should never get thrown
+            log.error("", e);
+        }
+
         // Validate the topic against its DTD/Schema
         final SAXXMLValidator validator = new SAXXMLValidator();
-        if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue())) {
+        if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue(), "Book.ent", entityData)) {
             final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                     getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
 

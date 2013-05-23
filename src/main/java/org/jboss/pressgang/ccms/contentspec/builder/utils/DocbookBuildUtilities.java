@@ -525,7 +525,7 @@ public class DocbookBuildUtilities {
         Document doc = null;
         try {
             doc = XMLUtilities.convertStringToDocument(template);
-        } catch (SAXException ex) {
+        } catch (Exception ex) {
             // Exit since we shouldn't fail at converting a basic template
             log.debug("Topic Error Template is not valid XML", ex);
             throw new BuildProcessingException("Failed to convert the Topic Error template into a DOM document");
@@ -550,7 +550,7 @@ public class DocbookBuildUtilities {
         Document doc = null;
         try {
             doc = XMLUtilities.convertStringToDocument(template);
-        } catch (SAXException ex) {
+        } catch (Exception ex) {
             // Exit since we shouldn't fail at converting a basic template
             log.debug("Topic Error Template is not valid XML", ex);
             throw new BuildProcessingException("Failed to convert the Topic Error template into a DOM document");
