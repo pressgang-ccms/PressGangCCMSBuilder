@@ -316,7 +316,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
      *                                  converted to a DOM Document.
      */
-    public Map<String, byte[]> buildBook(final ContentSpec contentSpec, final UserWrapper requester,
+    public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final UserWrapper requester,
             final CSDocbookBuildingOptions buildingOptions,
             final Map<String, byte[]> overrideFiles) throws BuilderCreationException, BuildProcessingException {
         return buildBook(contentSpec, requester, buildingOptions, overrideFiles, new ZanataDetails());
@@ -335,7 +335,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      *                                  converted to a DOM Document.
      */
     @SuppressWarnings("unchecked")
-    public Map<String, byte[]> buildBook(final ContentSpec contentSpec, final UserWrapper requester,
+    public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final UserWrapper requester,
             final CSDocbookBuildingOptions buildingOptions,
             final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
         return buildBook(contentSpec, requester, buildingOptions, new HashMap<String, byte[]>(), zanataDetails);
@@ -355,7 +355,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      *                                  converted to a DOM Document.
      */
     @SuppressWarnings("unchecked")
-    public Map<String, byte[]> buildBook(final ContentSpec contentSpec, final UserWrapper requester,
+    public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final UserWrapper requester,
             final CSDocbookBuildingOptions buildingOptions, final Map<String, byte[]> overrideFiles,
             final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
@@ -1238,14 +1238,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
      *                                  converted to a DOM Document.
      */
-    private Map<String, byte[]> doBuildZipPass(final BuildData buildData, final UserWrapper requester,
+    private HashMap<String, byte[]> doBuildZipPass(final BuildData buildData, final UserWrapper requester,
             final boolean useFixedUrls) throws BuildProcessingException {
         log.info("Building the ZIP file");
 
         final StringBuffer bookXIncludes = new StringBuffer();
 
         // Add the base book information
-        final Map<String, byte[]> files = buildData.getOutputFiles();
+        final HashMap<String, byte[]> files = buildData.getOutputFiles();
         final String bookBase = buildBookBase(buildData, requester);
 
         // add the images to the book

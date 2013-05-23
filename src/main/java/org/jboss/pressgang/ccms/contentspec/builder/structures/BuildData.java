@@ -80,7 +80,7 @@ public class BuildData {
     /**
      * The Mapping of file names to file contents to be used to build the ZIP archive.
      */
-    private final Map<String, byte[]> files = new HashMap<String, byte[]>();
+    private final HashMap<String, byte[]> files = new HashMap<String, byte[]>();
     private final ContentSpec contentSpec;
 
     public BuildData(final String buildName, final ContentSpec contentSpec, final String locale,
@@ -274,7 +274,7 @@ public class BuildData {
      *
      * @return
      */
-    public Map<String, byte[]> getOutputFiles() {
+    public HashMap<String, byte[]> getOutputFiles() {
         return files;
     }
 }
