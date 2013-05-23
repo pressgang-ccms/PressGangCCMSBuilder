@@ -4,6 +4,8 @@ import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.google.code.regexp.NamedMatcher;
 import com.google.code.regexp.NamedPattern;
@@ -24,14 +26,13 @@ import org.xml.sax.XMLReader;
  */
 public class SAXXMLValidator implements ErrorHandler, EntityResolver {
     private static final NamedPattern DOCTYPE_PATTERN = NamedPattern.compile(
-            "^\\s*<\\?xml.*?\\?>\\s*<\\!DOCTYPE\\s+(?<Name>.*?)\\s+((PUBLIC\\s+\".*?\"|SYSTEM)\\s+\"(?<SystemId>.*?)\")\\s*(" + "" +
+            "^\\s*<\\?xml.*?\\?>\\s*<\\!DOCTYPE\\s+(?<Name>.*?)\\s+((PUBLIC\\s+\".*?\"|SYSTEM)[ ]+\"(?<SystemId>.*?)\")\\s*(" +
                     "(?<Entities>\\[(.|\n)*\\]\\s*))?>");
 
     protected boolean errorsDetected;
     private String errorText;
-    private String dtdFileName;
-    private byte[] dtdData;
-    private final boolean showErrors;
+    private Map<String, byte[]> files = new HashMap<String, byte[]>();
+    final private boolean showErrors;
 
     public SAXXMLValidator(final boolean showErrors) {
         this.showErrors = showErrors;
@@ -50,7 +51,29 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
      * @return True if the XML is valid, otherwise false.
      */
     public boolean validateXML(final Document doc, final String dtdFileName, final byte[] dtdData) {
-        if (doc == null || doc.getDocumentElement() == null){
+        if (doc == null || doc.getDocumentElement() == null) {
+            return false;
+        } else {
+            return validateXML(doc, dtdFileName, dtdData, doc.getDocumentElement().getNodeName());
+        }
+    }
+
+    public boolean validateXML(final Document doc, final String dtdFileName, final byte[] dtdData, final String rootEleName) {
+        return validateXML(doc, dtdFileName, dtdData, null, null, rootEleName);
+    }
+
+    public boolean validateXML(final Document doc, final String dtdFileName, final byte[] dtdData, final String entityFileName,
+            final byte[] entityData) {
+        if (doc == null || doc.getDocumentElement() == null) {
+            return false;
+        } else {
+            return validateXML(doc, dtdFileName, dtdData, entityFileName, entityData, doc.getDocumentElement().getNodeName());
+        }
+    }
+
+    public boolean validateXML(final Document doc, final String dtdFileName, final byte[] dtdData, final String entityFileName,
+            final byte[] entityData, final String rootEleName) {
+        if (doc == null || doc.getDocumentElement() == null) {
             return false;
         } else {
             final String xml;
@@ -60,7 +83,7 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
                 xml = XMLUtilities.convertDocumentToString(doc);
             }
 
-            return validateXML(xml, dtdFileName, dtdData, doc.getDocumentElement().getNodeName());
+            return validateXML(xml, dtdFileName, dtdData, entityFileName, entityData, rootEleName);
         }
     }
 
@@ -73,11 +96,28 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
      * @param rootEleName The name of the root XML Element.
      * @return True if the XML is valid, otherwise false.
      */
-    public boolean validateXML(final String xml, final String dtdFileName, final byte[] dtdData, String rootEleName) {
+    public boolean validateXML(final String xml, final String dtdFileName, final byte[] dtdData, final String rootEleName) {
+        return validateXML(xml, dtdFileName, dtdData, null, null, rootEleName);
+    }
+
+    /**
+     * Validates some piece of XML to ensure that it is valid.
+     *
+     * @param xml         The XML to be validated.
+     * @param dtdFileName The filename of the DTD data.
+     * @param dtdData     The DTD data to be used to validate against.
+     * @param rootEleName The name of the root XML Element.
+     * @return
+     */
+    public boolean validateXML(final String xml, final String dtdFileName, final byte[] dtdData, final String entityFileName,
+            final byte[] entityData, final String rootEleName) {
         if (xml == null || dtdFileName == null || dtdData == null || rootEleName == null) return false;
 
-        this.dtdData = dtdData;
-        this.dtdFileName = dtdFileName;
+        this.files = new HashMap<String, byte[]>();
+        files.put(dtdFileName, dtdData);
+        if (entityData != null && entityFileName != null) {
+            files.put(entityFileName, entityData);
+        }
 
         String encoding = XMLUtilities.findEncoding(xml);
         if (encoding == null) encoding = "UTF-8";
@@ -91,7 +131,8 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
             final XMLReader reader = parser.getXMLReader();
             reader.setEntityResolver(this);
             reader.setErrorHandler(this);
-            reader.parse(new InputSource(new ByteArrayInputStream(setXmlDtd(xml, dtdFileName, rootEleName).getBytes(encoding))));
+            reader.parse(
+                    new InputSource(new ByteArrayInputStream(setXmlDtd(xml, dtdFileName, entityFileName, rootEleName).getBytes(encoding))));
         } catch (SAXParseException e) {
             handleError(e);
             return false;
@@ -113,9 +154,11 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
     @Override
     public InputSource resolveEntity(String publicId, String systemId) throws SAXException, IOException {
         final InputSource dtdsource = new InputSource();
-        if (systemId.endsWith(this.dtdFileName)) {
-            dtdsource.setByteStream(new ByteArrayInputStream(this.dtdData));
-            return dtdsource;
+        for (final Map.Entry<String, byte[]> file : files.entrySet()) {
+            if (systemId.endsWith(file.getKey())) {
+                dtdsource.setByteStream(new ByteArrayInputStream(file.getValue()));
+                return dtdsource;
+            }
         }
 
         return null;
@@ -157,10 +200,11 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
      *
      * @param xml            The XML to add the DTD for.
      * @param dtdFileName    The file/url name of the DTD.
+     * @param dtdFileName    The file/url name of the Entity File or null if none exists.
      * @param dtdRootEleName The name of the root element in the XML that is inserted into the {@code<!DOCTYPE >} node.
      * @return The xml with the dtd added.
      */
-    private String setXmlDtd(final String xml, final String dtdFileName, final String dtdRootEleName) {
+    private String setXmlDtd(final String xml, final String dtdFileName, final String entityFileName, final String dtdRootEleName) {
         String output = null;
 
         // Check if the XML already has a DOCTYPE. If it does then replace the values and remove entities for processing
@@ -181,10 +225,14 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
         // The XML doesn't have any doctype so add it
         final String preamble = XMLUtilities.findPreamble(xml);
         if (preamble != null) {
-            output = xml.replace(preamble, preamble + "\n" + "<!DOCTYPE " + dtdRootEleName + " SYSTEM \"" + dtdFileName + "\">");
+            output = xml.replace(preamble,
+                    preamble + "\n" + "<!DOCTYPE " + dtdRootEleName + " SYSTEM \"" + dtdFileName + "\" [\n" + (entityFileName == null ?
+                            "" : "<!ENTITY % BOOK_ENTITIES SYSTEM \"" + entityFileName + "\">\n" + "%BOOK_ENTITIES;") + "\n]>");
         } else {
             output = "<?xml version='1.0' encoding='UTF-8' ?>\n" +
-                    "<!DOCTYPE " + dtdRootEleName + " SYSTEM \"" + dtdFileName + "\">\n" + xml;
+                    "<!DOCTYPE " + dtdRootEleName + " SYSTEM \"" + dtdFileName + "\"[\n" +
+                    (entityFileName == null ? "" : "<!ENTITY % BOOK_ENTITIES SYSTEM \"" + entityFileName + "\">\n" + "%BOOK_ENTITIES;") +
+                    "\n]>\n" + xml;
         }
 
         return output;

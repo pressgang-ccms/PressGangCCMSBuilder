@@ -30,6 +30,12 @@ import org.jboss.pressgang.ccms.wrapper.TranslatedTopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.base.BaseTopicWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.DateTimeFormatterBuilder;
+import org.joda.time.format.DateTimeParser;
+import org.joda.time.format.ISODateTimeFormat;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
@@ -46,6 +52,16 @@ public class DocbookBuildUtilities {
     private static final Logger log = LoggerFactory.getLogger(DocbookBuildUtilities.class);
     private static final String STARTS_WITH_NUMBER_RE = "^(?<Numbers>\\d+)(?<EverythingElse>.*)$";
     private static final String STARTS_WITH_INVALID_SEQUENCE_RE = "^(?<InvalidSeq>[^\\w\\d]+)(?<EverythingElse>.*)$";
+    private static final DateTimeParser[] parsers = {
+            DateTimeFormat.forPattern("MM/dd/yyyy").getParser(),
+            DateTimeFormat.forPattern("EEE MMM dd yyyy").getParser(),
+            DateTimeFormat.forPattern("EEE, MMM dd yyyy").getParser(),
+            DateTimeFormat.forPattern("EEE MMM dd yyyy Z").getParser(),
+            DateTimeFormat.forPattern("EEE dd MMM yyyy").getParser(),
+            DateTimeFormat.forPattern("EEE, dd MMM yyyy").getParser(),
+            DateTimeFormat.forPattern("EEE dd MMM yyyy Z").getParser(),
+            ISODateTimeFormat.basicDateTime().getParser()};
+    private static final DateTimeFormatter formatter = new DateTimeFormatterBuilder().append(null, parsers).toFormatter();
 
     /**
      * Adds the levels in the provided Level object to the content spec database.
@@ -272,6 +288,13 @@ public class DocbookBuildUtilities {
                             "information.</para>");
         } else {
             topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX, "");
+        }
+
+        // Replace the root section element if the topic is a revision history or a legal notice
+        if (topic.hasTag(CSConstants.REVISION_HISTORY_TAG_ID)) {
+            topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll("(?<=<(/)?)section(?=>)", "appendix");
+        } else if (topic.hasTag(CSConstants.LEGAL_NOTICE_TAG_ID)) {
+            topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll("(?<=<(/)?)section(?=>)", "legalnotice");
         }
 
         return topicXMLErrorTemplate;
@@ -603,16 +626,12 @@ public class DocbookBuildUtilities {
             xmlErrors.add(rootElementErrors);
         }
         // Check that the content matches the topic type
-        final String contentErrors = checkTopicContentBasedOnType(topic, topicDoc);
-        if (contentErrors != null) {
-            xmlErrors.add(contentErrors);
-        }
+        xmlErrors.addAll(checkTopicContentBasedOnType(topic, topicDoc));
 
         return xmlErrors;
     }
 
     /**
-     *
      * @param topic
      * @param doc
      * @return
@@ -643,16 +662,67 @@ public class DocbookBuildUtilities {
      * @param doc
      * @return
      */
-    protected static String checkTopicContentBasedOnType(final BaseTopicWrapper<?> topic, final Document doc) {
-        final StringBuilder xmlErrors = new StringBuilder();
+    protected static List<String> checkTopicContentBasedOnType(final BaseTopicWrapper<?> topic, final Document doc) {
+        final List<String> xmlErrors = new ArrayList<String>();
         if (topic.hasTag(CSConstants.REVISION_HISTORY_TAG_ID)) {
             // Check to make sure that a revhistory entry exists
-            final NodeList revHistoryList = doc.getElementsByTagName("revhistory");
-            if (revHistoryList.getLength() == 0) {
-                xmlErrors.append("No &lt;revhistory&gt; element found. A &lt;revhistory&gt; must exist for Revision Histories.\n");
+            final String revHistoryErrors = validateRevisionHistory(doc);
+            if (revHistoryErrors != null) {
+                xmlErrors.add(revHistoryErrors);
             }
         }
 
-        return xmlErrors.length() == 0 ? null : xmlErrors.toString();
+        return xmlErrors;
+    }
+
+    /**
+     * Validates a Revision History XML DOM Document to ensure that the content is valid for use with Publican.
+     *
+     * @param doc The DOM Document that represents the XML that is to be validated.
+     * @return Null if there weren't any errors otherwise an error message that states what is wrong.
+     */
+    protected static String validateRevisionHistory(final Document doc) {
+        final List<String> invalidRevNumbers = new ArrayList<String>();
+
+        // Find each <revnumber> element and make sure it matches the publican regex
+        final NodeList revisions = doc.getElementsByTagName("revision");
+        DateTime previousDate = null;
+        for (int i = 0; i < revisions.getLength(); i++) {
+            final Element revision = (Element) revisions.item(i);
+            final NodeList revnumbers = revision.getElementsByTagName("revnumber");
+            final Element revnumber = revnumbers.getLength() == 1 ? (Element) revnumbers.item(0) : null;
+            final NodeList dates = revision.getElementsByTagName("date");
+            final Element date = dates.getLength() == 1 ? (Element) dates.item(0) : null;
+
+            // Make sure the rev number is valid and the order is correct
+            if (revnumber != null && !revnumber.getTextContent().matches("^([0-9.]*)-([0-9.]*)$")) {
+                invalidRevNumbers.add(revnumber.getTextContent());
+            } else if (revnumber == null) {
+                return "Invalid revision, missing &lt;revnumber&gt; element.";
+            }
+
+            // Check the dates are in chronological order
+            if (date != null) {
+                try {
+                    final DateTime revisionDate = formatter.parseDateTime(date.getTextContent());
+                    if (previousDate != null && revisionDate.isAfter(previousDate)) {
+                        return "The revisions in the Revision History are not in decending chronological order.";
+                    }
+
+                    previousDate = revisionDate;
+                } catch (Exception e) {
+                    return "Invalid revision, the date \"" + date.getTextContent() + "\" is not in a valid format.";
+                }
+            } else {
+                return "Invalid revision, missing &lt;date&gt; element.";
+            }
+        }
+
+        if (!invalidRevNumbers.isEmpty()) {
+            return "Revision History has invalid &lt;revnumber&gt; values: " + CollectionUtilities.toSeperatedString(invalidRevNumbers,
+                    ", ") + ". The revnumber must match \"^([0-9.]*)-([0-9.]*)$\" to be valid.";
+        } else {
+            return null;
+        }
     }
 }
