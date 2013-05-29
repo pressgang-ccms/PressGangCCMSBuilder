@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -22,6 +21,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -106,6 +106,16 @@ public class DocbookBuilder implements ShutdownAbleApp {
     protected static final String AUTHOR_GROUP_FILE_NAME = "Author_Group.xml";
     protected static final String PREFACE_FILE_NAME = "Preface.xml";
     protected static final String LEGAL_NOTICE_FILE_NAME = "Legal_Notice.xml";
+    protected static final Map<String, Locale> LOCALE_MAP = new HashMap<String, Locale>();
+
+    static {
+        LOCALE_MAP.put("ja", new Locale("ja", "JP"));
+        LOCALE_MAP.put("es", new Locale("es", "ES"));
+        LOCALE_MAP.put("zh-Hans", new Locale("zh", "CH"));
+        LOCALE_MAP.put("pt-BR", new Locale("pt", "BR"));
+        LOCALE_MAP.put("de", new Locale("de", "DE"));
+        LOCALE_MAP.put("fr", new Locale("fr", "FR"));
+    }
 
     protected final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
     protected final AtomicBoolean shutdown = new AtomicBoolean(false);
@@ -124,9 +134,13 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
     private final BlobConstantWrapper rocbookdtd;
     /**
-     * The set of Translation Constants to use when building
+     * The set of Constants to use when building
      */
-    private final Properties constantTranslatedStrings;
+    private ResourceBundle constantsResourceBundle;
+    /**
+     * The set of Messages to use when building
+     */
+    private final ResourceBundle messagesResourceBundle = ResourceBundle.getBundle("Messages");
     /**
      * The StringConstant that holds the error template for a topic with no content.
      */
@@ -181,8 +195,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
         try {
             prop.load(new StringReader(xmlElementsProperties.getValue()));
         } catch (IOException e) {
-            log.error("Failed to read the XML Elements Property file");
-            throw new BuilderCreationException("Failed to read the XML Elements Property file");
+            log.error(messagesResourceBundle.getString("FAILED_READING_XML_FORMATTING"));
+            throw new BuilderCreationException(messagesResourceBundle.getString("FAILED_READING_XML_FORMATTING"));
         }
 
         final String verbatimElementsString = prop.getProperty(CommonConstants.VERBATIM_XML_ELEMENTS_PROPERTY_KEY);
@@ -192,18 +206,6 @@ public class DocbookBuilder implements ShutdownAbleApp {
         xmlFormatProperties.setVerbatimElements(CollectionUtilities.toArrayList(verbatimElementsString.split("[\\s]*,[\\s]*")));
         xmlFormatProperties.setInlineElements(CollectionUtilities.toArrayList(inlineElementsString.split("[\\s]*,[\\s]*")));
         xmlFormatProperties.setContentsInlineElements(CollectionUtilities.toArrayList(contentsInlineElementsString.split("[\\s]*,[\\s]*")));
-
-        // Load the default constant translation strings
-        final Properties defaultProperties = new Properties();
-        final URL defaultUrl = ClassLoader.getSystemResource("Constants.properties");
-        if (defaultUrl != null) {
-            try {
-                defaultProperties.load(new InputStreamReader(defaultUrl.openStream(), ENCODING));
-            } catch (IOException ex) {
-                log.debug(ex);
-            }
-        }
-        constantTranslatedStrings = new Properties(defaultProperties);
     }
 
     protected StringConstantWrapper getErrorEmptyTopicTemplate() {
@@ -222,8 +224,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
         return defaultLocale;
     }
 
-    protected Properties getConstantTranslatedStrings() {
-        return constantTranslatedStrings;
+    protected ResourceBundle getConstants() {
+        return constantsResourceBundle;
+    }
+
+    protected ResourceBundle getMessages() {
+        return messagesResourceBundle;
     }
 
     public XMLFormatProperties getXMLFormatProperties() {
@@ -366,6 +372,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // Get the Build Locale
         final String buildLocale = buildingOptions.getLocale() == null ? getDefaultBuildLocale() : buildingOptions.getLocale();
+        if (!buildLocale.equals(getDefaultBuildLocale())) {
+            constantsResourceBundle = ResourceBundle.getBundle("Constants");
+        } else {
+            constantsResourceBundle = ResourceBundle.getBundle("Constants", LOCALE_MAP.get(buildLocale));
+        }
 
         // Create the build data
         final BuildData buildData = new BuildData(BuilderConstants.BUILD_NAME, contentSpec, buildLocale, buildingOptions, zanataDetails);
@@ -393,7 +404,6 @@ public class DocbookBuilder implements ShutdownAbleApp {
         if (buildingOptions.getLocale() != null) {
             pullTranslations(contentSpec, buildingOptions.getLocale());
         }
-        loadConstantTranslations(buildData.getBuildLocale());
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -439,23 +449,6 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         return doBuildZipPass(buildData, requester, fixedUrlsSuccess);
-    }
-
-    /**
-     * Load the Constant Translated Strings from the local properties file.
-     *
-     * @param locale The locale the book is being built in.
-     */
-    protected void loadConstantTranslations(final String locale) {
-        // Load the translated properties
-        final URL url = ClassLoader.getSystemResource("Constants-" + locale + ".properties");
-        if (url != null) {
-            try {
-                getConstantTranslatedStrings().load(new InputStreamReader(url.openStream(), ENCODING));
-            } catch (IOException ex) {
-                log.debug(ex);
-            }
-        }
     }
 
     /**
@@ -1046,7 +1039,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             assert doc != null;
             assert topic != null;
 
-            final DocbookXMLPreProcessor xmlPreProcessor = new DocbookXMLPreProcessor(getConstantTranslatedStrings());
+            final DocbookXMLPreProcessor xmlPreProcessor = new DocbookXMLPreProcessor(getConstants());
 
             if (doc != null) {
                 // Process the conditional statements
@@ -1114,8 +1107,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(
-                            specTopic.getRevision())) {
+                            .equals(specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             buildData.getErrorDatabase().addWarning((T) topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -1451,7 +1443,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             final String legalNoticeXML = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
                     contentSpec.getLegalNotice().getXMLDocument(), "legalnotice", buildData.getEntityFileName(), getXMLFormatProperties());
             try {
-                files.put(buildData.getBookLocaleFolder() + "Legal_Notice.xml", legalNoticeXML.getBytes("UTF-8"));
+                files.put(buildData.getBookLocaleFolder() + LEGAL_NOTICE_FILE_NAME, legalNoticeXML.getBytes("UTF-8"));
             } catch (UnsupportedEncodingException e) {
                 /* UTF-8 is a valid format so this should exception should never get thrown */
                 log.error(e);
@@ -1461,7 +1453,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Setup Preface.xml
         String fixedPrefaceXml = prefaceXmlTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, buildData.getEscapedBookTitle());
 
-        final String prefaceTitleTranslation = getConstantTranslatedStrings().getProperty("PREFACE");
+        final String prefaceTitleTranslation = getConstants().getString("PREFACE");
         if (prefaceTitleTranslation != null) {
             fixedPrefaceXml = fixedPrefaceXml.replace("<title>Preface</title>", "<title>" + prefaceTitleTranslation + "</title>");
         }
@@ -1712,7 +1704,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         } catch (Exception ex) {
             // Exit since we shouldn't fail at converting a basic chapter
             log.debug("", ex);
-            throw new BuildProcessingException("Failed to create a basic XML document");
+            throw new BuildProcessingException(getMessages().getString("FAILED_CREATING_BASIC_TEMPLATE"));
         }
 
         // Create the title
@@ -1774,7 +1766,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         } catch (Exception ex) {
             // Exit since we shouldn't fail at converting a basic chapter
             log.debug("", ex);
-            throw new BuildProcessingException("Failed to create a basic XML document");
+            throw new BuildProcessingException(getMessages().getString("FAILED_CREATING_BASIC_TEMPLATE"));
         }
 
         // Create the title
@@ -2152,7 +2144,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
         } catch (Exception ex) {
             // Exit since we shouldn't fail at converting the basic author group
             log.debug("", ex);
-            throw new BuildProcessingException("Failed to convert the " + AUTHOR_GROUP_FILE_NAME + " template into a DOM document");
+            throw new BuildProcessingException(
+                    String.format(getMessages().getString("FAILED_CONVERTING_TEMPLATE"), AUTHOR_GROUP_FILE_NAME));
         }
         final LinkedHashMap<Integer, AuthorInformation> authorIDtoAuthor = new LinkedHashMap<Integer, AuthorInformation>();
 
@@ -2358,16 +2351,18 @@ public class DocbookBuilder implements ShutdownAbleApp {
         } catch (Exception ex) {
             // Exit since we shouldn't fail at converting the basic revision history
             log.debug("", ex);
-            throw new BuildProcessingException("Failed to convert the " + REVISION_HISTORY_FILE_NAME + " template into a DOM document");
+            throw new BuildProcessingException(
+                    String.format(getMessages().getString("FAILED_CONVERTING_TEMPLATE"), REVISION_HISTORY_FILE_NAME));
         }
 
         if (revHistoryDoc == null) {
-            throw new BuildProcessingException("Failed to convert the " + REVISION_HISTORY_FILE_NAME + " template into a DOM document");
+            throw new BuildProcessingException(
+                    String.format(getMessages().getString("FAILED_CONVERTING_TEMPLATE"), REVISION_HISTORY_FILE_NAME));
         }
 
         revHistoryDoc.getDocumentElement().setAttribute("id", "appe-" + buildData.getEscapedBookTitle() + "-Revision_History");
 
-        final String reportHistoryTitleTranslation = getConstantTranslatedStrings().getProperty("REVISION_HISTORY");
+        final String reportHistoryTitleTranslation = getConstants().getString("REVISION_HISTORY");
         if (reportHistoryTitleTranslation != null) {
             DocBookUtilities.setRootElementTitle(reportHistoryTitleTranslation, revHistoryDoc);
         }
@@ -2669,59 +2664,59 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // No Content Warning
         glossary.append(
                 DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_EMPTY_TOPIC_XML + "\""),
-                        DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_NO_CONTENT_TOPIC_DEFINTIION)));
+                        DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_NO_CONTENT_TOPIC_DEFINITION)));
 
         // Invalid XML entity or element
         glossary.append(DocBookUtilities.wrapInGlossEntry(
                 DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.ERROR_INVALID_XML_CONTENT + "\""),
-                DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.ERROR_INVALID_XML_CONTENT_DEFINTIION)));
+                DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.ERROR_INVALID_XML_CONTENT_DEFINITION)));
 
         // No Content Error
         glossary.append(
                 DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.ERROR_BAD_XML_STRUCTURE + "\""),
-                        DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.ERROR_BAD_XML_STRUCTURE_DEFINTIION)));
+                        DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.ERROR_BAD_XML_STRUCTURE_DEFINITION)));
 
         // Invalid Docbook XML Error
         glossary.append(
                 DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.ERROR_INVALID_TOPIC_XML + "\""),
-                        DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.ERROR_INVALID_TOPIC_XML_DEFINTIION)));
+                        DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.ERROR_INVALID_TOPIC_XML_DEFINITION)));
 
         // Invalid Injections Error
         glossary.append(
                 DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.ERROR_INVALID_INJECTIONS + "\""),
-                        DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.ERROR_INVALID_INJECTIONS_DEFINTIION)));
+                        DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.ERROR_INVALID_INJECTIONS_DEFINITION)));
 
         // Add the glossary terms and definitions
         if (buildData.isTranslationBuild()) {
             // Incomplete translation warning
             glossary.append(DocBookUtilities.wrapInGlossEntry(
                     DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_INCOMPLETE_TRANSLATION + "\""),
-                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_INCOMPLETE_TRANSLATED_TOPIC_DEFINTIION)));
+                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_INCOMPLETE_TRANSLATED_TOPIC_DEFINITION)));
 
             // Fuzzy translation warning
             glossary.append(DocBookUtilities.wrapInGlossEntry(
                     DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_FUZZY_TRANSLATION + "\""),
-                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_FUZZY_TRANSLATED_TOPIC_DEFINTIION)));
+                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_FUZZY_TRANSLATED_TOPIC_DEFINITION)));
 
             // Untranslated Content warning
             glossary.append(DocBookUtilities.wrapInGlossEntry(
                     DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_UNTRANSLATED_TOPIC + "\""),
-                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_UNTRANSLATED_TOPIC_DEFINTIION)));
+                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_UNTRANSLATED_TOPIC_DEFINITION)));
 
             // Non Pushed Translation Content warning
             glossary.append(DocBookUtilities.wrapInGlossEntry(
                     DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_NONPUSHED_TOPIC + "\""),
-                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_NONPUSHED_TOPIC_DEFINTIION)));
+                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_NONPUSHED_TOPIC_DEFINITION)));
 
             // Old Translation Content warning
             glossary.append(DocBookUtilities.wrapInGlossEntry(
                     DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_OLD_TRANSLATED_TOPIC + "\""),
-                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_OLD_TRANSLATED_TOPIC_DEFINTIION)));
+                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_OLD_TRANSLATED_TOPIC_DEFINITION)));
 
             // Old Untranslated Content warning
             glossary.append(DocBookUtilities.wrapInGlossEntry(
                     DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC + "\""),
-                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC_DEFINTIION)));
+                    DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC_DEFINITION)));
         }
 
         glossary.append("</glossary>");
@@ -3112,8 +3107,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                     // Create the PropertyTagCollection to be used to update any data
                     final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
-                            .newPropertyTagInTopicCollection(
-                            topic);
+                            .newPropertyTagInTopicCollection(topic);
 
                     // Get a list of all property tag items that exist for the current topic
                     /*final List<RESTAssignedPropertyTagCollectionItemV1> existingUniqueURLs = ComponentTopicV1.returnPropertyItems(topic,
