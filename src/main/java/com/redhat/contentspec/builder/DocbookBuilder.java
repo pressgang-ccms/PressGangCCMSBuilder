@@ -3764,7 +3764,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                             // update any old fixed url property tags
                             boolean found = false;
                             if (topic.getProperties() != null && topic.getProperties().getItems() != null) {
-                                final List<RESTAssignedPropertyTagV1> propertyTags = topic.getProperties().returnItems();
+                                final List<RESTAssignedPropertyTagV1> propertyTags = topic.getProperties().returnExistingItems();
                                 for (final RESTAssignedPropertyTagV1 existing : propertyTags) {
                                     if (existing.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
                                         if (found) {
@@ -3820,7 +3820,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             }
         } catch (final Exception ex) {
             // Dump the exception to the command prompt, and restart the loop
-            log.error(ExceptionUtilities.getStackTrace(ex));
+            log.error(ex);
         }
 
         // did we blow the try count?
