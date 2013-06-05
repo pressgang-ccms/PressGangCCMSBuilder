@@ -63,6 +63,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
     /**
      * Builds a book into a zip file for the passed Content Specification.
      *
+     *
      * @param contentSpec    The content specification that is to be built. It
      *                       should have already been validated, if not errors
      *                       may occur.
@@ -72,7 +73,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
      * @return A byte array that is the zip file
      * @throws Exception Any unexpected errors that occur during building.
      */
-    public byte[] buildBook(final ContentSpec contentSpec, final RESTUserV1 requester,
+    public byte[] buildBook(final ContentSpec contentSpec, final String requester,
             final CSDocbookBuildingOptions builderOptions) throws Exception {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
@@ -98,6 +99,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
     /**
      * Builds a book into a zip file for the passed Content Specification.
      *
+     *
      * @param contentSpec    The content specification that is to be built. It should have already been validated, if not errors
      *                       may occur.
      * @param requester      The user who requested the book to be built.
@@ -106,7 +108,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
      * @return A byte array that is the zip file
      * @throws Exception Any unexpected errors that occur during building.
      */
-    public byte[] buildTranslatedBook(final ContentSpec contentSpec, final RESTUserV1 requester,
+    public byte[] buildTranslatedBook(final ContentSpec contentSpec, final String requester,
             final CSDocbookBuildingOptions builderOptions, final ZanataDetails zanataDetails) throws Exception {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");

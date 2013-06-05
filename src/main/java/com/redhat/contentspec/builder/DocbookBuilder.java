@@ -292,6 +292,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.
      *
+     *
      * @param contentSpec     The content specification to build from.
      * @param requester       The user who requested the build.
      * @param buildingOptions The options to be used when building.
@@ -302,13 +303,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
      *                                  converted to a DOM Document.
      */
-    public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final RESTUserV1 requester,
+    public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
             final CSDocbookBuildingOptions buildingOptions) throws BuilderCreationException, BuildProcessingException {
         return this.buildBook(contentSpec, requester, buildingOptions, new ZanataDetails());
     }
 
     /**
      * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.
+     *
      *
      * @param contentSpec     The content specification to build from.
      * @param requester       The user who requested the build.
@@ -321,7 +323,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      *                                  converted to a DOM Document.
      */
     @SuppressWarnings("unchecked")
-    public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final RESTUserV1 requester,
+    public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
             final CSDocbookBuildingOptions buildingOptions,
             final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
@@ -1592,6 +1594,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Wrap all of the topics, images, common content, etc... files into a ZIP Archive.
      *
+     *
      * @param contentSpec  The content specification object to be built.
      * @param requester    The User who requested the book be built.
      * @param useFixedUrls If during processing the fixed urls should be used.
@@ -1599,7 +1602,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
      *                                  converted to a DOM Document.
      */
-    private HashMap<String, byte[]> doBuildZipPass(final ContentSpec contentSpec, final RESTUserV1 requester,
+    private HashMap<String, byte[]> doBuildZipPass(final ContentSpec contentSpec, final String requester,
             final boolean useFixedUrls) throws BuildProcessingException {
         log.info("Building the ZIP file");
 
@@ -1701,13 +1704,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Builds the basics of a Docbook from the resource files for a specific content specification.
      *
+     *
      * @param contentSpec The content specification object to be built.
      * @param requester   The User who requested the book be built.
      * @param files       The mapping of file names/locations to files that will be packaged into the ZIP archive.
      * @return A Document object to be used in generating the book.xml
      * @throws BuildProcessingException
      */
-    protected String buildBookBase(final ContentSpec contentSpec, final RESTUserV1 requester,
+    protected String buildBookBase(final ContentSpec contentSpec, final String requester,
             final Map<String, byte[]> files) throws BuildProcessingException {
         log.info("\tAdding standard files to Publican ZIP file");
 
@@ -2766,13 +2770,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * 2. Content Spec Revision History Topic<br/>
      * 3. Revision History Template
      *
-     * @param requester   The user who requested the build action.
-     * @param overrides   The overrides to use for the build.
+     *
      * @param contentSpec The content spec object used to build the book.
+     * @param overrides   The overrides to use for the build.
+     * @param requester   The user who requested the build action.
      * @param files       The mapping of File Names/Locations to actual file content.
      * @throws BuildProcessingException
      */
-    protected void buildRevisionHistory(final ContentSpec contentSpec, final Map<String, String> overrides, final RESTUserV1 requester,
+    protected void buildRevisionHistory(final ContentSpec contentSpec, final Map<String, String> overrides, final String requester,
             final Map<String, byte[]> files) throws BuildProcessingException {
         // Replace the basic injection data inside the revision history
         final String revisionHistoryXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.REVISION_HISTORY_XML_ID,
@@ -2843,14 +2848,15 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Builds the revision history using the requester of the build.
      *
-     * @param requester          The user who requested the build action.
-     * @param revisionHistoryXml The Revision_History.xml file/template to add revision information to.
+     *
      * @param contentSpec        The content spec object used to build the book.
+     * @param revisionHistoryXml The Revision_History.xml file/template to add revision information to.
+     * @param requester          The user who requested the build action.
      * @param files              The mapping of File Names/Locations to actual file content.
      * @throws BuildProcessingException
      */
     protected void buildRevisionHistoryFromTemplate(final ContentSpec contentSpec, final String revisionHistoryXml,
-            final RESTUserV1 requester, final Map<String, byte[]> files) throws BuildProcessingException {
+            final String requester, final Map<String, byte[]> files) throws BuildProcessingException {
         log.info("\tBuilding Revision_History.xml");
 
         Document revHistoryDoc;
@@ -2885,7 +2891,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             revHistoryDoc.getDocumentElement().appendChild(simpara);
         }
 
-        final List<RESTTagV1> authorList = requester == null ? new ArrayList<RESTTagV1>() : reader.getTagsByName(requester.getName());
+        final List<RESTTagV1> authorList = requester == null ? new ArrayList<RESTTagV1>() : reader.getTagsByName(requester);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -2947,6 +2953,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Fills in the information required inside of a revision tag, for the Revision_History.xml file.
      *
+     *
      * @param contentSpec The content spec to generate the revisions for.
      * @param xmlDoc      An XML DOM document that contains key regex expressions.
      * @param authorInfo  An AuthorInformation entity object containing the details for who requested the build.
@@ -2954,7 +2961,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @throws BuildProcessingException
      */
     protected Element generateRevision(final ContentSpec contentSpec, final Document xmlDoc, final AuthorInformation authorInfo,
-            final RESTUserV1 requester) throws BuildProcessingException {
+            final String requester) throws BuildProcessingException {
         if (authorInfo == null) {
             return null;
         }
@@ -3025,14 +3032,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         if (contentSpec.getId() != null && contentSpec.getId() > 0) {
             if (contentSpec.getRevision() == null) {
                 listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(), reader.getLatestCSRevById(
-                        contentSpec.getId())) + (authorInfo.getAuthorId() > 0 ? (" by " + requester.getName()) : ""));
+                        contentSpec.getId())) + (authorInfo.getAuthorId() > 0 ? (" by " + requester) : ""));
             } else {
                 listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(),
-                        contentSpec.getRevision()) + (authorInfo.getAuthorId() > 0 ? (" by " + requester.getName()) : ""));
+                        contentSpec.getRevision()) + (authorInfo.getAuthorId() > 0 ? (" by " + requester) : ""));
             }
         } else {
             listMemberEle.setTextContent(
-                    BuilderConstants.BUILT_FILE_MSG + (authorInfo.getAuthorId() > 0 ? (" by " + requester.getName()) : ""));
+                    BuilderConstants.BUILT_FILE_MSG + (authorInfo.getAuthorId() > 0 ? (" by " + requester) : ""));
         }
 
         simplelist.appendChild(listMemberEle);
