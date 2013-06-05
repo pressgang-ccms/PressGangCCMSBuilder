@@ -183,4 +183,61 @@ public class BuilderConstants {
 
     public static final List<String> VALID_PROGRAM_LISTING_LANGS = Arrays.asList("Java", "SQL", "C", "C++", "Bash", "Perl", "JavaScript",
             "Python", "XML", "Ruby", "C#", "HTML", "CSS", "Javadoc", "Haskell", "Lua", "Makefile", "Pascal", "RPM Spec", "Diff");
+    /**
+     * The BlobConstant ID for the Rocbook DTD
+     */
+    public static final Integer ROCBOOK_DTD_BLOB_ID = 9;
+    /**
+     * The StringConstantsID that represents the icon.svg file
+     */
+    public static final Integer ICON_SVG_ID = 6;
+    public static final Integer FAILPENGUIN_PNG_ID = 5;
+    /**
+     * The StringConstantsID that represents the Author_Group.xml file
+     */
+    public static final Integer AUTHOR_GROUP_XML_ID = 4;
+    /**
+     * The StringConstantsID that represents the publican.cfg file
+     */
+    public static final Integer PUBLICAN_CFG_ID = 5;
+    /**
+     * The StringConstantsID that represents the Book.ent file
+     */
+    public static final Integer BOOK_ENT_ID = 2;
+    /**
+     * The StringConstantsID that represents the preface.xml file
+     */
+    public static final Integer CSP_PREFACE_XML_ID = 34;
+    /**
+     * The StringConstantsID that represents the Article_Info.xml file
+     */
+    public static final Integer ARTICLE_INFO_XML_ID = 35;
+    /**
+     * The StringConstantsID that represents the Book_Info.xml file
+     */
+    public static final Integer BOOK_INFO_XML_ID = 3;
+    /**
+     * The StringConstantsID that represents the Article.xml file
+     */
+    public static final Integer ARTICLE_XML_ID = 36;
+    /**
+     * The StringConstantsID that represents the Book.xml file
+     */
+    public static final Integer BOOK_XML_ID = 1;
+    /**
+     * The StringConstantsID that represents the Revision_History.xml file
+     */
+    public static final Integer REVISION_HISTORY_XML_ID = 15;
+    /**
+     * The StringConstantsID that represents the Empty Topic template file
+     */
+    public static final Integer CSP_EMPTY_TOPIC_ERROR_XML_ID = 31;
+    /**
+     * The StringConstantsID that represents the Invalid Injection Topic template file
+     */
+    public static final Integer CSP_INVALID_INJECTION_TOPIC_ERROR_XML_ID = 32;
+    /**
+     * The StringConstantsID that represents the Invalid Validation Topic template file
+     */
+    public static final Integer CSP_INVALID_VALIDATION_TOPIC_ERROR_XML_ID = 33;
 }

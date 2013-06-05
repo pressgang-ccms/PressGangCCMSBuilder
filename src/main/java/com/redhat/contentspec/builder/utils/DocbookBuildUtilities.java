@@ -369,6 +369,23 @@ public class DocbookBuildUtilities {
     }
 
     /**
+     * Clean a user specified publican.cfg to remove content that should be set for a build.
+     *
+     * @param userPublicanCfg The User publican.cfg file to be cleaned.
+     * @return The cleaned publican.cfg file.
+     */
+    public static String cleanUserPublicanCfg(final String userPublicanCfg) {
+        // Remove any xml_lang statements
+        String retValue = userPublicanCfg.replaceAll("xml_lang\\:\\s*.*?($|\\r\\n|\\n)", "");
+        // Remove any type statements
+        retValue = retValue.replaceAll("type\\:\\s*.*($|\\r\\n|\\n)" + "", "");
+        // Remove any brand statements
+        retValue = retValue.replaceAll("brand\\:\\s*.*($|\\r\\n|\\n)" + "", "");
+
+        return retValue;
+    }
+
+    /**
      * Validates that the Languages for all {@code<programlisting>} elements has a valid Publican language attribute.
      *
      * @param doc The DOM XML Document to be validated.

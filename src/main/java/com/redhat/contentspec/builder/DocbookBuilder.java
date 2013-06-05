@@ -50,7 +50,6 @@ import org.jboss.pressgang.ccms.contentspec.rest.RESTManager;
 import org.jboss.pressgang.ccms.contentspec.rest.RESTReader;
 import org.jboss.pressgang.ccms.contentspec.sort.AuthorInformationComparator;
 import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
-import org.jboss.pressgang.ccms.docbook.constants.DocbookBuilderConstants;
 import org.jboss.pressgang.ccms.docbook.processing.DocbookXMLPreProcessor;
 import org.jboss.pressgang.ccms.docbook.structures.TocTopicDatabase;
 import org.jboss.pressgang.ccms.docbook.structures.TopicErrorData;
@@ -78,7 +77,6 @@ import org.jboss.pressgang.ccms.rest.v1.entities.RESTTagV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.RESTTopicV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.RESTTranslatedTopicStringV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.RESTTranslatedTopicV1;
-import org.jboss.pressgang.ccms.rest.v1.entities.RESTUserV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.base.RESTBaseTopicV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.join.RESTAssignedPropertyTagV1;
 import org.jboss.pressgang.ccms.rest.v1.expansion.ExpandDataDetails;
@@ -220,11 +218,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         reader = restManager.getReader();
         this.restManager = restManager;
         this.rocbookdtd = rocbookDtd;
-        this.errorEmptyTopic = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.CSP_EMPTY_TOPIC_ERROR_XML_ID, "");
+        this.errorEmptyTopic = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.CSP_EMPTY_TOPIC_ERROR_XML_ID, "");
         this.errorInvalidInjectionTopic = restManager.getRESTClient().getJSONStringConstant(
-                DocbookBuilderConstants.CSP_INVALID_INJECTION_TOPIC_ERROR_XML_ID, "");
+                BuilderConstants.CSP_INVALID_INJECTION_TOPIC_ERROR_XML_ID, "");
         this.errorInvalidValidationTopic = restManager.getRESTClient().getJSONStringConstant(
-                DocbookBuilderConstants.CSP_INVALID_VALIDATION_TOPIC_ERROR_XML_ID, "");
+                BuilderConstants.CSP_INVALID_VALIDATION_TOPIC_ERROR_XML_ID, "");
         this.xmlElementsProperties = restManager.getRESTClient().getJSONStringConstant(CommonConstants.XML_ELEMENTS_STRING_CONSTANT_ID, "");
 
         this.defaultLocale = defaultLocale;
@@ -292,7 +290,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.
      *
-     *
      * @param contentSpec     The content specification to build from.
      * @param requester       The user who requested the build.
      * @param buildingOptions The options to be used when building.
@@ -310,7 +307,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
     /**
      * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.
-     *
      *
      * @param contentSpec     The content specification to build from.
      * @param requester       The user who requested the build.
@@ -1398,8 +1394,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     final RESTTranslatedTopicV1 pushedTranslatedTopic = ComponentTranslatedTopicV1.returnPushedTranslatedTopic(
                             (RESTTranslatedTopicV1) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(
-                            specTopic.getRevision())) {
+                            .equals(specTopic.getRevision())) {
                         if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic)) {
                             errorDatabase.addWarning((T) topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -1439,45 +1434,23 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         if (injectionOptions.isInjectionAllowed()) {
 
             final ArrayList<Integer> customInjectionIds = new ArrayList<Integer>();
-            final List<Integer> genericInjectionErrors;
             final List<Integer> customInjectionErrors;
 
-            if (contentSpec.getOutputStyle().equalsIgnoreCase(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
-                /*
-                 * create a collection of the tags that make up the topics types that will be included in generic injection
-                 * points
-                 */
-                final List<Pair<Integer, String>> topicTypeTagDetails = new ArrayList<Pair<Integer, String>>();
-                topicTypeTagDetails.add(Pair.newPair(DocbookBuilderConstants.TASK_TAG_ID, DocbookBuilderConstants.TASK_TAG_NAME));
-                topicTypeTagDetails.add(Pair.newPair(DocbookBuilderConstants.REFERENCE_TAG_ID, DocbookBuilderConstants.REFERENCE_TAG_NAME));
-                topicTypeTagDetails.add(Pair.newPair(DocbookBuilderConstants.CONCEPT_TAG_ID, DocbookBuilderConstants.CONCEPT_TAG_NAME));
-                topicTypeTagDetails.add(Pair.newPair(DocbookBuilderConstants.CONCEPTUALOVERVIEW_TAG_ID,
-                        DocbookBuilderConstants.CONCEPTUALOVERVIEW_TAG_NAME));
+            xmlPreProcessor.processPrerequisiteInjections(specTopic, doc, useFixedUrls);
+            xmlPreProcessor.processPrevRelationshipInjections(specTopic, doc, useFixedUrls);
+            xmlPreProcessor.processLinkListRelationshipInjections(specTopic, doc, useFixedUrls);
+            xmlPreProcessor.processNextRelationshipInjections(specTopic, doc, useFixedUrls);
+            xmlPreProcessor.processSeeAlsoInjections(specTopic, doc, useFixedUrls);
 
-                customInjectionErrors = xmlPreProcessor.processInjections(baseLevel, specTopic, customInjectionIds, doc,
-                        docbookBuildingOptions, null, useFixedUrls);
-
-                genericInjectionErrors = xmlPreProcessor.processGenericInjections(baseLevel, specTopic, doc, customInjectionIds,
-                        topicTypeTagDetails, docbookBuildingOptions, useFixedUrls);
-            } else {
-                xmlPreProcessor.processPrerequisiteInjections(specTopic, doc, useFixedUrls);
-                xmlPreProcessor.processPrevRelationshipInjections(specTopic, doc, useFixedUrls);
-                xmlPreProcessor.processLinkListRelationshipInjections(specTopic, doc, useFixedUrls);
-                xmlPreProcessor.processNextRelationshipInjections(specTopic, doc, useFixedUrls);
-                xmlPreProcessor.processSeeAlsoInjections(specTopic, doc, useFixedUrls);
-
-                customInjectionErrors = xmlPreProcessor.processInjections(baseLevel, specTopic, customInjectionIds, doc,
-                        docbookBuildingOptions, relatedTopicsDatabase, useFixedUrls);
-
-                genericInjectionErrors = new ArrayList<Integer>();
-            }
+            customInjectionErrors = xmlPreProcessor.processInjections(baseLevel, specTopic, customInjectionIds, doc,
+                    docbookBuildingOptions, relatedTopicsDatabase, useFixedUrls);
 
             // Check if the app should be shutdown
             if (isShuttingDown.get()) {
                 return false;
             }
 
-            valid = processSpecTopicInjectionErrors(topic, genericInjectionErrors, customInjectionErrors);
+            valid = processSpecTopicInjectionErrors(topic, customInjectionErrors);
 
             /* check for dummy topics */
             if (topic instanceof RESTTranslatedTopicV1) {
@@ -1493,8 +1466,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         final RESTTranslatedTopicV1 relatedTranslatedTopic = (RESTTranslatedTopicV1) relatedTopic;
 
                         /* Only show errors for topics that weren't included in the injections */
-                        if (!customInjectionErrors.contains(relatedTranslatedTopic.getTopicId()) && !genericInjectionErrors.contains(
-                                relatedTopic.getId())) {
+                        if (!customInjectionErrors.contains(relatedTranslatedTopic.getTopicId())) {
                             if ((!baseLevel.isSpecTopicInLevelByTopicID(
                                     relatedTranslatedTopic.getTopicId()) && !docbookBuildingOptions.getIgnoreMissingCustomInjections())
                                     || baseLevel.isSpecTopicInLevelByTopicID(
@@ -1522,31 +1494,18 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Process the Injection Errors and add them to the Error Database.
      *
+     *
      * @param topic                  The topic that the errors occurred for.
-     * @param genericInjectionErrors The List of Generic Injection Errors.
      * @param customInjectionErrors  The List of Custom Injection Errors.
      * @return True if no errors were processed or if the build is set to ignore missing injections, otherwise false.
      */
-    protected boolean processSpecTopicInjectionErrors(final T topic, final List<Integer> genericInjectionErrors,
-            final List<Integer> customInjectionErrors) {
+    protected boolean processSpecTopicInjectionErrors(final T topic, final List<Integer> customInjectionErrors) {
         boolean valid = true;
 
         if (!customInjectionErrors.isEmpty()) {
             final String message = "Topic has referenced Topic(s) " + CollectionUtilities.toSeperatedString(
                     customInjectionErrors) + " in a custom injection point that was either not related, " +
                     "or not included in the filter used to build this book.";
-            if (docbookBuildingOptions.getIgnoreMissingCustomInjections()) {
-                errorDatabase.addWarning(topic, ErrorType.INVALID_INJECTION, message);
-            } else {
-                errorDatabase.addError(topic, ErrorType.INVALID_INJECTION, message);
-                valid = false;
-            }
-        }
-
-        if (!genericInjectionErrors.isEmpty()) {
-            final String message = "Topic has related Topic(s) " + CollectionUtilities.toSeperatedString(
-                    CollectionUtilities.toAbsIntegerList(
-                            genericInjectionErrors)) + " that were not included in the filter used to build this book.";
             if (docbookBuildingOptions.getIgnoreMissingCustomInjections()) {
                 errorDatabase.addWarning(topic, ErrorType.INVALID_INJECTION, message);
             } else {
@@ -1593,7 +1552,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
     /**
      * Wrap all of the topics, images, common content, etc... files into a ZIP Archive.
-     *
      *
      * @param contentSpec  The content specification object to be built.
      * @param requester    The User who requested the book be built.
@@ -1704,7 +1662,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Builds the basics of a Docbook from the resource files for a specific content specification.
      *
-     *
      * @param contentSpec The content specification object to be built.
      * @param requester   The User who requested the book be built.
      * @param files       The mapping of file names/locations to files that will be packaged into the ZIP archive.
@@ -1718,26 +1675,26 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         final Map<String, String> overrides = docbookBuildingOptions.getOverrides();
 
         // Load the templates from the server
-        final String publicanCfg = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.PUBLICAN_CFG_ID,
+        final String publicanCfg = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.PUBLICAN_CFG_ID,
                 "").getValue();
-        final String bookEntityTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_ENT_ID,
+        final String bookEntityTemplate = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.BOOK_ENT_ID,
                 "").getValue();
-        final String prefaceXmlTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.CSP_PREFACE_XML_ID,
+        final String prefaceXmlTemplate = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.CSP_PREFACE_XML_ID,
                 "").getValue();
 
         final String bookInfoTemplate;
         if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            bookInfoTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ARTICLE_INFO_XML_ID,
+            bookInfoTemplate = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.ARTICLE_INFO_XML_ID,
                     "").getValue();
         } else {
-            bookInfoTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_INFO_XML_ID, "").getValue();
+            bookInfoTemplate = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.BOOK_INFO_XML_ID, "").getValue();
         }
 
         final String bookXmlTemplate;
         if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            bookXmlTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ARTICLE_XML_ID, "").getValue();
+            bookXmlTemplate = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.ARTICLE_XML_ID, "").getValue();
         } else {
-            bookXmlTemplate = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.BOOK_XML_ID, "").getValue();
+            bookXmlTemplate = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.BOOK_XML_ID, "").getValue();
         }
 
         // Setup the basic book.xml
@@ -1746,15 +1703,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         basicBook = basicBook.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
         basicBook = basicBook.replaceAll(BuilderConstants.DRAFT_REGEX, docbookBuildingOptions.getDraft() ? "status=\"draft\"" : "");
 
-        if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
-            // Add the preface to the book.xml
-            basicBook = basicBook.replaceAll(BuilderConstants.PREFACE_REGEX,
-                    "<xi:include href=\"Preface.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
+        // Add the preface to the book.xml
+        basicBook = basicBook.replaceAll(BuilderConstants.PREFACE_REGEX,
+                "<xi:include href=\"Preface.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
 
-            // Add the revision history to the book.xml
-            basicBook = basicBook.replaceAll(BuilderConstants.REV_HISTORY_REGEX,
-                    "<xi:include href=\"Revision_History.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
-        }
+        // Add the revision history to the book.xml
+        basicBook = basicBook.replaceAll(BuilderConstants.REV_HISTORY_REGEX,
+                "<xi:include href=\"Revision_History.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
 
         // Setup publican.cfg
         final String fixedPublicanCfg = buildPublicanCfgFile(publicanCfg, contentSpec);
@@ -1806,20 +1761,18 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         // Setup Preface.xml
-        if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
-            String fixedPrefaceXml = prefaceXmlTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
+        String fixedPrefaceXml = prefaceXmlTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
 
-            final String prefaceTitleTranslation = constantTranslatedStrings.getProperty("PREFACE");
-            if (prefaceTitleTranslation != null) {
-                fixedPrefaceXml = fixedPrefaceXml.replace("<title>Preface</title>", "<title>" + prefaceTitleTranslation + "</title>");
-            }
+        final String prefaceTitleTranslation = constantTranslatedStrings.getProperty("PREFACE");
+        if (prefaceTitleTranslation != null) {
+            fixedPrefaceXml = fixedPrefaceXml.replace("<title>Preface</title>", "<title>" + prefaceTitleTranslation + "</title>");
+        }
 
-            try {
-                files.put(BOOK_LOCALE_FOLDER + "Preface.xml", fixedPrefaceXml.getBytes("UTF-8"));
-            } catch (UnsupportedEncodingException e) {
-                /* UTF-8 is a valid format so this should exception should never get thrown */
-                log.error(e);
-            }
+        try {
+            files.put(BOOK_LOCALE_FOLDER + "Preface.xml", fixedPrefaceXml.getBytes("UTF-8"));
+        } catch (UnsupportedEncodingException e) {
+            /* UTF-8 is a valid format so this should exception should never get thrown */
+            log.error(e);
         }
 
         // Add any common content files that need to be included locally
@@ -1899,48 +1852,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param files       The mapping of file names/locations to files that will be packaged into the ZIP archive.
      */
     protected void addBookBaseFilesAndImages(final ContentSpec contentSpec, final Map<String, byte[]> files) {
-        final String iconSvg = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.ICON_SVG_ID, "").getValue();
+        final String iconSvg = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.ICON_SVG_ID, "").getValue();
         try {
             files.put(BOOK_IMAGES_FOLDER + "icon.svg", iconSvg.getBytes("UTF-8"));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
             log.error(e.getMessage());
-        }
-
-        if (contentSpec.getOutputStyle() != null && contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
-            final String jbossSvg = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.JBOSS_SVG_ID, "").getValue();
-
-            final String yahooDomEventJs = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.YAHOO_DOM_EVENT_JS_ID,
-                    "").getValue();
-            final String treeviewMinJs = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.TREEVIEW_MIN_JS_ID,
-                    "").getValue();
-            final String treeviewCss = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.TREEVIEW_CSS_ID,
-                    "").getValue();
-            final String jqueryMinJs = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.JQUERY_MIN_JS_ID,
-                    "").getValue();
-
-            final byte[] treeviewSpriteGif = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.TREEVIEW_SPRITE_GIF_ID,
-                    BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
-            final byte[] treeviewLoadingGif = restManager.getRESTClient().getJSONBlobConstant(
-                    DocbookBuilderConstants.TREEVIEW_LOADING_GIF_ID, BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
-            final byte[] check1Gif = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.CHECK1_GIF_ID,
-                    BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
-            final byte[] check2Gif = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.CHECK2_GIF_ID,
-                    BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
-
-            // these files are used by the YUI treeview
-            files.put(BOOK_FILES_FOLDER + "yahoo-dom-event.js", StringUtilities.getStringBytes(yahooDomEventJs));
-            files.put(BOOK_FILES_FOLDER + "treeview-min.js", StringUtilities.getStringBytes(treeviewMinJs));
-            files.put(BOOK_FILES_FOLDER + "treeview.css", StringUtilities.getStringBytes(treeviewCss));
-            files.put(BOOK_FILES_FOLDER + "jquery.min.js", StringUtilities.getStringBytes(jqueryMinJs));
-
-            // these are the images that are referenced in the treeview.css file
-            files.put(BOOK_FILES_FOLDER + "treeview-sprite.gif", treeviewSpriteGif);
-            files.put(BOOK_FILES_FOLDER + "treeview-loading.gif", treeviewLoadingGif);
-            files.put(BOOK_FILES_FOLDER + "check1.gif", check1Gif);
-            files.put(BOOK_FILES_FOLDER + "check2.gif", check2Gif);
-
-            files.put(BOOK_IMAGES_FOLDER + "jboss.svg", StringUtilities.getStringBytes(jbossSvg));
         }
     }
 
@@ -1970,12 +1887,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 contentSpec.getPubsNumber().toString());
         bookInfo = bookInfo.replaceAll(BuilderConstants.PUBSNUMBER_REGEX, "<pubsnumber>" + pubsNumber + "</pubsnumber>");
 
-        if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
-            bookInfo = bookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX,
-                    contentSpec.getAbstract() == null ? BuilderConstants.DEFAULT_ABSTRACT : ("<abstract>\n\t\t<para>\n\t\t\t" +
-                            contentSpec.getAbstract() + "\n\t\t</para>\n\t</abstract>\n"));
-            bookInfo = bookInfo.replaceAll(BuilderConstants.LEGAL_NOTICE_REGEX, BuilderConstants.LEGAL_NOTICE_XML);
-        }
+        bookInfo = bookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX,
+                contentSpec.getAbstract() == null ? BuilderConstants.DEFAULT_ABSTRACT : ("<abstract>\n\t\t<para>\n\t\t\t" +
+                        contentSpec.getAbstract() + "\n\t\t</para>\n\t</abstract>\n"));
+        bookInfo = bookInfo.replaceAll(BuilderConstants.LEGAL_NOTICE_REGEX, BuilderConstants.LEGAL_NOTICE_XML);
 
         return bookInfo;
     }
@@ -2003,24 +1918,17 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         // Remove the image width for CSP output
-        if (!contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
-            publicanCfg = publicanCfg.replaceFirst("max_image_width:\\s*\\d+\\s*(\\r)?\\n", "");
-            publicanCfg = publicanCfg.replaceFirst("toc_section_depth:\\s*\\d+\\s*(\\r)?\\n", "");
-        }
+        publicanCfg = publicanCfg.replaceFirst("max_image_width:\\s*\\d+\\s*(\\r)?\\n", "");
+        publicanCfg = publicanCfg.replaceFirst("toc_section_depth:\\s*\\d+\\s*(\\r)?\\n", "");
 
         if (contentSpec.getPublicanCfg() != null) {
-            /* Remove the git_branch if the content spec contains a git_branch */
+            // Remove the git_branch if the content spec contains a git_branch
             if (contentSpec.getPublicanCfg().indexOf("git_branch") != -1) {
                 publicanCfg = publicanCfg.replaceFirst("git_branch:\\s*.*(\\r)?(\\n)?", "");
             }
 
-            String userPublicanCfg = contentSpec.getPublicanCfg();
-
-            // Remove any xml_lang and type that were included by the user
-            userPublicanCfg = userPublicanCfg.replaceAll("xml_lang\\:\\s*.*?($|\\r\\n|\\n)", "").replaceAll(
-                    "type\\:\\s*.*($|\\r\\n|\\n)" + "", "");
-
-            publicanCfg += userPublicanCfg;
+            // Add the cleaned user defined publican.cfg
+            publicanCfg += DocbookBuildUtilities.cleanUserPublicanCfg(contentSpec.getPublicanCfg());
 
             if (!publicanCfg.matches(".*\n$")) {
                 publicanCfg += "\n";
@@ -2329,8 +2237,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
                         // Remove the initial file location as we only where it lives in the topics directory
                         final String fixedParentFileLocation = docbookBuildingOptions.getFlattenTopics() ? "topics/" : parentFileLocation
-                                .replace(
-                                BOOK_LOCALE_FOLDER, "");
+                                .replace(BOOK_LOCALE_FOLDER, "");
 
                         topicNode = chapter.createElement("xi:include");
                         ((Element) topicNode).setAttribute("href", fixedParentFileLocation + topicFileName);
@@ -2380,7 +2287,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         if (level.getLevelType() != LevelType.PART) {
             // Reposition the section intro
-            final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(section, DocBookUtilities.TOPIC_ROOT_SECTIONINFO_NODE_NAME);
+            final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(section,
+                    DocBookUtilities.TOPIC_ROOT_SECTIONINFO_NODE_NAME);
             if (sectionInfoNodes.size() != 0) {
                 final String introType = parentNode.getNodeName() + "info";
 
@@ -2485,7 +2393,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      */
     private void addImagesToBook(final HashMap<String, byte[]> files, final String locale) {
         /* Load the database constants */
-        final byte[] failpenguinPng = restManager.getRESTClient().getJSONBlobConstant(DocbookBuilderConstants.FAILPENGUIN_PNG_ID,
+        final byte[] failpenguinPng = restManager.getRESTClient().getJSONBlobConstant(BuilderConstants.FAILPENGUIN_PNG_ID,
                 BuilderConstants.BLOB_CONSTANT_EXPAND).getValue();
 
         /* download the image files that were identified in the processing stage */
@@ -2614,7 +2522,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         log.info("\tBuilding Author_Group.xml");
 
         // Setup Author_Group.xml
-        final String authorGroupXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.AUTHOR_GROUP_XML_ID,
+        final String authorGroupXml = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.AUTHOR_GROUP_XML_ID,
                 "").getValue();
         String fixedAuthorGroupXml = authorGroupXml;
         Document authorDoc = null;
@@ -2655,7 +2563,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             }
         }
 
-        /* Sort and make sure duplicate authors don't exist */
+        // Sort and make sure duplicate authors don't exist
         final Set<AuthorInformation> authors = new TreeSet<AuthorInformation>(new AuthorInformationComparator());
         for (final Entry<Integer, AuthorInformation> authorEntry : authorIDtoAuthor.entrySet()) {
             final AuthorInformation authorInfo = authorEntry.getValue();
@@ -2719,25 +2627,15 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             // Note: This should never happen but is used as a safety measure
             if (!insertedAuthor) {
                 final Element authorEle = authorDoc.createElement("author");
-                if (!insertedAuthor && contentSpec.getOutputStyle().equals(CSConstants.PRESSGANG_OUTPUT_FORMAT)) {
-                    // Use the author "PressGang Alpha Build System"
-                    final Element firstNameEle = authorDoc.createElement("firstname");
-                    firstNameEle.setTextContent("");
-                    authorEle.appendChild(firstNameEle);
-                    final Element lastNameEle = authorDoc.createElement("surname");
-                    lastNameEle.setTextContent("PressGang Alpha Build System");
-                    authorEle.appendChild(lastNameEle);
-                    authorDoc.getDocumentElement().appendChild(authorEle);
-                } else if (!insertedAuthor) {
-                    // Use the author "Staff Writer"
-                    final Element firstNameEle = authorDoc.createElement("firstname");
-                    firstNameEle.setTextContent("");
-                    authorEle.appendChild(firstNameEle);
-                    final Element lastNameEle = authorDoc.createElement("surname");
-                    lastNameEle.setTextContent("Staff Writer");
-                    authorEle.appendChild(lastNameEle);
-                    authorDoc.getDocumentElement().appendChild(authorEle);
-                }
+
+                // Use the author "PressGang Alpha Build System"
+                final Element firstNameEle = authorDoc.createElement("firstname");
+                firstNameEle.setTextContent("");
+                authorEle.appendChild(firstNameEle);
+                final Element lastNameEle = authorDoc.createElement("surname");
+                lastNameEle.setTextContent("PressGang Alpha Build System");
+                authorEle.appendChild(lastNameEle);
+                authorDoc.getDocumentElement().appendChild(authorEle);
 
                 // Add the affiliation
                 final Element affiliationEle = authorDoc.createElement("affiliation");
@@ -2770,7 +2668,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * 2. Content Spec Revision History Topic<br/>
      * 3. Revision History Template
      *
-     *
      * @param contentSpec The content spec object used to build the book.
      * @param overrides   The overrides to use for the build.
      * @param requester   The user who requested the build action.
@@ -2780,7 +2677,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     protected void buildRevisionHistory(final ContentSpec contentSpec, final Map<String, String> overrides, final String requester,
             final Map<String, byte[]> files) throws BuildProcessingException {
         // Replace the basic injection data inside the revision history
-        final String revisionHistoryXml = restManager.getRESTClient().getJSONStringConstant(DocbookBuilderConstants.REVISION_HISTORY_XML_ID,
+        final String revisionHistoryXml = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.REVISION_HISTORY_XML_ID,
                 "").getValue();
         String fixedRevisionHistoryXml = revisionHistoryXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, escapedTitle);
 
@@ -2848,15 +2745,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Builds the revision history using the requester of the build.
      *
-     *
      * @param contentSpec        The content spec object used to build the book.
      * @param revisionHistoryXml The Revision_History.xml file/template to add revision information to.
      * @param requester          The user who requested the build action.
      * @param files              The mapping of File Names/Locations to actual file content.
      * @throws BuildProcessingException
      */
-    protected void buildRevisionHistoryFromTemplate(final ContentSpec contentSpec, final String revisionHistoryXml,
-            final String requester, final Map<String, byte[]> files) throws BuildProcessingException {
+    protected void buildRevisionHistoryFromTemplate(final ContentSpec contentSpec, final String revisionHistoryXml, final String requester,
+            final Map<String, byte[]> files) throws BuildProcessingException {
         log.info("\tBuilding Revision_History.xml");
 
         Document revHistoryDoc;
@@ -2891,7 +2787,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             revHistoryDoc.getDocumentElement().appendChild(simpara);
         }
 
-        final List<RESTTagV1> authorList = requester == null ? new ArrayList<RESTTagV1>() : reader.getTagsByName(requester);
+        final List<RESTTagV1> authorList = requester == null ? new ArrayList<RESTTagV1>() : reader.getTagsByName(requester.getName());
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -2952,7 +2848,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
     /**
      * Fills in the information required inside of a revision tag, for the Revision_History.xml file.
-     *
      *
      * @param contentSpec The content spec to generate the revisions for.
      * @param xmlDoc      An XML DOM document that contains key regex expressions.
@@ -3031,15 +2926,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         if (contentSpec.getId() != null && contentSpec.getId() > 0) {
             if (contentSpec.getRevision() == null) {
-                listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(), reader.getLatestCSRevById(
-                        contentSpec.getId())) + (authorInfo.getAuthorId() > 0 ? (" by " + requester) : ""));
+                listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(),
+                        reader.getLatestCSRevById(contentSpec.getId())) + (authorInfo.getAuthorId() > 0 ? (" by " + requester) : ""));
             } else {
                 listMemberEle.setTextContent(String.format(BuilderConstants.BUILT_MSG, contentSpec.getId(),
                         contentSpec.getRevision()) + (authorInfo.getAuthorId() > 0 ? (" by " + requester) : ""));
             }
         } else {
-            listMemberEle.setTextContent(
-                    BuilderConstants.BUILT_FILE_MSG + (authorInfo.getAuthorId() > 0 ? (" by " + requester) : ""));
+            listMemberEle.setTextContent(BuilderConstants.BUILT_FILE_MSG + (authorInfo.getAuthorId() > 0 ? (" by " + requester) : ""));
         }
 
         simplelist.appendChild(listMemberEle);
