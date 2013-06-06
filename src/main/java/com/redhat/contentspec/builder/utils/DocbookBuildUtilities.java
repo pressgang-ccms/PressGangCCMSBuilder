@@ -6,8 +6,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import com.google.code.regexp.Matcher;
 import com.google.code.regexp.NamedMatcher;
 import com.google.code.regexp.NamedPattern;
+import com.google.code.regexp.Pattern;
 import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
 import com.redhat.contentspec.builder.constants.BuilderConstants;
@@ -192,8 +194,8 @@ public class DocbookBuildUtilities {
         /*
          * Check if the title starts with an invalid sequence
          */
-        final NamedPattern invalidSequencePattern = NamedPattern.compile(STARTS_WITH_INVALID_SEQUENCE_RE);
-        final NamedMatcher invalidSequenceMatcher = invalidSequencePattern.matcher(baseTitle);
+        final Pattern invalidSequencePattern = Pattern.compile(STARTS_WITH_INVALID_SEQUENCE_RE);
+        final Matcher invalidSequenceMatcher = invalidSequencePattern.matcher(baseTitle);
 
         if (invalidSequenceMatcher.find()) {
             baseTitle = invalidSequenceMatcher.group("EverythingElse");

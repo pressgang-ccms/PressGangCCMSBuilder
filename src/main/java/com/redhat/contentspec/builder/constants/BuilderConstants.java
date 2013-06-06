@@ -81,6 +81,8 @@ public class BuilderConstants {
     public static final String DEFAULT_EMAIL = "robot@dev.null.com";
     public static final String DEFAULT_REVNUMBER = "0.0-0";
 
+    public static final String LINUX_PUBLICAN_COMMON_CONTENT = "/usr/share/publican/Common_Content/";
+
     public static final String DEFAULT_ABSTRACT = "<abstract>\n\t\t<para>\n" +
             "\t\t\tA brief paragraph describing this book. This will be used as the description for the rpm package.\n" +
             "\t\t</para>\n" +
@@ -220,6 +222,10 @@ public class BuilderConstants {
      * The StringConstantsID that represents the Article.xml file
      */
     public static final Integer ARTICLE_XML_ID = 36;
+    /**
+     * The StringConstantsID that represents the pom.xml file
+     */
+    public static final Integer POM_XML_ID = 63;
     /**
      * The StringConstantsID that represents the Book.xml file
      */

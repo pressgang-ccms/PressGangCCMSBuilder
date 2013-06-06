@@ -14,7 +14,6 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
     private Boolean allowEmptySections = false;
     private Boolean showReportPage = false;
     private String locale = null;
-    private String commonContentLocale = null;
     private String commonContentDirectory = null;
     private String outputLocale = null;
     private Boolean draft = false;
@@ -99,14 +98,6 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
 
     public void setLocale(String locale) {
         this.locale = locale;
-    }
-
-    public String getCommonContentLocale() {
-        return commonContentLocale;
-    }
-
-    public void setCommonContentLocale(final String commonContentLocale) {
-        this.commonContentLocale = commonContentLocale;
     }
 
     public String getCommonContentDirectory() {

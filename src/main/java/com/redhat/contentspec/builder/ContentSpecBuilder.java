@@ -61,26 +61,34 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
     /**
      * Builds a book into a zip file for the passed Content Specification.
      *
-     *
      * @param contentSpec    The content specification that is to be built. It
      *                       should have already been validated, if not errors
      *                       may occur.
      * @param requester      The user who requested the book to be built.
      * @param builderOptions The set of options what are to be when building the
      *                       book.
+     * @param buildType
      * @return A byte array that is the zip file
      * @throws Exception Any unexpected errors that occur during building.
      */
-    public byte[] buildBook(final ContentSpec contentSpec, final String requester,
-            final CSDocbookBuildingOptions builderOptions) throws Exception {
+    public byte[] buildBook(final ContentSpec contentSpec, final String requester, final CSDocbookBuildingOptions builderOptions,
+            final BuildType buildType) throws Exception {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
         } else if (requester == null) {
             throw new BuilderCreationException("A user must be specified as the user who requested the build.");
         }
 
-        docbookBuilder = new DocbookBuilder<RESTTopicV1, RESTTopicCollectionV1, RESTTopicCollectionItemV1>(restManager, rocbookdtd,
-                CommonConstants.DEFAULT_LOCALE);
+        if (buildType == BuildType.PUBLICAN) {
+            docbookBuilder = new PublicanDocbookBuilder<RESTTopicV1, RESTTopicCollectionV1, RESTTopicCollectionItemV1>(restManager,
+                    rocbookdtd, CommonConstants.DEFAULT_LOCALE);
+        } else if (buildType == BuildType.JDOCBOOK) {
+            docbookBuilder = new JDocbookBuilder<RESTTopicV1, RESTTopicCollectionV1, RESTTopicCollectionItemV1>(restManager, rocbookdtd,
+                    CommonConstants.DEFAULT_LOCALE);
+        } else {
+            docbookBuilder = new DocbookBuilder<RESTTopicV1, RESTTopicCollectionV1, RESTTopicCollectionItemV1>(restManager, rocbookdtd,
+                    CommonConstants.DEFAULT_LOCALE);
+        }
 
         final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions);
 
@@ -97,25 +105,36 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
     /**
      * Builds a book into a zip file for the passed Content Specification.
      *
-     *
      * @param contentSpec    The content specification that is to be built. It should have already been validated, if not errors
      *                       may occur.
      * @param requester      The user who requested the book to be built.
      * @param builderOptions The set of options what are to be when building the book.
      * @param zanataDetails  The Zanata details to be used when editor links are turned on.
+     * @param buildType
      * @return A byte array that is the zip file
      * @throws Exception Any unexpected errors that occur during building.
      */
-    public byte[] buildTranslatedBook(final ContentSpec contentSpec, final String requester,
-            final CSDocbookBuildingOptions builderOptions, final ZanataDetails zanataDetails) throws Exception {
+    public byte[] buildTranslatedBook(final ContentSpec contentSpec, final String requester, final CSDocbookBuildingOptions builderOptions,
+            final ZanataDetails zanataDetails, final BuildType buildType) throws Exception {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
         } else if (requester == null) {
             throw new BuilderCreationException("A user must be specified as the user who requested the build.");
         }
 
-        docbookBuilder = new DocbookBuilder<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1, RESTTranslatedTopicCollectionItemV1>(
-                restManager, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
+        if (buildType == BuildType.PUBLICAN) {
+            docbookBuilder = new PublicanDocbookBuilder<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1,
+                    RESTTranslatedTopicCollectionItemV1>(
+                    restManager, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
+        } else if (buildType == BuildType.JDOCBOOK) {
+            docbookBuilder = new JDocbookBuilder<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1,
+                    RESTTranslatedTopicCollectionItemV1>(
+                    restManager, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
+        } else {
+            docbookBuilder = new DocbookBuilder<RESTTranslatedTopicV1, RESTTranslatedTopicCollectionV1,
+                    RESTTranslatedTopicCollectionItemV1>(
+                    restManager, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
+        }
 
         final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, zanataDetails);
 
