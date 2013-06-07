@@ -1611,7 +1611,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         basicBook = basicBook.replaceAll(BuilderConstants.PREFACE_REGEX,
                 "<xi:include href=\"Preface.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
 
-        // Remove the Injection sequence as we'll add the revision history element later
+        // Remove the Injection sequence as we'll add the revision history and xiinclude element later
+        basicBook = basicBook.replaceAll(BuilderConstants.XIINCLUDES_INJECTION_STRING, "");
         basicBook = basicBook.replaceAll(BuilderConstants.REV_HISTORY_REGEX, "");
 
         // Create the Book.xml DOM Document
@@ -1640,9 +1641,15 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 final Level level = (Level) node;
 
                 if (level.hasSpecTopics()) {
-                    final Element xiInclude = createRootElementXML(files, bookBase, level, useFixedUrls, flattenStructure);
-                    if (xiInclude != null) {
-                        bookBase.getDocumentElement().appendChild(xiInclude);
+                    // If the book is an article than just include it directly and don't create a new file
+                    if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
+                        createSectionXML(files, level, bookBase, bookBase.getDocumentElement(), BOOK_TOPICS_FOLDER, useFixedUrls,
+                                flattenStructure);
+                    } else {
+                        final Element xiInclude = createRootElementXML(files, bookBase, level, useFixedUrls, flattenStructure);
+                        if (xiInclude != null) {
+                            bookBase.getDocumentElement().appendChild(xiInclude);
+                        }
                     }
                 } else if (docbookBuildingOptions.isAllowEmptySections()) {
                     final Element para = bookBase.createElement("para");
@@ -2089,16 +2096,16 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Creates the section component of a chapter.xml for a specific ContentLevel.
      *
-     * @param files        The mapping of File Names/Locations to actual file content.
-     * @param level        The section level object to get content from.
-     * @param chapter      The chapter document object that this section is to be added to.
-     * @param parentNode   The parent XML node of this section.
-     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
-     * @param serverBuild  Whether the build is being done on a server.
+     * @param files            The mapping of File Names/Locations to actual file content.
+     * @param level            The section level object to get content from.
+     * @param chapter          The chapter document object that this section is to be added to.
+     * @param parentNode       The parent XML node of this section.
+     * @param useFixedUrls     If Fixed URL Properties should be used for topic ID attributes.
+     * @param flattenStructure Whether or not the build should be flattened.
      * @throws BuildProcessingException
      */
     protected void createSectionXML(final Map<String, byte[]> files, final Level level, final Document chapter, final Element parentNode,
-            final String parentFileLocation, final boolean useFixedUrls, final boolean serverBuild) throws BuildProcessingException {
+            final String parentFileLocation, final boolean useFixedUrls, final boolean flattenStructure) throws BuildProcessingException {
         final LinkedList<org.jboss.pressgang.ccms.contentspec.Node> levelData = level.getChildNodes();
 
         // Get the name of the element based on the type
@@ -2122,7 +2129,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
                 // Create a new file for the Chapter/Appendix
                 final Element xiInclude = createSubRootElementXML(files, chapter, childLevel, parentFileLocation, useFixedUrls,
-                        serverBuild);
+                        flattenStructure);
                 if (xiInclude != null) {
                     childNodes.add(xiInclude);
                 }
@@ -2150,14 +2157,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     }
                 } else {
                     // Add this sections child sections/topics
-                    createSectionXML(files, childLevel, chapter, sectionNode, parentFileLocation, useFixedUrls, serverBuild);
+                    createSectionXML(files, childLevel, chapter, sectionNode, parentFileLocation, useFixedUrls, flattenStructure);
                 }
 
                 childNodes.add(sectionNode);
             } else if (node instanceof SpecTopic) {
                 final SpecTopic specTopic = (SpecTopic) node;
                 Node topicNode = null;
-                if (serverBuild) {
+                if (flattenStructure) {
                     // Include the topic as is, into the chapter
                     topicNode = chapter.importNode(specTopic.getXmlDocument().getDocumentElement(), true);
                 } else {
