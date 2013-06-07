@@ -23,9 +23,9 @@ public class JDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTB
     }
 
     @Override
-    protected String buildBookBase(final ContentSpec contentSpec, final String requester,
+    protected void buildBookAdditions(final ContentSpec contentSpec, final String requester,
             final Map<String, byte[]> files) throws BuildProcessingException {
-        final String basicBook = super.buildBookBase(contentSpec, requester, files);
+        super.buildBookAdditions(contentSpec, requester, files);
 
         // Add any common content files that need to be included locally
         final String commonContentDirectory = docbookBuildingOptions.getCommonContentDirectory() == null ? BuilderConstants
@@ -33,9 +33,7 @@ public class JDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTB
         addPublicanCommonContentToBook(contentSpec, outputLocale, commonContentDirectory, files);
 
         // Add the pom.xml file for the maven build
-        addPOM(contentSpec, outputLocale, files);
-
-        return basicBook;
+        buildPom(contentSpec, outputLocale, files);
     }
 
     /**
@@ -102,7 +100,7 @@ public class JDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTB
         }
     }
 
-    protected void addPOM(final ContentSpec contentSpec, final String outputLocale, final Map<String, byte[]> files) {
+    protected void buildPom(final ContentSpec contentSpec, final String outputLocale, final Map<String, byte[]> files) {
         String pomXML = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.POM_XML_ID, "").getValue();
 
         pomXML = pomXML.replaceFirst("<translation>.*</translation>", "<translation>" + outputLocale + "</translation>").replaceFirst(

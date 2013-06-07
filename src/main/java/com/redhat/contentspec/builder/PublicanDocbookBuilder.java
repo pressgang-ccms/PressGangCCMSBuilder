@@ -24,9 +24,9 @@ public class PublicanDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extend
     }
 
     @Override
-    protected String buildBookBase(final ContentSpec contentSpec, final String requester,
+    protected void buildBookAdditions(final ContentSpec contentSpec, final String requester,
             final Map<String, byte[]> files) throws BuildProcessingException {
-        final String basicBook = super.buildBookBase(contentSpec, requester, files);
+        super.buildBookAdditions(contentSpec, requester, files);
 
         final String publicanCfg = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.PUBLICAN_CFG_ID,
                 "").getValue();
@@ -34,13 +34,11 @@ public class PublicanDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extend
         // Setup publican.cfg
         final String fixedPublicanCfg = buildPublicanCfgFile(publicanCfg, contentSpec);
         try {
-            files.put(BOOK_FOLDER + "publican.cfg", fixedPublicanCfg.getBytes("UTF-8"));
+            files.put(BOOK_FOLDER + "publican.cfg", fixedPublicanCfg.getBytes(ENCODING));
         } catch (UnsupportedEncodingException e) {
-            /* UTF-8 is a valid format so this should exception should never get thrown */
+            // UTF-8 is a valid format so this should exception should never get thrown
             log.error(e);
         }
-
-        return basicBook;
     }
 
     /**
@@ -84,7 +82,7 @@ public class PublicanDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extend
         }
 
         if (docbookBuildingOptions.getPublicanShowRemarks()) {
-            /* Remove any current show_remarks definitions */
+            // Remove any current show_remarks definitions
             if (publicanCfg.indexOf("show_remarks") != -1) {
                 publicanCfg = publicanCfg.replaceAll("show_remarks:\\s*\\d+\\s*(\\r)?(\\n)?", "");
             }

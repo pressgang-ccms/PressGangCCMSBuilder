@@ -7,8 +7,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import com.google.code.regexp.Matcher;
-import com.google.code.regexp.NamedMatcher;
-import com.google.code.regexp.NamedPattern;
 import com.google.code.regexp.Pattern;
 import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
@@ -205,8 +203,8 @@ public class DocbookBuildUtilities {
          * start by removing any prefixed numbers (you can't
          * start an xref id with numbers)
          */
-        final NamedPattern pattern = NamedPattern.compile(STARTS_WITH_NUMBER_RE);
-        final NamedMatcher matcher = pattern.matcher(baseTitle);
+        final Pattern pattern = Pattern.compile(STARTS_WITH_NUMBER_RE);
+        final Matcher matcher = pattern.matcher(baseTitle);
 
         if (matcher.find()) {
             final String numbers = matcher.group("Numbers");
