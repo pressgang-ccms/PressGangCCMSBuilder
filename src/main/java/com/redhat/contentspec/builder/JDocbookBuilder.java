@@ -88,7 +88,7 @@ public class JDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTB
                     }
 
                     // Fix the Doctype
-                    final String entityFileName = "../" +escapedTitle + ".ent";
+                    final String entityFileName = "../" + escapedTitle + ".ent";
                     final String fixedFile = DocBookUtilities.addDocbook45XMLDoctype(file, entityFileName, rootElementName);
 
                     // Add the file to the book
@@ -106,6 +106,27 @@ public class JDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTB
         pomXML = pomXML.replaceFirst("<translation>.*</translation>", "<translation>" + outputLocale + "</translation>").replaceFirst(
                 "<docname>.*</docname>", "<docname>" + escapedTitle + "</docname>").replaceFirst("<bookname>.*</bookname>",
                 "<bookname>" + contentSpec.getTitle() + "</bookname>");
+
+        // Change the GroupId
+        final String groupId;
+        if (contentSpec.getGroupId() != null) {
+            groupId = contentSpec.getGroupId();
+        } else {
+            groupId = originalProduct.toLowerCase().replaceAll(" ", "-");
+        }
+        pomXML = pomXML.replaceFirst("<groupId>.*</groupId>", "<groupId>" + groupId + "</groupId>");
+
+        // Change the ArtifactId
+        final String artifactId;
+        if (contentSpec.getArtifactId() != null) {
+            artifactId = contentSpec.getArtifactId();
+        } else {
+            artifactId = escapedTitle.toLowerCase().replace("_", "-") + outputLocale;
+        }
+        pomXML = pomXML.replaceFirst("<artifactId>.*</artifactId>", "<artifactId>" + artifactId + "</artifactId>");
+
+        // Change the Version
+        pomXML = pomXML.replaceFirst("<version>.*</version>", "<version>" + contentSpec.getVersion() + "</version>");
 
         try {
             files.put(BOOK_FOLDER + "pom.xml", pomXML.getBytes(ENCODING));
