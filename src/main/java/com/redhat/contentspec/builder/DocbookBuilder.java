@@ -1672,8 +1672,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         // Insert the editor link for the content spec if it's a translation
         if (docbookBuildingOptions.getInsertEditorLinks() && clazz == RESTTranslatedTopicV1.class) {
-            final String translateLinkChapter = DocBookUtilities.addDocbook45XMLDoctype(buildTranslateCSChapter(contentSpec, locale),
-                    this.escapedTitle + ".ent", "chapter");
+            final String translateLinkChapter = buildTranslateCSChapter(contentSpec, locale);
             files.put(BOOK_LOCALE_FOLDER + "Translate.xml", StringUtilities.getStringBytes(
                     StringUtilities.cleanTextForXML(translateLinkChapter == null ? "" : translateLinkChapter)));
 
@@ -1684,8 +1683,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         // Add any compiler errors
         if (!docbookBuildingOptions.getSuppressErrorsPage() && errorDatabase.hasItems(locale)) {
-            final String compilerOutput = DocBookUtilities.addDocbook45XMLDoctype(buildErrorChapter(contentSpec, locale),
-                    this.escapedTitle + ".ent", "chapter");
+            final String compilerOutput = buildErrorChapter(contentSpec, locale);
             files.put(BOOK_LOCALE_FOLDER + "Errors.xml",
                     StringUtilities.getStringBytes(StringUtilities.cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
 
@@ -1696,8 +1694,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         // Add the report chapter
         if (docbookBuildingOptions.getShowReportPage()) {
-            final String compilerOutput = DocBookUtilities.addDocbook45XMLDoctype(buildReportChapter(contentSpec, locale),
-                    this.escapedTitle + ".ent", "chapter");
+            final String compilerOutput = buildReportChapter(contentSpec, locale);
             files.put(BOOK_LOCALE_FOLDER + "Report.xml",
                     StringUtilities.getStringBytes(StringUtilities.cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
 
@@ -1708,11 +1705,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         // Build the content specification page
         if (!docbookBuildingOptions.getSuppressContentSpecPage()) {
+            final String contentSpecPage = DocBookUtilities.buildAppendix(DocBookUtilities.wrapInPara(
+                    "<programlisting>" + XMLUtilities.wrapStringInCDATA(contentSpec.toString()) + "</programlisting>"),
+                    "Build Content Specification");
             try {
-                files.put(BOOK_LOCALE_FOLDER + "Build_Content_Specification.xml", DocBookUtilities.addDocbook45XMLDoctype(
-                        DocBookUtilities.buildAppendix(DocBookUtilities.wrapInPara(
-                                "<programlisting>" + XMLUtilities.wrapStringInCDATA(contentSpec.toString()) + "</programlisting>"),
-                                "Build Content Specification")).getBytes(ENCODING));
+                files.put(BOOK_LOCALE_FOLDER + "Build_Content_Specification.xml",
+                        DocBookUtilities.addDocbook45XMLDoctype(contentSpecPage, escapedTitle + ".ent", "appendix").getBytes(ENCODING));
             } catch (UnsupportedEncodingException e) {
                 // UTF-8 is a valid format so this should exception should never get thrown */
                 log.error(e);
@@ -1728,8 +1726,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         bookBase.getDocumentElement().appendChild(revisionHistoryXMLNode);
 
         // Change the DOM Document into a string so it can be added to the ZIP
+        final String rootElementName = contentSpec.getBookType().toString().toLowerCase().replace("-draft", "");
         final String book = DocBookUtilities.addDocbook45XMLDoctype(
-                XMLUtilities.convertNodeToString(bookBase, verbatimElements, inlineElements, contentsInlineElements, true));
+                XMLUtilities.convertNodeToString(bookBase, verbatimElements, inlineElements, contentsInlineElements, true),
+                escapedTitle + ".ent", rootElementName);
         try {
             files.put(BOOK_LOCALE_FOLDER + escapedTitle + ".xml", book.getBytes(ENCODING));
         } catch (UnsupportedEncodingException e) {
@@ -2900,9 +2900,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            return DocBookUtilities.buildSection(para, "Content Specification");
+            return DocBookUtilities.addDocbook45XMLDoctype(DocBookUtilities.buildSection(para, "Content Specification"),
+                    this.escapedTitle + ".ent", "section");
         } else {
-            return DocBookUtilities.buildChapter(para, "Content Specification");
+            return DocBookUtilities.addDocbook45XMLDoctype(DocBookUtilities.buildChapter(para, "Content Specification"),
+                    this.escapedTitle + ".ent", "chapter");
         }
     }
 
@@ -2985,9 +2987,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            return DocBookUtilities.buildSection(errorItemizedLists, "Compiler Output");
+            return DocBookUtilities.addDocbook45XMLDoctype(DocBookUtilities.buildSection(errorItemizedLists, "Compiler Output"),
+                    this.escapedTitle + ".ent", "section");
         } else {
-            return DocBookUtilities.buildChapter(errorItemizedLists, "Compiler Output");
+            return DocBookUtilities.addDocbook45XMLDoctype(DocBookUtilities.buildChapter(errorItemizedLists, "Compiler Output"),
+                    this.escapedTitle + ".ent", "chapter");
         }
     }
 
@@ -3160,9 +3164,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            return DocBookUtilities.buildSection(reportChapter, "Status Report");
+            return DocBookUtilities.addDocbook45XMLDoctype(DocBookUtilities.buildSection(reportChapter, "Status Report"),
+                    this.escapedTitle + ".ent", "section");
         } else {
-            return DocBookUtilities.buildChapter(reportChapter, "Status Report");
+            return DocBookUtilities.addDocbook45XMLDoctype(DocBookUtilities.buildChapter(reportChapter, "Status Report"),
+                    this.escapedTitle + ".ent", "chapter");
         }
     }
 
