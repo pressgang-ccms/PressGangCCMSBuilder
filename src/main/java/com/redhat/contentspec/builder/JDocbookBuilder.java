@@ -127,7 +127,7 @@ public class JDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTB
         pomXML = pomXML.replaceFirst("<artifactId>.*</artifactId>", "<artifactId>" + artifactId + "</artifactId>");
 
         // Change the Version
-        pomXML = pomXML.replaceFirst("<version>.*</version>", "<version>" + contentSpec.getVersion() + "</version>");
+        pomXML = pomXML.replaceFirst("<version>.*</version>", "<version>" + contentSpec.getVersion() + "-SNAPSHOT</version>");
 
         try {
             files.put(BOOK_FOLDER + "pom.xml", pomXML.getBytes(ENCODING));
