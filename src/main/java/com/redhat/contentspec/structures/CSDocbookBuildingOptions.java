@@ -20,6 +20,7 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
     private List<String> revisionMessages = null;
     private Boolean useLatestVersions = false;
     private Boolean flattenTopics = false;
+    private Boolean flatten = false;
     private Boolean forceInjectBugzillaLinks = false;
     private Boolean serverBuild = false;
 
@@ -162,5 +163,13 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
 
     public void setServerBuild(Boolean serverBuild) {
         this.serverBuild = serverBuild;
+    }
+
+    public Boolean getFlatten() {
+        return flatten;
+    }
+
+    public void setFlatten(Boolean flatten) {
+        this.flatten = flatten;
     }
 }

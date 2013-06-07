@@ -1635,12 +1635,12 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 return;
             }
 
-            boolean serverBuild = docbookBuildingOptions.getServerBuild();
+            boolean flattenStructure = docbookBuildingOptions.getServerBuild() || docbookBuildingOptions.getFlatten();
             if (node instanceof Level) {
                 final Level level = (Level) node;
 
                 if (level.hasSpecTopics()) {
-                    final Element xiInclude = createRootElementXML(files, bookBase, level, useFixedUrls, serverBuild);
+                    final Element xiInclude = createRootElementXML(files, bookBase, level, useFixedUrls, flattenStructure);
                     if (xiInclude != null) {
                         bookBase.getDocumentElement().appendChild(xiInclude);
                     }
@@ -1651,18 +1651,20 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 }
             } else if (node instanceof SpecTopic) {
                 final SpecTopic specTopic = (SpecTopic) node;
-                final String topicFileName = createTopicXMLFile(files, specTopic, BOOK_TOPICS_FOLDER, useFixedUrls);
 
-                if (topicFileName != null) {
-                    final Node topicNode;
-                    if (serverBuild) {
-                        // Include the topic as is, into the chapter
-                        topicNode = bookBase.importNode(specTopic.getXmlDocument().getDocumentElement(), true);
-                    } else {
+                Node topicNode = null;
+                if (flattenStructure) {
+                    // Include the topic as is, into the chapter
+                    topicNode = bookBase.importNode(specTopic.getXmlDocument().getDocumentElement(), true);
+                } else {
+                    final String topicFileName = createTopicXMLFile(files, specTopic, BOOK_TOPICS_FOLDER, useFixedUrls);
+                    if (topicFileName != null) {
                         topicNode = XMLUtilities.createXIInclude(bookBase, "topics/" + topicFileName);
                     }
+                }
 
-                    // Add the node to the Book
+                // Add the node to the Book
+                if (topicNode != null) {
                     bookBase.getDocumentElement().appendChild(topicNode);
                 }
             }
@@ -1958,16 +1960,16 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Creates all the chapters/appendixes for a book and generates the section/topic data inside of each chapter.
      *
-     * @param files        The mapping of File Names/Locations to actual file content.
-     * @param doc          The Book document object to add the child level content to.
-     * @param level        The level to build the chapter from.
-     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
-     * @param serverBuild  Whether the build is being done on a server.
+     * @param files            The mapping of File Names/Locations to actual file content.
+     * @param doc              The Book document object to add the child level content to.
+     * @param level            The level to build the chapter from.
+     * @param useFixedUrls     If Fixed URL Properties should be used for topic ID attributes.
+     * @param flattenStructure Whether or not the build should be flattened.
      * @return The Element that specifies the XiInclude for the chapter/appendix in the files.
      * @throws BuildProcessingException
      */
     protected Element createRootElementXML(final Map<String, byte[]> files, final Document doc, final Level level,
-            final boolean useFixedUrls, final boolean serverBuild) throws BuildProcessingException {
+            final boolean useFixedUrls, final boolean flattenStructure) throws BuildProcessingException {
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
             return null;
@@ -2004,7 +2006,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         // Create and add the chapter/level contents
         createSectionXML(files, level, chapter, chapter.getDocumentElement(), BOOK_TOPICS_FOLDER + chapterName + File.separator,
-                useFixedUrls, serverBuild);
+                useFixedUrls, flattenStructure);
 
         // Add the boiler plate text and add the chapter to the book
         final String chapterString = DocBookUtilities.addDocbook45XMLDoctype(
@@ -2024,16 +2026,16 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * Creates all the chapters/appendixes for a book that are contained within another part/chapter/appendix and generates the
      * section/topic data inside of each chapter.
      *
-     * @param files        The mapping of File Names/Locations to actual file content.
-     * @param doc          The document object to add the child level content to.
-     * @param level        The level to build the chapter from.
-     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
-     * @param serverBuild  Whether the build is being done on a server.
+     * @param files            The mapping of File Names/Locations to actual file content.
+     * @param doc              The document object to add the child level content to.
+     * @param level            The level to build the chapter from.
+     * @param useFixedUrls     If Fixed URL Properties should be used for topic ID attributes.
+     * @param flattenStructure Whether or not the build should be flattened.
      * @return The Element that specifies the XiInclude for the chapter/appendix in the files.
      * @throws BuildProcessingException
      */
     protected Element createSubRootElementXML(final Map<String, byte[]> files, final Document doc, final Level level,
-            final String parentFileDirectory, final boolean useFixedUrls, final boolean serverBuild) throws BuildProcessingException {
+            final String parentFileDirectory, final boolean useFixedUrls, final boolean flattenStructure) throws BuildProcessingException {
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
             return null;
@@ -2065,7 +2067,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         // Create and add the chapter/level contents
         createSectionXML(files, level, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + File.separator,
-                useFixedUrls, serverBuild);
+                useFixedUrls, flattenStructure);
 
         // Add the boiler plate text and add the chapter to the book
         final String chapterString = DocBookUtilities.addDocbook45XMLDoctype(
@@ -2165,7 +2167,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
                         // Remove the initial file location as we only where it lives in the topics directory
                         final String fixedParentFileLocation = docbookBuildingOptions.getFlattenTopics() ? "topics/" : parentFileLocation
-                                .replace(BOOK_LOCALE_FOLDER, "");
+                                .replace(
+                                BOOK_LOCALE_FOLDER, "");
 
                         topicNode = XMLUtilities.createXIInclude(chapter, fixedParentFileLocation + topicFileName);
                     }
@@ -2442,7 +2445,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     /**
      * Builds the Author_Group.xml using the assigned writers for topics inside of the content specification.
      *
-     * @param files       The mapping of File Names/Locations to actual file content.
+     * @param files The mapping of File Names/Locations to actual file content.
      * @throws BuildProcessingException
      */
     private void buildAuthorGroup(final Map<String, byte[]> files) throws BuildProcessingException {
