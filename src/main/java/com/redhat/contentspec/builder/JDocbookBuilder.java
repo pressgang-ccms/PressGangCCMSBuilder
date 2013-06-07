@@ -104,15 +104,16 @@ public class JDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTB
         String pomXML = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.POM_XML_ID, "").getValue();
 
         pomXML = pomXML.replaceFirst("<translation>.*</translation>", "<translation>" + outputLocale + "</translation>").replaceFirst(
-                "<docname>.*</docname>", "<docname>" + escapedTitle + "</docname>").replaceFirst("<bookname>.*</bookname>",
-                "<bookname>" + contentSpec.getTitle() + "</bookname>");
+                "<docname>.*</docname>", "<docname>" + escapedTitle + "</docname>").replaceFirst("<docproduct>.*</docproduct>",
+                "<docproduct>" + DocBookUtilities.escapeTitle(originalProduct) +
+                        "</docproduct>").replaceFirst("<bookname>.*</bookname>", "<bookname>" + contentSpec.getTitle() + "</bookname>");
 
         // Change the GroupId
         final String groupId;
         if (contentSpec.getGroupId() != null) {
             groupId = contentSpec.getGroupId();
         } else {
-            groupId = originalProduct.toLowerCase().replaceAll(" ", "-");
+            groupId = DocBookUtilities.escapeTitle(originalProduct).toLowerCase();
         }
         pomXML = pomXML.replaceFirst("<groupId>.*</groupId>", "<groupId>" + groupId + "</groupId>");
 
