@@ -186,10 +186,6 @@ public class BuilderConstants {
     public static final List<String> VALID_PROGRAM_LISTING_LANGS = Arrays.asList("Java", "SQL", "C", "C++", "Bash", "Perl", "JavaScript",
             "Python", "XML", "Ruby", "C#", "HTML", "CSS", "Javadoc", "Haskell", "Lua", "Makefile", "Pascal", "RPM Spec", "Diff");
     /**
-     * The BlobConstant ID for the Rocbook DTD
-     */
-    public static final Integer ROCBOOK_DTD_BLOB_ID = 9;
-    /**
      * The StringConstantsID that represents the icon.svg file
      */
     public static final Integer ICON_SVG_ID = 6;

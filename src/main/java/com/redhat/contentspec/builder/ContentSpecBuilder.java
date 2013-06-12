@@ -35,7 +35,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 
     public ContentSpecBuilder(final RESTManager restManager) {
         this.restManager = restManager;
-        this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(BuilderConstants.ROCBOOK_DTD_BLOB_ID,
+        this.rocbookdtd = restManager.getRESTClient().getJSONBlobConstant(CommonConstants.ROCBOOK_DTD_BLOB_ID,
                 BuilderConstants.BLOB_CONSTANT_EXPAND);
     }
 
