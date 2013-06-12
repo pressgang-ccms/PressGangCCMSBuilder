@@ -1,6 +1,9 @@
 package com.redhat.contentspec.builder;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.util.Map;
 
@@ -8,6 +11,7 @@ import com.redhat.contentspec.builder.constants.BuilderConstants;
 import com.redhat.contentspec.builder.exception.BuildProcessingException;
 import com.redhat.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
+import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
 import org.jboss.pressgang.ccms.contentspec.rest.RESTManager;
 import org.jboss.pressgang.ccms.rest.v1.collections.base.RESTBaseCollectionItemV1;
 import org.jboss.pressgang.ccms.rest.v1.collections.base.RESTBaseCollectionV1;
@@ -27,13 +31,39 @@ public class JDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTB
             final Map<String, byte[]> files) throws BuildProcessingException {
         super.buildBookAdditions(contentSpec, requester, files);
 
+        final Map<String, String> overrides = docbookBuildingOptions.getOverrides();
+
         // Add any common content files that need to be included locally
         final String commonContentDirectory = docbookBuildingOptions.getCommonContentDirectory() == null ? BuilderConstants
                 .LINUX_PUBLICAN_COMMON_CONTENT : docbookBuildingOptions.getCommonContentDirectory();
         addPublicanCommonContentToBook(contentSpec, outputLocale, commonContentDirectory, files);
 
         // Add the pom.xml file for the maven build
-        buildPom(contentSpec, outputLocale, files);
+        if (overrides.containsKey(CSConstants.POM_OVERRIDE)) {
+            final File pom = new File(overrides.get(CSConstants.POM_OVERRIDE));
+            if (pom.exists() && pom.isFile()) {
+                try {
+                    final FileInputStream fis = new FileInputStream(pom);
+                    final BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
+                    final StringBuilder buffer = new StringBuilder();
+                    String line = "";
+                    while ((line = reader.readLine()) != null) {
+                        buffer.append(line + "\n");
+                    }
+
+                    // Add the parsed file to the book
+                    files.put(BOOK_FOLDER + "pom.xml", buffer.toString().getBytes(ENCODING));
+                } catch (Exception e) {
+                    log.error(e);
+                    buildPom(contentSpec, outputLocale, files);
+                }
+            } else {
+                log.error("pom.xml override is an invalid file. Using the default pom.xml instead.");
+                buildPom(contentSpec, outputLocale, files);
+            }
+        } else {
+            buildPom(contentSpec, outputLocale, files);
+        }
     }
 
     /**
