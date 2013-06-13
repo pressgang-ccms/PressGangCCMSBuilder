@@ -650,19 +650,26 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             }
 
             final Set<String> processedFileNames = new HashSet<String>();
-            if (latestTopics != null && latestTopics.getItems() != null) {
-                /*
-                 * assign fixed urls property tags to the topics. If fixedUrlsSuccess is true, the id of the topic sections,
-                 * xref injection points and file names in the zip file will be taken from the fixed url property tag,
-                 * defaulting back to the TopicID## format if for some reason that property tag does not exist.
-                 */
-                fixedUrlsSuccess = setFixedURLsPass(latestTopics, processedFileNames);
-            } else {
+            // If we are doing a build on a server then we shouldn't set the fixed urls
+            if (docbookBuildingOptions.isServerBuild()) {
+                /* Ensure that our revision topics FixedURLs are still valid */
+                setFixedURLsForRevisionsPass((U) allTopics, processedFileNames);
                 fixedUrlsSuccess = true;
-            }
+            } else {
+                if (latestTopics != null && latestTopics.getItems() != null) {
+                    /*
+                     * assign fixed urls property tags to the topics. If fixedUrlsSuccess is true, the id of the topic sections,
+                     * xref injection points and file names in the zip file will be taken from the fixed url property tag,
+                     * defaulting back to the TopicID## format if for some reason that property tag does not exist.
+                     */
+                    fixedUrlsSuccess = setFixedURLsPass(latestTopics, processedFileNames);
+                } else {
+                    fixedUrlsSuccess = true;
+                }
 
-            /* Ensure that our revision topics FixedURLs are still valid */
-            setFixedURLsForRevisionsPass((U) revisionTopics, processedFileNames);
+                /* Ensure that our revision topics FixedURLs are still valid */
+                setFixedURLsForRevisionsPass((U) revisionTopics, processedFileNames);
+            }
 
             topics = (U) allTopics;
         } else {
@@ -1636,7 +1643,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 return;
             }
 
-            boolean flattenStructure = docbookBuildingOptions.getServerBuild() || docbookBuildingOptions.getFlatten();
+            boolean flattenStructure = docbookBuildingOptions.isServerBuild() || docbookBuildingOptions.getFlatten();
             if (node instanceof Level) {
                 final Level level = (Level) node;
 

@@ -157,7 +157,7 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
         this.forceInjectBugzillaLinks = forceInjectBugzillaLinks;
     }
 
-    public Boolean getServerBuild() {
+    public Boolean isServerBuild() {
         return serverBuild;
     }
 
