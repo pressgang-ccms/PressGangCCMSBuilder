@@ -14,13 +14,13 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
     private Boolean allowEmptySections = false;
     private Boolean showReportPage = false;
     private String locale = null;
-    private String commonContentLocale = null;
     private String commonContentDirectory = null;
     private String outputLocale = null;
     private Boolean draft = false;
     private List<String> revisionMessages = null;
     private Boolean useLatestVersions = false;
     private Boolean flattenTopics = false;
+    private Boolean flatten = false;
     private Boolean forceInjectBugzillaLinks = false;
     private Boolean serverBuild = false;
 
@@ -101,14 +101,6 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
         this.locale = locale;
     }
 
-    public String getCommonContentLocale() {
-        return commonContentLocale;
-    }
-
-    public void setCommonContentLocale(final String commonContentLocale) {
-        this.commonContentLocale = commonContentLocale;
-    }
-
     public String getCommonContentDirectory() {
         return commonContentDirectory;
     }
@@ -165,11 +157,19 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
         this.forceInjectBugzillaLinks = forceInjectBugzillaLinks;
     }
 
-    public Boolean getServerBuild() {
+    public Boolean isServerBuild() {
         return serverBuild;
     }
 
     public void setServerBuild(Boolean serverBuild) {
         this.serverBuild = serverBuild;
+    }
+
+    public Boolean getFlatten() {
+        return flatten;
+    }
+
+    public void setFlatten(Boolean flatten) {
+        this.flatten = flatten;
     }
 }

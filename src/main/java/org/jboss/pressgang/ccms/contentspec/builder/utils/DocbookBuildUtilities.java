@@ -7,8 +7,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import com.google.code.regexp.NamedMatcher;
-import com.google.code.regexp.NamedPattern;
+import com.google.code.regexp.Matcher;
+import com.google.code.regexp.Pattern;
 import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
@@ -42,7 +42,6 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
 
 /**
  * A Utilities class that holds methods useful in the Docbook Builder.
@@ -216,16 +215,16 @@ public class DocbookBuildUtilities {
         baseTitle = baseTitle.replaceAll("</(.*?)>", "").replaceAll("<(.*?)>", "");
 
         // Check if the title starts with an invalid sequence
-        final NamedPattern invalidSequencePattern = NamedPattern.compile(STARTS_WITH_INVALID_SEQUENCE_RE);
-        final NamedMatcher invalidSequenceMatcher = invalidSequencePattern.matcher(baseTitle);
+        final Pattern invalidSequencePattern = Pattern.compile(STARTS_WITH_INVALID_SEQUENCE_RE);
+        final Matcher invalidSequenceMatcher = invalidSequencePattern.matcher(baseTitle);
 
         if (invalidSequenceMatcher.find()) {
             baseTitle = invalidSequenceMatcher.group("EverythingElse");
         }
 
         // Start by removing any prefixed numbers (you can't start an xref id with numbers)
-        final NamedPattern pattern = NamedPattern.compile(STARTS_WITH_NUMBER_RE);
-        final NamedMatcher matcher = pattern.matcher(baseTitle);
+        final Pattern pattern = Pattern.compile(STARTS_WITH_NUMBER_RE);
+        final Matcher matcher = pattern.matcher(baseTitle);
 
         if (matcher.find()) {
             final String numbers = matcher.group("Numbers");

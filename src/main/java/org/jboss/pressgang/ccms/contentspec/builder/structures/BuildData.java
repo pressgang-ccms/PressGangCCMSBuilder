@@ -78,19 +78,24 @@ public class BuildData {
      */
     private final String buildName;
     /**
+     * The username of the user who requested the build.
+     */
+    private final String requester;
+    /**
      * The Mapping of file names to file contents to be used to build the ZIP archive.
      */
     private final HashMap<String, byte[]> files = new HashMap<String, byte[]>();
     private final ContentSpec contentSpec;
 
-    public BuildData(final String buildName, final ContentSpec contentSpec, final String locale,
+    public BuildData(final String requester, final String buildName, final ContentSpec contentSpec, final String locale,
             final CSDocbookBuildingOptions buildOptions) {
-        this(buildName, contentSpec, locale, buildOptions, new ZanataDetails());
+        this(requester, buildName, contentSpec, locale, buildOptions, new ZanataDetails());
     }
 
-    public BuildData(final String buildName, final ContentSpec contentSpec, final String locale,
+    public BuildData(final String requester, final String buildName, final ContentSpec contentSpec, final String locale,
             final CSDocbookBuildingOptions buildOptions, final ZanataDetails zanataDetails) {
         this.contentSpec = contentSpec;
+        this.requester = requester;
         this.buildName = buildName;
         this.locale = locale;
         this.buildOptions = buildOptions;
@@ -276,5 +281,9 @@ public class BuildData {
      */
     public HashMap<String, byte[]> getOutputFiles() {
         return files;
+    }
+
+    public String getRequester() {
+        return requester;
     }
 }

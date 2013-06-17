@@ -7,8 +7,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.google.code.regexp.NamedMatcher;
-import com.google.code.regexp.NamedPattern;
+import com.google.code.regexp.Matcher;
+import com.google.code.regexp.Pattern;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
 import org.w3c.dom.Document;
 import org.xml.sax.EntityResolver;
@@ -25,8 +25,8 @@ import org.xml.sax.XMLReader;
  * @author lnewson
  */
 public class SAXXMLValidator implements ErrorHandler, EntityResolver {
-    private static final NamedPattern DOCTYPE_PATTERN = NamedPattern.compile(
-            "^\\s*<\\?xml.*?\\?>\\s*<\\!DOCTYPE\\s+(?<Name>.*?)\\s+((PUBLIC\\s+\".*?\"|SYSTEM)[ ]+\"(?<SystemId>.*?)\")\\s*(" +
+    private static final Pattern DOCTYPE_PATTERN = Pattern.compile(
+            "^\\s*<\\?xml.*?\\?>\\s*<\\!DOCTYPE\\s+(?<Name>.*?)\\s+((PUBLIC\\s+\".*?\"|SYSTEM)[ ]+\"(?<SystemId>.*?)\")\\s*(" + "" +
                     "(?<Entities>\\[(.|\n)*\\]\\s*))?>");
 
     protected boolean errorsDetected;
@@ -208,7 +208,7 @@ public class SAXXMLValidator implements ErrorHandler, EntityResolver {
         String output = null;
 
         // Check if the XML already has a DOCTYPE. If it does then replace the values and remove entities for processing
-        final NamedMatcher matcher = DOCTYPE_PATTERN.matcher(xml);
+        final Matcher matcher = DOCTYPE_PATTERN.matcher(xml);
         while (matcher.find()) {
             String name = matcher.group("Name");
             String systemId = matcher.group("SystemId");
