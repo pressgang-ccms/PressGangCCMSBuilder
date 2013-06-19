@@ -143,7 +143,7 @@ public class JDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTB
         // Change the GroupId
         final String groupId;
         if (contentSpec.getGroupId() != null) {
-            groupId = contentSpec.getGroupId();
+            groupId = contentSpec.getGroupId().replace("$", "\\$");
         } else {
             groupId = DocBookUtilities.escapeTitle(originalProduct).replace("_", "-").toLowerCase();
         }
@@ -152,7 +152,7 @@ public class JDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTB
         // Change the ArtifactId
         final String artifactId;
         if (contentSpec.getArtifactId() != null) {
-            artifactId = contentSpec.getArtifactId();
+            artifactId = contentSpec.getArtifactId().replace("$", "\\$");
         } else {
             artifactId = escapedTitle.toLowerCase().replace("_", "-") + "-" + outputLocale;
         }
