@@ -1401,7 +1401,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     final RESTTranslatedTopicV1 pushedTranslatedTopic = ComponentTranslatedTopicV1.returnPushedTranslatedTopic(
                             (RESTTranslatedTopicV1) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(specTopic.getRevision())) {
+                            .equals(
+                            specTopic.getRevision())) {
                         if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic)) {
                             errorDatabase.addWarning((T) topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -1965,8 +1966,28 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 contentSpec.getBugzillaProduct() == null ? originalProduct : contentSpec.getBugzillaProduct());
         entFile = entFile.replaceAll(BuilderConstants.BZCOMPONENT_REGEX,
                 contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec.getBugzillaComponent());
-        entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX,
-                contentSpec.getBugzillaURL() == null ? BuilderConstants.DEFAULT_BUGZILLA_URL : contentSpec.getBugzillaURL());
+
+        final StringBuilder fixedBZURL = new StringBuilder();
+        if (contentSpec.getBugzillaURL() == null) {
+            fixedBZURL.append("<ulink url=");
+            fixedBZURL.append(BuilderConstants.DEFAULT_BUGZILLA_URL);
+            fixedBZURL.append("enter_bug.cgi");
+            // Add in the product specific link details
+            if (contentSpec.getBugzillaProduct() != null) {
+                fixedBZURL.append("?product=").append(contentSpec.getBugzillaProduct());
+                if (contentSpec.getBugzillaComponent() != null) {
+                    fixedBZURL.append("&component=").append(contentSpec.getBugzillaComponent());
+                }
+                if (contentSpec.getBugzillaVersion() != null) {
+                    fixedBZURL.append("&version=").append(contentSpec.getBugzillaVersion());
+                }
+            }
+            fixedBZURL.append(">").append(BuilderConstants.DEFAULT_BUGZILLA_URL).append("</ulink>");
+        } else {
+            fixedBZURL.append(contentSpec.getBugzillaURL());
+        }
+
+        entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, fixedBZURL.toString());
 
         return entFile;
     }
