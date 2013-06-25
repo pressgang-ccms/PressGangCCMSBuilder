@@ -1190,7 +1190,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 boolean xmlValid = true;
 
                 // Check that the Topic XML exists and isn't empty
-                if (topicXML == null || topicXML.equals("")) {
+                if (topicXML == null || topicXML.trim().isEmpty()) {
                     // Create an empty topic with the topic title from the resource file
                     final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic, errorEmptyTopic.getValue(),
                             docbookBuildingOptions);
