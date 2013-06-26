@@ -96,6 +96,12 @@ public class PublicanDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extend
             publicanCfg += "cvs_pkg: " + docbookBuildingOptions.getCvsPkgOption() + "\n";
         }
 
+        // Add a version if one wasn't specified
+        if ((contentSpec.getVersion() == null || contentSpec.getVersion().isEmpty()) && !publicanCfg.contains("version:")) {
+            String version = contentSpec.getBookVersion() != null ? contentSpec.getBookVersion() : BuilderConstants.DEFAULT_VERSION;
+            publicanCfg += "version: " + version + "\n";
+        }
+
         return publicanCfg;
     }
 }

@@ -1574,14 +1574,14 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         // Add the base book information
         final HashMap<String, byte[]> files = new HashMap<String, byte[]>();
 
-        // add the images to the book
-        addImagesToBook(files, locale);
-
         // Build the book base
         buildBookBase(contentSpec, files, useFixedUrls);
 
         // Add the additional files
         buildBookAdditions(contentSpec, requester, files);
+
+        // add the images to the book
+        addImagesToBook(files, locale);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -1927,7 +1927,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         bookInfo = bookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX,
                 contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : contentSpec.getSubtitle());
         bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
-        bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
+        bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion() == null ? "" : contentSpec.getVersion());
         if (contentSpec.getEdition() == null) {
             bookInfo = bookInfo.replaceAll("<edition>.*</edition>(\r)?\n", "");
         } else {
@@ -1967,27 +1967,31 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         entFile = entFile.replaceAll(BuilderConstants.BZCOMPONENT_REGEX,
                 contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec.getBugzillaComponent());
 
-        final StringBuilder fixedBZURL = new StringBuilder();
-        if (contentSpec.getBugzillaURL() == null) {
-            fixedBZURL.append("<ulink url=");
-            fixedBZURL.append(BuilderConstants.DEFAULT_BUGZILLA_URL);
-            fixedBZURL.append("enter_bug.cgi");
-            // Add in the product specific link details
-            if (contentSpec.getBugzillaProduct() != null) {
-                fixedBZURL.append("?product=").append(contentSpec.getBugzillaProduct());
-                if (contentSpec.getBugzillaComponent() != null) {
-                    fixedBZURL.append("&component=").append(contentSpec.getBugzillaComponent());
+        try {
+            final StringBuilder fixedBZURL = new StringBuilder();
+            if (contentSpec.getBugzillaURL() == null) {
+                fixedBZURL.append("<ulink url='");
+                fixedBZURL.append(BuilderConstants.DEFAULT_BUGZILLA_URL);
+                fixedBZURL.append("enter_bug.cgi");
+                // Add in the product specific link details
+                if (contentSpec.getBugzillaProduct() != null) {
+                    fixedBZURL.append("?product=").append(URLEncoder.encode(contentSpec.getBugzillaProduct(), ENCODING));
+                    if (contentSpec.getBugzillaComponent() != null) {
+                        fixedBZURL.append("&amp;component=").append(URLEncoder.encode(contentSpec.getBugzillaComponent(), ENCODING));
+                    }
+                    if (contentSpec.getBugzillaVersion() != null) {
+                        fixedBZURL.append("&amp;version=").append(URLEncoder.encode(contentSpec.getBugzillaVersion(), ENCODING));
+                    }
                 }
-                if (contentSpec.getBugzillaVersion() != null) {
-                    fixedBZURL.append("&version=").append(contentSpec.getBugzillaVersion());
-                }
+                fixedBZURL.append("'>").append(BuilderConstants.DEFAULT_BUGZILLA_URL).append("</ulink>");
+            } else {
+                fixedBZURL.append(contentSpec.getBugzillaURL());
             }
-            fixedBZURL.append(">").append(BuilderConstants.DEFAULT_BUGZILLA_URL).append("</ulink>");
-        } else {
-            fixedBZURL.append(contentSpec.getBugzillaURL());
-        }
 
-        entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, fixedBZURL.toString());
+            entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, fixedBZURL.toString());
+        } catch (UnsupportedEncodingException e) {
+            log.error(e);
+        }
 
         return entFile;
     }
@@ -2495,7 +2499,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             authorDoc = XMLUtilities.convertStringToDocument(fixedAuthorGroupXml);
         } catch (SAXException ex) {
             // Exit since we shouldn't fail at converting the basic author group
-            log.debug(ExceptionUtilities.getStackTrace(ex));
+            log.debug(ex);
             throw new BuildProcessingException("Failed to convert the Author_Group.xml template into a DOM document");
         }
         final LinkedHashMap<Integer, AuthorInformation> authorIDtoAuthor = new LinkedHashMap<Integer, AuthorInformation>();
