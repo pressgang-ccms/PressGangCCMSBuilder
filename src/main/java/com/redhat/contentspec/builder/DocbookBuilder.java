@@ -2690,12 +2690,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 buildRevisionHistoryFromTemplate(contentSpec, fixedRevisionHistoryXml, requester, files);
             }
         } else if (contentSpec.getRevisionHistory() != null) {
+            final TopicErrorData<T> errorData = errorDatabase.getErrorData((T) contentSpec.getRevisionHistory().getTopic());
             final String revisionHistoryXML = DocBookUtilities.addDocbook45XMLDoctype(
                     XMLUtilities.convertNodeToString(contentSpec.getRevisionHistory().getXmlDocument(), verbatimElements, inlineElements,
                             contentsInlineElements, true), escapedTitle + ".ent", "appendix");
             if (docbookBuildingOptions.getRevisionMessages() != null && !docbookBuildingOptions.getRevisionMessages().isEmpty()) {
                 buildRevisionHistoryFromTemplate(contentSpec, revisionHistoryXML, requester, files);
-            } else if (errorDatabase.hasErrorData((T) contentSpec.getRevisionHistory().getTopic())) {
+            } else if (errorData.hasItemsOfType(ErrorLevel.ERROR) || errorData.hasNormalErrors()) {
                 buildRevisionHistoryFromTemplate(contentSpec, revisionHistoryXML, requester, files);
             } else {
                 // Add the revision history directly to the book
@@ -2981,7 +2982,9 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     url = ComponentTopicV1.returnPressGangCCMSURL((RESTTopicV1) topic);
                 }
 
-                topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + tags));
+                if (tags != null && !tags.isEmpty()) {
+                    topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + tags));
+                }
                 topicErrorItems.add(DocBookUtilities.buildListItem("INFO: <ulink url=\"" + url + "\">Topic URL</ulink>"));
 
                 for (final String error : topicErrorData.getItemsOfType(ErrorLevel.ERROR)) {
