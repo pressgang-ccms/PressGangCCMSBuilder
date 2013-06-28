@@ -2696,7 +2696,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                             contentsInlineElements, true), escapedTitle + ".ent", "appendix");
             if (docbookBuildingOptions.getRevisionMessages() != null && !docbookBuildingOptions.getRevisionMessages().isEmpty()) {
                 buildRevisionHistoryFromTemplate(contentSpec, revisionHistoryXML, requester, files);
-            } else if (errorData.hasItemsOfType(ErrorLevel.ERROR) || errorData.hasNormalErrors()) {
+            } else if (errorData != null && (errorData.hasItemsOfType(ErrorLevel.ERROR) || errorData.hasNormalErrors())) {
                 buildRevisionHistoryFromTemplate(contentSpec, revisionHistoryXML, requester, files);
             } else {
                 // Add the revision history directly to the book
