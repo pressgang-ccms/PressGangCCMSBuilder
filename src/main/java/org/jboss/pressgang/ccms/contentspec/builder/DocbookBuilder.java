@@ -636,6 +636,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      */
     protected boolean populateDatabaseTopics(final BuildData buildData, final Map<String, BaseTopicWrapper<?>> topics) {
         boolean fixedUrlsSuccess = false;
+        final List<TopicWrapper> allTopics = new ArrayList<TopicWrapper>();
         final List<TopicWrapper> latestTopics = new ArrayList<TopicWrapper>();
         final List<TopicWrapper> revisionTopics = new ArrayList<TopicWrapper>();
 
@@ -647,9 +648,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
             if (specTopic.getRevision() != null && !buildData.getBuildOptions().getUseLatestVersions()) {
                 topic = topicProvider.getTopic(specTopic.getDBId(), specTopic.getRevision());
                 revisionTopics.add(topic);
+                allTopics.add(topic);
             } else {
                 topic = topicProvider.getTopic(specTopic.getDBId());
                 latestTopics.add(topic);
+                allTopics.add(topic);
             }
 
             // Add the topic to the topics collection
@@ -658,19 +661,26 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         final Set<String> processedFileNames = new HashSet<String>();
-        if (latestTopics != null) {
-            /*
-             * assign fixed urls property tags to the topics. If fixedUrlsSuccess is true, the id of the topic sections,
-             * xref injection points and file names in the zip file will be taken from the fixed url property tag,
-             * defaulting back to the TopicID## format if for some reason that property tag does not exist.
-             */
-            fixedUrlsSuccess = setFixedURLsPass(latestTopics, processedFileNames);
-        } else {
+        // If we are doing a build on a server then we shouldn't set the fixed urls
+        if (buildData.getBuildOptions().isServerBuild()) {
+            // Ensure that our revision topics FixedURLs are still valid
+            setFixedURLsForRevisionsPass(allTopics, processedFileNames);
             fixedUrlsSuccess = true;
-        }
+        } else {
+            if (latestTopics != null) {
+                /*
+                 * assign fixed urls property tags to the topics. If fixedUrlsSuccess is true, the id of the topic sections,
+                 * xref injection points and file names in the zip file will be taken from the fixed url property tag,
+                 * defaulting back to the TopicID## format if for some reason that property tag does not exist.
+                 */
+                fixedUrlsSuccess = setFixedURLsPass(latestTopics, processedFileNames);
+            } else {
+                fixedUrlsSuccess = true;
+            }
 
-        // Ensure that our revision topics FixedURLs are still valid
-        setFixedURLsForRevisionsPass(revisionTopics, processedFileNames);
+            // Ensure that our revision topics FixedURLs are still valid
+            setFixedURLsForRevisionsPass(revisionTopics, processedFileNames);
+        }
 
         return fixedUrlsSuccess;
     }
@@ -1249,14 +1259,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Add the base book information
         final HashMap<String, byte[]> files = buildData.getOutputFiles();
 
-        // add the images to the book
-        addImagesToBook(buildData);
-
         // Build the book base
         buildBookBase(buildData, useFixedUrls);
 
         // Add the additional files
         buildBookAdditions(buildData);
+
+        // add the images to the book
+        addImagesToBook(buildData);
 
         return files;
     }
@@ -1566,7 +1576,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Set the book product
         bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
         // Set the book product version
-        bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
+        bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion() == null ? "" : contentSpec.getVersion());
         // Set or remove the book edition
         if (contentSpec.getEdition() == null) {
             bookInfo = bookInfo.replaceAll("<edition>.*</edition>(\r)?\n", "");
@@ -1608,8 +1618,32 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 contentSpec.getBugzillaProduct() == null ? buildData.getOriginalBookProduct() : contentSpec.getBugzillaProduct());
         entFile = entFile.replaceAll(BuilderConstants.BZCOMPONENT_REGEX,
                 contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec.getBugzillaComponent());
-        entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX,
-                contentSpec.getBugzillaURL() == null ? BuilderConstants.DEFAULT_BUGZILLA_URL : contentSpec.getBugzillaURL());
+
+        try {
+            final StringBuilder fixedBZURL = new StringBuilder();
+            if (contentSpec.getBugzillaURL() == null) {
+                fixedBZURL.append("<ulink url='");
+                fixedBZURL.append(BuilderConstants.DEFAULT_BUGZILLA_URL);
+                fixedBZURL.append("enter_bug.cgi");
+                // Add in the product specific link details
+                if (contentSpec.getBugzillaProduct() != null) {
+                    fixedBZURL.append("?product=").append(URLEncoder.encode(contentSpec.getBugzillaProduct(), ENCODING));
+                    if (contentSpec.getBugzillaComponent() != null) {
+                        fixedBZURL.append("&amp;component=").append(URLEncoder.encode(contentSpec.getBugzillaComponent(), ENCODING));
+                    }
+                    if (contentSpec.getBugzillaVersion() != null) {
+                        fixedBZURL.append("&amp;version=").append(URLEncoder.encode(contentSpec.getBugzillaVersion(), ENCODING));
+                    }
+                }
+                fixedBZURL.append("'>").append(BuilderConstants.DEFAULT_BUGZILLA_URL).append("</ulink>");
+            } else {
+                fixedBZURL.append(contentSpec.getBugzillaURL());
+            }
+
+            entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, fixedBZURL.toString());
+        } catch (UnsupportedEncodingException e) {
+            log.error(e);
+        }
 
         return entFile;
     }
@@ -2276,11 +2310,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 buildData.getOutputFiles().put(buildData.getBookLocaleFolder() + REVISION_HISTORY_FILE_NAME, revHistory);
             }
         } else if (contentSpec.getRevisionHistory() != null) {
+            final TopicErrorData errorData = buildData.getErrorDatabase().getErrorData(contentSpec.getRevisionHistory().getTopic());
             final String revisionHistoryXML = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
                     contentSpec.getRevisionHistory().getXMLDocument(), "appendix", buildData.getEntityFileName(), getXMLFormatProperties());
             if (buildData.getBuildOptions().getRevisionMessages() != null && !buildData.getBuildOptions().getRevisionMessages().isEmpty()) {
                 buildRevisionHistoryFromTemplate(buildData, revisionHistoryXML);
-            } else if (buildData.getErrorDatabase().hasErrorData(contentSpec.getRevisionHistory().getTopic())) {
+            } else if (errorData != null && (errorData.hasItemsOfType(ErrorLevel.ERROR) || errorData.hasNormalErrors())) {
                 buildRevisionHistoryFromTemplate(buildData, revisionHistoryXML);
             } else {
                 // Add the revision history directly to the book
@@ -2558,7 +2593,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 final String tags = EntityUtilities.getCommaSeparatedTagList(topic);
                 final String url = topic.getPressGangURL();
 
-                topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + tags));
+                if (tags != null && !tags.isEmpty()) {
+                    topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + tags));
+                }
                 topicErrorItems.add(DocBookUtilities.buildListItem("INFO: <ulink url=\"" + url + "\">Topic URL</ulink>"));
 
                 for (final String error : topicErrorData.getItemsOfType(ErrorLevel.ERROR)) {

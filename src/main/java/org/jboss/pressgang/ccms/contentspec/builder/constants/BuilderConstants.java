@@ -72,6 +72,7 @@ public class BuilderConstants {
     public static final String SUBTITLE_DEFAULT = "Subtitle goes here";
     public static final String DEFAULT_EDITION = "1";
     public static final String DEFAULT_PUBSNUMBER = "1";
+    public static final String DEFAULT_VERSION = "1.0";
     public static final String DEFAULT_BUGZILLA_URL = "https://bugzilla.redhat.com/";
 
     public static final String DEFAULT_AUTHOR_FIRSTNAME = "CS Builder";
