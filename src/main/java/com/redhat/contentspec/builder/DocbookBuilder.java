@@ -1703,8 +1703,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     StringUtilities.getStringBytes(StringUtilities.cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
 
             // Create and append the XI Include element
-            final Element translateXMLNode = XMLUtilities.createXIInclude(bookBase, "Errors.xml");
-            bookBase.getDocumentElement().appendChild(translateXMLNode);
+            final Element errorsXMLNode = XMLUtilities.createXIInclude(bookBase, "Errors.xml");
+            bookBase.getDocumentElement().appendChild(errorsXMLNode);
         }
 
         // Add the report chapter
@@ -1714,8 +1714,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     StringUtilities.getStringBytes(StringUtilities.cleanTextForXML(compilerOutput == null ? "" : compilerOutput)));
 
             // Create and append the XI Include element
-            final Element translateXMLNode = XMLUtilities.createXIInclude(bookBase, "Report.xml");
-            bookBase.getDocumentElement().appendChild(translateXMLNode);
+            final Element reportXMLNode = XMLUtilities.createXIInclude(bookBase, "Report.xml");
+            bookBase.getDocumentElement().appendChild(reportXMLNode);
         }
 
         // Build the content specification page
@@ -1732,8 +1732,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             }
 
             // Create and append the XI Include element
-            final Element translateXMLNode = XMLUtilities.createXIInclude(bookBase, "Build_Content_Specification.xml");
-            bookBase.getDocumentElement().appendChild(translateXMLNode);
+            final Element contentSpecXMLNode = XMLUtilities.createXIInclude(bookBase, "Build_Content_Specification.xml");
+            bookBase.getDocumentElement().appendChild(contentSpecXMLNode);
         }
 
         // Add the revision history to the book.xml
@@ -2997,10 +2997,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
                 /*
                  * this should never be false, because a topic will only be listed in the errors collection once a error or
-                 * warning has been added. The count of 2 comes from the standard list items we added above for the tags and
+                 * warning has been added. The count of 1 comes from the standard list items we added above for the tags and
                  * url.
                  */
-                if (topicErrorItems.size() > 2) {
+                if (topicErrorItems.size() > 1) {
                     final String title;
                     if (topic instanceof RESTTranslatedTopicV1) {
                         final RESTTranslatedTopicV1 translatedTopic = (RESTTranslatedTopicV1) topic;
