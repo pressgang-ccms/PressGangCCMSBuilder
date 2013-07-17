@@ -63,7 +63,7 @@ public class DocbookBuildUtilities {
      * @param usedIdAttributes The list of usedIdAttributes.
      */
     public static void setUniqueIds(final SpecTopic specTopic, final Node node, final Document doc,
-            final Map<Integer, Set<String>> usedIdAttributes) {
+            final Map<SpecTopic, Set<String>> usedIdAttributes) {
         final NamedNodeMap attributes = node.getAttributes();
         if (attributes != null) {
             final Node idAttribute = attributes.getNamedItem("id");
@@ -104,8 +104,8 @@ public class DocbookBuildUtilities {
         final NamedNodeMap attributes = node.getAttributes();
         if (attributes != null) {
             for (int i = 0; i < attributes.getLength(); ++i) {
-                final String attibuteValue = attributes.item(i).getNodeValue();
-                if (attibuteValue.equals(id)) {
+                final String attributeValue = attributes.item(i).getNodeValue();
+                if (attributeValue.equals(id)) {
                     attributes.item(i).setNodeValue(fixedId);
                 }
             }
@@ -126,12 +126,13 @@ public class DocbookBuildUtilities {
      * @param usedIdAttributes The set of used ids calculated earlier
      * @return True if the id is unique otherwise false.
      */
-    public static boolean isUniqueAttributeId(final String id, final Integer topicId, final Map<Integer, Set<String>> usedIdAttributes) {
+    public static boolean isUniqueAttributeId(final String id, final Integer topicId, final Map<SpecTopic, Set<String>> usedIdAttributes) {
         boolean retValue = true;
 
         if (usedIdAttributes.containsKey(topicId)) {
-            for (final Entry<Integer, Set<String>> entry : usedIdAttributes.entrySet()) {
-                final Integer topicId2 = entry.getKey();
+            for (final Entry<SpecTopic, Set<String>> entry : usedIdAttributes.entrySet()) {
+                final SpecTopic topic2 = entry.getKey();
+                final Integer topicId2 = topic2.getDBId();
                 if (topicId2.equals(topicId)) {
                     continue;
                 }
@@ -166,8 +167,8 @@ public class DocbookBuildUtilities {
             if (attributes != null) {
                 final Node idAttribute = attributes.getNamedItem("linkend");
                 if (idAttribute != null) {
-                    final String idAttibuteValue = idAttribute.getNodeValue();
-                    linkIds.add(idAttibuteValue);
+                    final String idAttributeValue = idAttribute.getNodeValue();
+                    linkIds.add(idAttributeValue);
                 }
             }
         }

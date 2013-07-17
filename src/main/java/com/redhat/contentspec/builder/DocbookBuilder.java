@@ -97,6 +97,72 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+/**
+ * A builder to build Docbook compatible output using a Content Specification. The builder works in the following stages:
+ * <br />
+ * <ol>
+ *     <li>
+ *         Populate Pass
+ *         <ul>
+ *             <li>Downloads all the topics using the REST API and creates the SpecTopic/Level database.</li>
+ *         </ul>
+ *     </li>
+ *     <li>
+ *         Topic Pass
+ *         <ul>
+ *             <li>Goes through each topic and converts the XML into a DOM element. If the XML is empty or can't be converted into a
+ *             DOM element it is replaced by a template. Then it initials all the SpecTopics with the XML and Topic information.</li>
+ *         </ul>
+ *     </li>
+ *     <li>
+ *         Spec Topic First Pass
+ *         <ul>
+ *             <li>Goes through each SpecTopic and processes the XML to remove conditional statements. This stage also collects all of
+ *             the xml id's in the book, which are used in the next step.
+ *             </li>
+ *         </ul>
+ *     </li>
+ *     <li>
+ *         Topic First Pass
+ *         <ul>
+ *             <li>Goes through each SpecTopic and processes the XML to check that each &lt;xref&gt; or &lt;link&gt; has a valid
+ *             reference to some point in the book.
+ *             </li>
+ *         </ul>
+ *     </li>
+ *     <li>
+ *         Spec Topic Second Pass
+ *         <ul>
+ *             <li>Goes through each SpecTopic and processes the XML to resolve injections and then do a proper validation on the XML
+ *             content. It will then go through the XML and fix any possible duplicate ids (for example if the same topic is included
+ *             twice in a Content Spec).
+ *             </li>
+ *         </ul>
+ *     </li>
+ *     <li>
+ *         Link Second Pass
+ *         <ul>
+ *             <li>Goes through each SpecTopic and fixes any links where the link may no longer exist due to the linked topic being
+ *             replaced by an error template. If there is any found, than the old link is set to point to the error template.
+ *             </li>
+ *         </ul>
+ *     </li>
+ *     <li>
+ *         Build Pass
+ *         <ul>
+ *             <li>This step also builds the book structure using the content specification and goes through and converts each SpecTopics
+ *             DOM XML representation into a XML string. This step will also download any images and additional files and add them to the
+ *             output.
+ *             </li>
+ *         </ul>
+ *     </li>
+ * </ol>
+ *
+ *
+ * @param <T>
+ * @param <U>
+ * @param <V>
+ */
 public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBaseCollectionV1<T, U, V>,
         V extends RESTBaseCollectionItemV1<T, U, V>> implements ShutdownAbleApp {
     protected static final Logger log = Logger.getLogger(DocbookBuilder.class);
@@ -427,8 +493,16 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             return null;
         }
 
-        final Map<Integer, Set<String>> usedIdAttributes = new HashMap<Integer, Set<String>>();
-        final boolean fixedUrlsSuccess = doPopulateDatabasePass(contentSpec, usedIdAttributes);
+        final boolean useFixedUrls = doPopulateDatabasePass(contentSpec);
+
+        // Check if the app should be shutdown
+        if (isShuttingDown.get()) {
+            shutdown.set(true);
+            return null;
+        }
+
+        final Map<SpecTopic, Set<String>> usedIdAttributes = new HashMap<SpecTopic, Set<String>>();
+        doSpecTopicFirstPass(usedIdAttributes);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -440,14 +514,29 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
          * We need to create a list of all id's in the book to check if links are valid. So generate the id attribute that are
          * used by topics, section and chapters. Then add any id's that were found in the topics.
          */
-        final Set<String> bookIdAttributes = specDatabase.getIdAttributes(fixedUrlsSuccess);
-        for (final Entry<Integer, Set<String>> entry : usedIdAttributes.entrySet()) {
+        final Set<String> bookIdAttributes = specDatabase.getIdAttributes(useFixedUrls);
+        for (final Entry<SpecTopic, Set<String>> entry : usedIdAttributes.entrySet()) {
             bookIdAttributes.addAll(entry.getValue());
         }
-        validateTopicLinks(bookIdAttributes, fixedUrlsSuccess);
+
+        doLinkPass(useFixedUrls, usedIdAttributes, bookIdAttributes);
+
+        // Check if the app should be shutdown
+        if (isShuttingDown.get()) {
+            shutdown.set(true);
+            return null;
+        }
 
         // second topic pass to set the ids and process injections
-        doSpecTopicPass(contentSpec, usedIdAttributes, fixedUrlsSuccess, BuilderConstants.BUILD_NAME);
+        doSpecTopicSecondPass(contentSpec, usedIdAttributes, useFixedUrls, BuilderConstants.BUILD_NAME);
+
+        // Check if the app should be shutdown
+        if (isShuttingDown.get()) {
+            shutdown.set(true);
+            return null;
+        }
+
+        doLinkSecondPass(useFixedUrls, usedIdAttributes);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -464,7 +553,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             return null;
         }
 
-        return doBuildZipPass(contentSpec, requester, fixedUrlsSuccess);
+        return doBuildZipPass(contentSpec, requester, useFixedUrls);
     }
 
     /**
@@ -532,8 +621,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      */
     @SuppressWarnings("unchecked")
     protected void validateTopicLinks(final Set<String> bookIdAttributes, final boolean useFixedUrls) throws BuildProcessingException {
-        log.info("Doing " + locale + " Topic Link Pass");
-
         final List<SpecTopic> topics = specDatabase.getAllSpecTopics();
         final Set<Integer> processedTopics = new HashSet<Integer>();
         for (final SpecTopic specTopic : topics) {
@@ -596,13 +683,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * topics to each SpecTopic.
      *
      * @param contentSpec      The content spec to populate the database from.
-     * @param usedIdAttributes The set of Used ID Attributes that should be added to.
      * @return True if the database was populated successfully otherwise false.
      * @throws BuildProcessingException
      */
     @SuppressWarnings("unchecked")
-    private boolean doPopulateDatabasePass(final ContentSpec contentSpec,
-            final Map<Integer, Set<String>> usedIdAttributes) throws BuildProcessingException {
+    private boolean doPopulateDatabasePass(final ContentSpec contentSpec) throws BuildProcessingException {
         log.info("Doing " + locale + " Populate Database Pass");
 
         /* Calculate the ids of all the topics to get */
@@ -701,15 +786,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         }
 
         /* Pass the topics to make sure they are valid */
-        doTopicPass(topics, fixedUrlsSuccess, usedIdAttributes);
-
-        // Check if the app should be shutdown
-        if (isShuttingDown.get()) {
-            return false;
-        }
-
-        /* Set the duplicate id's for each topic */
-        specDatabase.setDatabaseDuplicateIds(usedIdAttributes);
+        doTopicPass(topics, fixedUrlsSuccess);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -1137,13 +1214,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * Do the first topic pass on the database and check if the base XML is valid and set the Document Object's for each spec
      * topic. Also collect the ID Attributes that are used within the topics.
      *
-     * @param topics           The list of topics to be checked and added to the database.
-     * @param useFixedUrls     Whether the Fixed URL Properties should be used for the topic ID attributes.
-     * @param usedIdAttributes The set of Used ID Attributes that should be added to.
+     * @param topics       The list of topics to be checked and added to the database.
+     * @param useFixedUrls Whether the Fixed URL Properties should be used for the topic ID attributes.
      * @throws BuildProcessingException
      */
-    private void doTopicPass(final U topics, final boolean useFixedUrls,
-            final Map<Integer, Set<String>> usedIdAttributes) throws BuildProcessingException {
+    private void doTopicPass(final U topics, final boolean useFixedUrls) throws BuildProcessingException {
         log.info("Doing " + locale + " First topic pass");
 
         /* Check that we have some topics to process */
@@ -1246,12 +1321,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     processTopicID(topic, topicDoc, useFixedUrls);
                 }
 
-                /*
-                 * Extract the id attributes used in this topic. We'll use this data in the second pass to make sure that
-                 * individual topics don't repeat id attributes.
-                 */
-                collectIdAttributes(topicId, topicDoc, usedIdAttributes);
-
                 // Add the document & topic to the database spec topics
                 final List<SpecTopic> specTopics = specDatabase.getSpecTopicsForTopicID(topicId);
                 for (final SpecTopic specTopic : specTopics) {
@@ -1284,47 +1353,18 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     }
 
     /**
-     * Loops through each of the spec topics in the database and sets the injections and unique ids for each id attribute in the
-     * Topics XML.
+     * Loops through each of the spec topics in the database and processes the conditions and basic warnings/errors
      *
-     * @param contentSpec      The content specification used to build the book.
-     * @param usedIdAttributes The set of ids that have been used in the set of topics in the content spec.
-     * @param useFixedUrls     If during processing the fixed urls should be used.
-     * @param buildName        A specific name for the build to be used in bug links.
      * @throws BuildProcessingException
      */
     @SuppressWarnings("unchecked")
-    private void doSpecTopicPass(final ContentSpec contentSpec, final Map<Integer, Set<String>> usedIdAttributes,
-            final boolean useFixedUrls, final String buildName) throws BuildProcessingException {
-        log.info("Doing " + locale + " Spec Topic Pass");
+    private void doSpecTopicFirstPass(final Map<SpecTopic, Set<String>> usedIdAttributes) throws BuildProcessingException {
         final List<SpecTopic> specTopics = specDatabase.getAllSpecTopics();
-
-        log.info("\tProcessing " + specTopics.size() + " Spec Topics");
-
-        final int showPercent = 5;
-        final float total = specTopics.size();
-        float current = 0;
-        int lastPercent = 0;
-
-        /* Create the related topics database to be used for CSP builds */
-        final TocTopicDatabase<T> relatedTopicsDatabase = new TocTopicDatabase<T>();
-        final List<T> topics = specDatabase.getAllTopics(true);
-        relatedTopicsDatabase.setTopics(topics);
 
         for (final SpecTopic specTopic : specTopics) {
             // Check if the app should be shutdown
             if (isShuttingDown.get()) {
                 return;
-            }
-
-            if (log.isDebugEnabled()) log.debug("\tProcessing SpecTopic " + specTopic.getId() + (specTopic.getRevision() != null ? (", " +
-                    "Revision " + specTopic.getRevision()) : ""));
-
-            ++current;
-            final int percent = Math.round(current / total * 100);
-            if (percent - lastPercent >= showPercent) {
-                lastPercent = percent;
-                log.info("\tProcessing Pass " + percent + "% Done");
             }
 
             final T topic = (T) specTopic.getTopic();
@@ -1333,15 +1373,18 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             assert doc != null;
             assert topic != null;
 
-            final DocbookXMLPreProcessor xmlPreProcessor = new DocbookXMLPreProcessor(constantTranslatedStrings);
+            /* Find the Topic ID */
+            final Integer topicId;
+            if (topic instanceof RESTTranslatedTopicV1) {
+                topicId = ((RESTTranslatedTopicV1) topic).getTopicId();
+            } else {
+                topicId = topic.getId();
+            }
 
             if (doc != null) {
-                /* process the conditional statements */
+                // Process the conditional statements
                 final String condition = specTopic.getConditionStatement(true);
                 DocBookUtilities.processConditions(condition, doc);
-
-                final boolean valid = processSpecTopicInjections(contentSpec, specTopic, xmlPreProcessor, relatedTopicsDatabase,
-                        useFixedUrls);
 
                 /*
                  * If the topic is a translated topic then check to see if the translated topic hasn't been pushed for
@@ -1372,6 +1415,113 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     return;
                 }
 
+                /*
+                 * Check to see if the translated topic revision is an older topic than the topic revision specified in the map
+                 */
+                if (topic instanceof RESTTranslatedTopicV1) {
+                    final RESTTranslatedTopicV1 pushedTranslatedTopic = ComponentTranslatedTopicV1.returnPushedTranslatedTopic(
+                            (RESTTranslatedTopicV1) topic);
+                    if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
+                            .equals(
+                            specTopic.getRevision())) {
+                        if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic)) {
+                            errorDatabase.addWarning((T) topic, ErrorType.OLD_UNTRANSLATED,
+                                    BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
+                        } else {
+                            errorDatabase.addWarning((T) topic, ErrorType.OLD_TRANSLATION, BuilderConstants.WARNING_OLD_TRANSLATED_TOPIC);
+                        }
+                    }
+                }
+
+                 /*
+                 * Extract the id attributes used in this topic. We'll use this data in the second pass to make sure that
+                 * individual topics don't repeat id attributes.
+                 */
+                collectIdAttributes(specTopic, doc, usedIdAttributes);
+            }
+        }
+    }
+
+    /**
+     * Go through each topic and ensure that the links are valid, and then sets the duplicate ids for the SpecTopics/Levels
+     *
+     * @param useFixedUrls     If during processing the fixed urls should be used.
+     * @param usedIdAttributes The set of ids that have been used in the set of topics in the content spec.
+     * @throws BuildProcessingException
+     */
+    protected void doLinkPass(final boolean useFixedUrls, final Map<SpecTopic, Set<String>> usedIdAttributes,
+            final Set<String> bookIdAttributes) throws BuildProcessingException {
+        log.info("Doing " + locale + " Topic Link Pass");
+
+        validateTopicLinks(bookIdAttributes, useFixedUrls);
+
+        // Apply the duplicate ids for the spec topics
+        specDatabase.setDatabaseDuplicateIds(usedIdAttributes);
+    }
+
+    /**
+     * Loops through each of the spec topics in the database and processes the injections and additional information. If all is well than
+     * the XML is run through a final full validation to make sure the XML is valid.
+     *
+     * @param contentSpec      The content specification used to build the book.
+     * @param usedIdAttributes The set of ids that have been used in the set of topics in the content spec.
+     * @param useFixedUrls     If during processing the fixed urls should be used.
+     * @param buildName        A specific name for the build to be used in bug links.
+     * @throws BuildProcessingException
+     */
+    private void doSpecTopicSecondPass(final ContentSpec contentSpec, final Map<SpecTopic, Set<String>> usedIdAttributes,
+            final boolean useFixedUrls, final String buildName) throws BuildProcessingException {
+        log.info("Doing " + locale + " Spec Topic Pass");
+        final List<SpecTopic> specTopics = specDatabase.getAllSpecTopics();
+
+        /* Create the related topics database to be used for CSP builds */
+        final TocTopicDatabase<T> relatedTopicsDatabase = new TocTopicDatabase<T>();
+        final List<T> topics = specDatabase.getAllTopics(true);
+        relatedTopicsDatabase.setTopics(topics);
+
+        log.info("\tProcessing " + specTopics.size() + " Spec Topics");
+
+        final int showPercent = 5;
+        final float total = specTopics.size();
+        float current = 0;
+        int lastPercent = 0;
+
+        for (final SpecTopic specTopic : specTopics) {
+            // Check if the app should be shutdown
+            if (isShuttingDown.get()) {
+                return;
+            }
+
+            if (log.isDebugEnabled()) {
+                log.debug("\tProcessing SpecTopic " + specTopic.getId() + (specTopic.getRevision() != null ? (", " +
+                        "Revision " + specTopic.getRevision()) : ""));
+            }
+
+            ++current;
+            final int percent = Math.round(current / total * 100);
+            if (percent - lastPercent >= showPercent) {
+                lastPercent = percent;
+                log.info("\tProcessing Pass " + percent + "% Done");
+            }
+
+            final T topic = (T) specTopic.getTopic();
+            final Document doc = specTopic.getXmlDocument();
+
+            assert doc != null;
+            assert topic != null;
+
+            final DocbookXMLPreProcessor xmlPreProcessor = new DocbookXMLPreProcessor(constantTranslatedStrings);
+
+            if (doc != null) {
+
+                final boolean valid = processSpecTopicInjections(contentSpec, specTopic, xmlPreProcessor, relatedTopicsDatabase,
+                        useFixedUrls);
+
+                // Check if the app should be shutdown
+                if (isShuttingDown.get()) {
+                    return;
+                }
+
                 if (!valid) {
                     final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                             errorInvalidInjectionTopic.getValue(), docbookBuildingOptions);
@@ -1395,27 +1545,65 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 }
 
                 /*
-                 * Check to see if the translated topic revision is an older topic than the topic revision specified in the map
-                 */
-                if (topic instanceof RESTTranslatedTopicV1) {
-                    final RESTTranslatedTopicV1 pushedTranslatedTopic = ComponentTranslatedTopicV1.returnPushedTranslatedTopic(
-                            (RESTTranslatedTopicV1) topic);
-                    if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(
-                            specTopic.getRevision())) {
-                        if (ComponentTranslatedTopicV1.returnIsDummyTopic(topic)) {
-                            errorDatabase.addWarning((T) topic, ErrorType.OLD_UNTRANSLATED,
-                                    BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
-                        } else {
-                            errorDatabase.addWarning((T) topic, ErrorType.OLD_TRANSLATION, BuilderConstants.WARNING_OLD_TRANSLATED_TOPIC);
-                        }
-                    }
-                }
-
-                /*
                  * Ensure that all of the id attributes are valid by setting any duplicates with a post fixed number.
                  */
                 DocbookBuildUtilities.setUniqueIds(specTopic, specTopic.getXmlDocument(), specTopic.getXmlDocument(), usedIdAttributes);
+            }
+        }
+    }
+
+    /**
+     * Fixes any topics links that have been broken due to the linked topics XML being invalid.
+     *
+     * @param useFixedUrls     If during processing the fixed urls should be used.
+     * @param usedIdAttributes The set of ids that have been used in the set of topics in the content spec.
+     * @throws BuildProcessingException
+     */
+    protected void doLinkSecondPass(final boolean useFixedUrls,
+            final Map<SpecTopic, Set<String>> usedIdAttributes) throws BuildProcessingException {
+        final List<SpecTopic> topics = specDatabase.getAllSpecTopics();
+        for (final SpecTopic specTopic : topics) {
+            final Document doc = specTopic.getXmlDocument();
+
+            // Get the XRef links in the topic document
+            final Set<String> linkIds = new HashSet<String>();
+            DocbookBuildUtilities.getTopicLinkIds(doc, linkIds);
+
+            final Map<String, SpecTopic> invalidLinks = new HashMap<String, SpecTopic>();
+
+            for (final String linkId : linkIds) {
+                // Ignore error links
+                if (linkId.startsWith(CommonConstants.ERROR_XREF_ID_PREFIX)) continue;
+
+                // Find the linked topic
+                SpecTopic linkedTopic = null;
+                for (final Map.Entry<SpecTopic, Set<String>> usedIdEntry : usedIdAttributes.entrySet()) {
+                    if (usedIdEntry.getValue().contains(linkId)) {
+                        linkedTopic = usedIdEntry.getKey();
+                        break;
+                    }
+                }
+
+                // If the linked topic has been set as an error, than update the links to point to the topic id
+                if (linkedTopic != null && errorDatabase.hasErrorData((T) linkedTopic.getTopic())) {
+                    final TopicErrorData<T> errorData = errorDatabase.getErrorData((T) linkedTopic.getTopic());
+                    if (errorData.hasFatalErrors()) {
+                        invalidLinks.put(linkId, linkedTopic);
+                    }
+                }
+            }
+
+            // Go through and fix any invalid links
+            if (!invalidLinks.isEmpty()) {
+                final List<Node> linkNodes = XMLUtilities.getChildNodes(doc, "xref", "link");
+                for (final Node linkNode : linkNodes) {
+                    final String linkId = ((Element) linkNode).getAttribute("linkend");
+
+                    if (invalidLinks.containsKey(linkId)) {
+                        final SpecTopic linkedTopic = invalidLinks.get(linkId);
+                        ((Element) linkNode).setAttribute("linkend", linkedTopic.getUniqueLinkId(useFixedUrls));
+                    }
+                }
             }
         }
     }
@@ -1530,10 +1718,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      *
      * @param node             The current node being processed (will be the document root to start with, and then all the children as this
      *                         function is recursively called)
-     * @param topicId          The ID of the topic that we are collecting attribute ID's for.
+     * @param topic            The topic that we are collecting attribute ID's for.
      * @param usedIdAttributes The set of Used ID Attributes that should be added to.
      */
-    private void collectIdAttributes(final Integer topicId, final Node node, final Map<Integer, Set<String>> usedIdAttributes) {
+    private void collectIdAttributes(final SpecTopic topic, final Node node, final Map<SpecTopic, Set<String>> usedIdAttributes) {
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
             return;
@@ -1544,16 +1732,16 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             final Node idAttribute = attributes.getNamedItem("id");
             if (idAttribute != null) {
                 final String idAttributeValue = idAttribute.getNodeValue();
-                if (!usedIdAttributes.containsKey(topicId)) {
-                    usedIdAttributes.put(topicId, new HashSet<String>());
+                if (!usedIdAttributes.containsKey(topic)) {
+                    usedIdAttributes.put(topic, new HashSet<String>());
                 }
-                usedIdAttributes.get(topicId).add(idAttributeValue);
+                usedIdAttributes.get(topic).add(idAttributeValue);
             }
         }
 
         final NodeList elements = node.getChildNodes();
         for (int i = 0; i < elements.getLength(); ++i) {
-            collectIdAttributes(topicId, elements.item(i), usedIdAttributes);
+            collectIdAttributes(topic, elements.item(i), usedIdAttributes);
         }
     }
 
@@ -2696,7 +2884,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                             contentsInlineElements, true), escapedTitle + ".ent", "appendix");
             if (docbookBuildingOptions.getRevisionMessages() != null && !docbookBuildingOptions.getRevisionMessages().isEmpty()) {
                 buildRevisionHistoryFromTemplate(contentSpec, revisionHistoryXML, requester, files);
-            } else if (errorData != null && (errorData.hasItemsOfType(ErrorLevel.ERROR) || errorData.hasNormalErrors())) {
+            } else if (errorData != null && errorData.hasFatalErrors()) {
                 buildRevisionHistoryFromTemplate(contentSpec, revisionHistoryXML, requester, files);
             } else {
                 // Add the revision history directly to the book

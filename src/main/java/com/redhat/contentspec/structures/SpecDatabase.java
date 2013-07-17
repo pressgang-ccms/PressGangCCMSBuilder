@@ -72,7 +72,7 @@ public class SpecDatabase {
      * 
      * @param usedIdAttributes A mapping of IDs to topics that exist for a book.
      */
-    public void setDatabaseDuplicateIds(final Map<Integer, Set<String>> usedIdAttributes) {
+    public void setDatabaseDuplicateIds(final Map<SpecTopic, Set<String>> usedIdAttributes) {
         // Topics
         for (final String topicTitle : specTopicsTitles.keySet()) {
             final List<SpecTopic> specTopics = specTopicsTitles.get(topicTitle);
