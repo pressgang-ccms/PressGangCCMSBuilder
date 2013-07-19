@@ -2315,7 +2315,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     contentSpec.getRevisionHistory().getXMLDocument(), "appendix", buildData.getEntityFileName(), getXMLFormatProperties());
             if (buildData.getBuildOptions().getRevisionMessages() != null && !buildData.getBuildOptions().getRevisionMessages().isEmpty()) {
                 buildRevisionHistoryFromTemplate(buildData, revisionHistoryXML);
-            } else if (errorData != null && (errorData.hasItemsOfType(ErrorLevel.ERROR) || errorData.hasNormalErrors())) {
+            } else if (errorData != null && errorData.hasFatalErrors()) {
                 buildRevisionHistoryFromTemplate(buildData, revisionHistoryXML);
             } else {
                 // Add the revision history directly to the book
