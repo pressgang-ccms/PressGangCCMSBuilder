@@ -1,5 +1,7 @@
 package com.redhat.contentspec.builder;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -2116,7 +2118,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : contentSpec.getSubtitle());
         bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
         bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion() == null ? "" : contentSpec.getVersion());
-        if (contentSpec.getEdition() == null) {
+        if (isNullOrEmpty(contentSpec.getEdition())) {
             bookInfo = bookInfo.replaceAll("<edition>.*</edition>(\r)?\n", "");
         } else {
             bookInfo = bookInfo.replaceAll(BuilderConstants.EDITION_REGEX, contentSpec.getEdition());
@@ -2130,6 +2132,13 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 contentSpec.getAbstract() == null ? BuilderConstants.DEFAULT_ABSTRACT : ("<abstract>\n\t\t<para>\n\t\t\t" +
                         contentSpec.getAbstract() + "\n\t\t</para>\n\t</abstract>\n"));
         bookInfo = bookInfo.replaceAll(BuilderConstants.LEGAL_NOTICE_REGEX, BuilderConstants.LEGAL_NOTICE_XML);
+
+        if (!isNullOrEmpty(contentSpec.getBrandLogo())) {
+            final String fixedLogoPath = contentSpec.getBrandLogo().contains("Common_Content/images/") ? contentSpec.getBrandLogo() :
+                    ("Common_Content/images/" + contentSpec.getBrandLogo());
+            bookInfo = bookInfo.replace("<imagedata fileref=\"Common_Content/images/title_logo.svg\" format=\"SVG\" />", "<imagedata " +
+                    "fileref=\"" + fixedLogoPath + "\" />");
+        }
 
         return bookInfo;
     }
