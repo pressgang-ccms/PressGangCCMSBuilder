@@ -113,9 +113,10 @@ public class BuilderConstants {
     // Warning compiler output messages.
     public static final String WARNING_UNTRANSLATED_TOPIC = "This topic is an untranslated topic.";
     public static final String WARNING_NONPUSHED_TOPIC = "This topic hasn't been pushed for translation.";
-    public static final String WARNING_OLD_UNTRANSLATED_TOPIC = "This untranslated topic uses content that is older than the specfied " +
+    public static final String WARNING_OLD_UNTRANSLATED_TOPIC = "This untranslated topic uses content that is older than the specified " +
             "topic's content.";
-    public static final String WARNING_OLD_TRANSLATED_TOPIC = "This topic's translated content is older than the specfied topic's content.";
+    public static final String WARNING_OLD_TRANSLATED_TOPIC = "This topic's translated content is older than the specified topic's " +
+            "content.";
     public static final String WARNING_INCOMPLETE_TRANSLATION = "This topic hasn't been fully translated.";
     public static final String WARNING_EMPTY_TOPIC_XML = "This topic has no XML data";
     public static final String WARNING_FUZZY_TRANSLATION = "This topic contains strings that are marked as \"fuzzy\".";

@@ -65,9 +65,9 @@ public class BuildDatabase {
     /**
      * Sets the Duplicate IDs for all the SpecTopics in the Database.
      *
-     * @param usedIdAttributes A mapping of IDs to topics that exist for a book.
+     * @param useFixedURLs
      */
-    public void setDatabaseDuplicateIds(final Map<Integer, Set<String>> usedIdAttributes, final boolean useFixedURLs) {
+    public void setDatabaseDuplicateIds(final boolean useFixedURLs) {
         // Create the mapping of topic titles to spec topics
         final Map<String, List<SpecTopic>> topicsTitles = new HashMap<String, List<SpecTopic>>();
         for (final Entry<Integer, List<SpecTopic>> topicEntry : topics.entrySet()) {

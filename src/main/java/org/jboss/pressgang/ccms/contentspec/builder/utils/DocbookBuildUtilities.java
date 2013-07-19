@@ -88,7 +88,7 @@ public class DocbookBuildUtilities {
      * @param usedIdAttributes The list of usedIdAttributes.
      */
     public static void setUniqueIds(final SpecTopic specTopic, final Node node, final Document doc,
-            final Map<Integer, Set<String>> usedIdAttributes) {
+            final Map<SpecTopic, Set<String>> usedIdAttributes) {
         final NamedNodeMap attributes = node.getAttributes();
         if (attributes != null) {
             final Node idAttribute = attributes.getNamedItem("id");
@@ -151,12 +151,13 @@ public class DocbookBuildUtilities {
      * @param usedIdAttributes The set of used ids calculated earlier
      * @return True if the id is unique otherwise false.
      */
-    public static boolean isUniqueAttributeId(final String id, final Integer topicId, final Map<Integer, Set<String>> usedIdAttributes) {
+    public static boolean isUniqueAttributeId(final String id, final Integer topicId, final Map<SpecTopic, Set<String>> usedIdAttributes) {
         boolean retValue = true;
 
         if (usedIdAttributes.containsKey(topicId)) {
-            for (final Entry<Integer, Set<String>> entry : usedIdAttributes.entrySet()) {
-                final Integer topicId2 = entry.getKey();
+            for (final Entry<SpecTopic, Set<String>> entry : usedIdAttributes.entrySet()) {
+                final SpecTopic topic2 = entry.getKey();
+                final Integer topicId2 = topic2.getDBId();
                 if (topicId2.equals(topicId)) {
                     continue;
                 }
@@ -565,25 +566,25 @@ public class DocbookBuildUtilities {
      *
      * @param node             The current node being processed (will be the document root to start with, and then all the children as this
      *                         function is recursively called)
-     * @param topicId          The ID of the topic that we are collecting attribute ID's for.
+     * @param topic            The topic that we are collecting attribute ID's for.
      * @param usedIdAttributes The set of Used ID Attributes that should be added to.
      */
-    public static void collectIdAttributes(final Integer topicId, final Node node, final Map<Integer, Set<String>> usedIdAttributes) {
+    public static void collectIdAttributes(final SpecTopic topic, final Node node, final Map<SpecTopic, Set<String>> usedIdAttributes) {
         final NamedNodeMap attributes = node.getAttributes();
         if (attributes != null) {
             final Node idAttribute = attributes.getNamedItem("id");
             if (idAttribute != null) {
                 final String idAttributeValue = idAttribute.getNodeValue();
-                if (!usedIdAttributes.containsKey(topicId)) {
-                    usedIdAttributes.put(topicId, new HashSet<String>());
+                if (!usedIdAttributes.containsKey(topic)) {
+                    usedIdAttributes.put(topic, new HashSet<String>());
                 }
-                usedIdAttributes.get(topicId).add(idAttributeValue);
+                usedIdAttributes.get(topic).add(idAttributeValue);
             }
         }
 
         final NodeList elements = node.getChildNodes();
         for (int i = 0; i < elements.getLength(); ++i) {
-            collectIdAttributes(topicId, elements.item(i), usedIdAttributes);
+            collectIdAttributes(topic, elements.item(i), usedIdAttributes);
         }
     }
 
