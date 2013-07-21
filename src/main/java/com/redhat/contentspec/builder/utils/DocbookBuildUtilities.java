@@ -129,19 +129,17 @@ public class DocbookBuildUtilities {
     public static boolean isUniqueAttributeId(final String id, final Integer topicId, final Map<SpecTopic, Set<String>> usedIdAttributes) {
         boolean retValue = true;
 
-        if (usedIdAttributes.containsKey(topicId)) {
-            for (final Entry<SpecTopic, Set<String>> entry : usedIdAttributes.entrySet()) {
-                final SpecTopic topic2 = entry.getKey();
-                final Integer topicId2 = topic2.getDBId();
-                if (topicId2.equals(topicId)) {
-                    continue;
-                }
+        for (final Entry<SpecTopic, Set<String>> entry : usedIdAttributes.entrySet()) {
+            final SpecTopic topic2 = entry.getKey();
+            final Integer topicId2 = topic2.getDBId();
+            if (topicId2.equals(topicId)) {
+                continue;
+            }
 
-                final Set<String> ids2 = entry.getValue();
+            final Set<String> ids2 = entry.getValue();
 
-                if (ids2.contains(id)) {
-                    retValue = false;
-                }
+            if (ids2.contains(id)) {
+                retValue = false;
             }
         }
 
