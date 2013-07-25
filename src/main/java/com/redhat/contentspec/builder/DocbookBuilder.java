@@ -2489,8 +2489,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         // Move the contents of the section to the chapter/level
         final NodeList sectionChildren = section.getChildNodes();
-        for (int i = 0; i < sectionChildren.getLength(); i++) {
-            parentNode.appendChild(sectionChildren.item(i));
+        while (sectionChildren.getLength() > 0) {
+            parentNode.appendChild(sectionChildren.item(0));
         }
     }
 
