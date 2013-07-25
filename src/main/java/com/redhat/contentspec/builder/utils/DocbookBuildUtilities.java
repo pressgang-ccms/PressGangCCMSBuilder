@@ -1,6 +1,7 @@
 package com.redhat.contentspec.builder.utils;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -12,6 +13,7 @@ import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
 import com.redhat.contentspec.builder.constants.BuilderConstants;
 import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
+import org.apache.commons.lang.time.DateUtils;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
@@ -23,12 +25,6 @@ import org.jboss.pressgang.ccms.rest.v1.entities.RESTTranslatedTopicV1;
 import org.jboss.pressgang.ccms.rest.v1.entities.base.RESTBaseTopicV1;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
-import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.DateTimeFormatterBuilder;
-import org.joda.time.format.DateTimeParser;
-import org.joda.time.format.ISODateTimeFormat;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
@@ -43,16 +39,9 @@ import org.w3c.dom.NodeList;
 public class DocbookBuildUtilities {
     private static final String STARTS_WITH_NUMBER_RE = "^(?<Numbers>\\d+)(?<EverythingElse>.*)$";
     private static final String STARTS_WITH_INVALID_SEQUENCE_RE = "^(?<InvalidSeq>[^\\w\\d]+)(?<EverythingElse>.*)$";
-    private static final DateTimeParser[] parsers = {
-            DateTimeFormat.forPattern("MM/dd/yyyy").getParser(),
-            DateTimeFormat.forPattern("EEE MMM dd yyyy").getParser(),
-            DateTimeFormat.forPattern("EEE, MMM dd yyyy").getParser(),
-            DateTimeFormat.forPattern("EEE MMM dd yyyy Z").getParser(),
-            DateTimeFormat.forPattern("EEE dd MMM yyyy").getParser(),
-            DateTimeFormat.forPattern("EEE, dd MMM yyyy").getParser(),
-            DateTimeFormat.forPattern("EEE dd MMM yyyy Z").getParser(),
-            ISODateTimeFormat.basicDateTime().getParser()};
-    private static final DateTimeFormatter formatter = new DateTimeFormatterBuilder().append(null, parsers).toFormatter();
+    private static final String[] DATE_FORMATS = new String[]{
+            "MM-dd-yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "yyyy/MM/dd", "EEE MMM dd yyyy", "EEE, MMM dd yyyy", "EEE MMM dd yyyy Z",
+            "EEE dd MMM yyyy", "EEE,dd MMM yyyy", "EEE dd MMM yyyy Z", "yyyyMMdd", "yyyyMMdd'T'HHmmss.SSSZ"};
 
     /**
      * Sets the "id" attributes in the supplied XML node so that they will be
@@ -483,7 +472,7 @@ public class DocbookBuildUtilities {
 
         // Find each <revnumber> element and make sure it matches the publican regex
         final NodeList revisions = doc.getElementsByTagName("revision");
-        DateTime previousDate = null;
+        Date previousDate = null;
         for (int i = 0; i < revisions.getLength(); i++) {
             final Element revision = (Element) revisions.item(i);
             final NodeList revnumbers = revision.getElementsByTagName("revnumber");
@@ -501,9 +490,10 @@ public class DocbookBuildUtilities {
             // Check the dates are in chronological order
             if (date != null) {
                 try {
-                    final DateTime revisionDate = formatter.parseDateTime(date.getTextContent());
-                    if (previousDate != null && revisionDate.isAfter(previousDate)) {
-                        return "The revisions in the Revision History are not in decending chronological order.";
+                    final Date revisionDate = DateUtils.parseDate(date.getTextContent(), DATE_FORMATS);
+                    if (previousDate != null && revisionDate.after(previousDate)) {
+                        return "The revisions in the Revision History are not in descending chronological order, " +
+                                "starting from \"" + date.getTextContent() + "\".";
                     }
 
                     previousDate = revisionDate;
