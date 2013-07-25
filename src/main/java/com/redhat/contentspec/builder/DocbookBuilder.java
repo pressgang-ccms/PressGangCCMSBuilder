@@ -2470,11 +2470,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 // Merge the info text
                 final NodeList sectionIntroChildren = sectionInfoNodes.get(0).getChildNodes();
                 final Node firstNode = introNode.getFirstChild();
-                for (int i = 0; i < sectionIntroChildren.getLength(); i++) {
+                while (sectionIntroChildren.getLength() > 0) {
                     if (firstNode != null) {
-                        introNode.insertBefore(sectionIntroChildren.item(i), firstNode);
+                        introNode.insertBefore(sectionIntroChildren.item(0), firstNode);
                     } else {
-                        introNode.appendChild(sectionIntroChildren.item(i));
+                        introNode.appendChild(sectionIntroChildren.item(0));
                     }
                 }
             }
