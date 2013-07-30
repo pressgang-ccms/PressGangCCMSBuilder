@@ -1,6 +1,5 @@
 package com.redhat.contentspec.builder;
 
-import java.io.UnsupportedEncodingException;
 import java.util.Map;
 
 import com.redhat.contentspec.builder.constants.BuilderConstants;
@@ -24,21 +23,16 @@ public class PublicanDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extend
     }
 
     @Override
-    protected void buildBookAdditions(final ContentSpec contentSpec, final String requester,
+    protected void buildBookAdditions(final ContentSpec contentSpec, final String requester, final boolean useFixedUrls,
             final Map<String, byte[]> files) throws BuildProcessingException {
-        super.buildBookAdditions(contentSpec, requester, files);
+        super.buildBookAdditions(contentSpec, requester, useFixedUrls, files);
 
         final String publicanCfg = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.PUBLICAN_CFG_ID,
                 "").getValue();
 
         // Setup publican.cfg
         final String fixedPublicanCfg = buildPublicanCfgFile(publicanCfg, contentSpec);
-        try {
-            files.put(BOOK_FOLDER + "publican.cfg", fixedPublicanCfg.getBytes(ENCODING));
-        } catch (UnsupportedEncodingException e) {
-            // UTF-8 is a valid format so this should exception should never get thrown
-            log.error(e);
-        }
+        addToFilesZip(BOOK_FOLDER + "publican.cfg", fixedPublicanCfg, files);
     }
 
     /**

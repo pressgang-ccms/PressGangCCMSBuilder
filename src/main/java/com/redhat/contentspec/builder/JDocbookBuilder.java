@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
 import java.util.Map;
 
 import com.redhat.contentspec.builder.constants.BuilderConstants;
@@ -27,9 +26,9 @@ public class JDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTB
     }
 
     @Override
-    protected void buildBookAdditions(final ContentSpec contentSpec, final String requester,
+    protected void buildBookAdditions(final ContentSpec contentSpec, final String requester, final boolean useFixedUrls,
             final Map<String, byte[]> files) throws BuildProcessingException {
-        super.buildBookAdditions(contentSpec, requester, files);
+        super.buildBookAdditions(contentSpec, requester, useFixedUrls, files);
 
         final Map<String, String> overrides = docbookBuildingOptions.getOverrides();
 
@@ -84,48 +83,52 @@ public class JDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTB
                 "/") ? "" : "/") + brand + File.separator + commonContentLocale + File.separator;
         final String commonBrandDir = commonContentDirectory + (commonContentDirectory.endsWith(
                 "/") ? "" : "/") + BuilderConstants.DEFAULT_BRAND + File.separator + commonContentLocale + File.separator;
+        final String commonEnglishBrandDir = commonContentDirectory + (commonContentDirectory.endsWith(
+                "/") ? "" : "/") + BuilderConstants.DEFAULT_BRAND + File.separator + "en-US" + File.separator;
 
         /*
          * We need to pull the Conventions.xml, Feedback.xml & Legal_Notice.xml from the publican Common_Content directory.
-         * First we need to check if the files exist for the brand, if they don't then we need to check the common directory.
+         * First we need to check if the files exist for the brand, if they don't then we need to check the common directory,
+         * starting with the specified locale and defaulting to english.
          */
-
         for (final String fileName : BuilderConstants.COMMON_CONTENT_FILES) {
             final File brandFile = new File(brandDir + fileName);
 
-            try {
-                final String file;
-                if (brandFile.exists() && brandFile.isFile()) {
-                    file = FileUtilities.readFileContents(brandFile);
+            // Find the required file
+            final String file;
+            if (brandFile.exists() && brandFile.isFile()) {
+                file = FileUtilities.readFileContents(brandFile);
+            } else {
+                final File commonBrandFile = new File(commonBrandDir + fileName);
+                if (commonBrandFile.exists() && commonBrandFile.isFile()) {
+                    file = FileUtilities.readFileContents(commonBrandFile);
                 } else {
-                    final File commonBrandFile = new File(commonBrandDir + fileName);
-                    if (commonBrandFile.exists() && commonBrandFile.isFile()) {
-                        file = FileUtilities.readFileContents(commonBrandFile);
+                    final File commonEnglishBrandFile = new File(commonEnglishBrandDir + fileName);
+                    if (commonEnglishBrandFile.exists() && commonEnglishBrandFile.isFile()) {
+                        file = FileUtilities.readFileContents(commonEnglishBrandFile);
                     } else {
                         continue;
                     }
                 }
+            }
 
-                if (file != null) {
-                    // Set the root element name based on the file
-                    final String rootElementName;
-                    if (fileName.equals("Program_Listing.xml")) {
-                        rootElementName = "programlisting";
-                    } else if (fileName.equals("Legal_Notice.xml")) {
-                        rootElementName = "legalnotice";
-                    } else {
-                        rootElementName = "section";
-                    }
-
-                    // Fix the Doctype
-                    final String entityFileName = "../" + escapedTitle + ".ent";
-                    final String fixedFile = DocBookUtilities.addDocbook45XMLDoctype(file, entityFileName, rootElementName);
-
-                    // Add the file to the book
-                    files.put(BOOK_LOCALE_FOLDER + "Common_Content/" + fileName, fixedFile.getBytes(ENCODING));
+            if (file != null) {
+                // Set the root element name based on the file
+                final String rootElementName;
+                if (fileName.equals("Program_Listing.xml")) {
+                    rootElementName = "programlisting";
+                } else if (fileName.equals("Legal_Notice.xml")) {
+                    rootElementName = "legalnotice";
+                } else {
+                    rootElementName = "section";
                 }
-            } catch (UnsupportedEncodingException e) {
-                log.debug(e.getMessage());
+
+                // Fix the Doctype
+                final String entityFileName = "../" + escapedTitle + ".ent";
+                final String fixedFile = DocBookUtilities.addDocbook45XMLDoctype(file, entityFileName, rootElementName);
+
+                // Add the file to the book
+                addToFilesZip(BOOK_LOCALE_FOLDER + "Common_Content/" + fileName, fixedFile, files);
             }
         }
     }
@@ -161,12 +164,7 @@ public class JDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTB
         // Change the Version
         pomXML = pomXML.replaceFirst("<version>.*</version>", "<version>" + contentSpec.getVersion() + "-SNAPSHOT</version>");
 
-        try {
-            files.put(BOOK_FOLDER + "pom.xml", pomXML.getBytes(ENCODING));
-        } catch (UnsupportedEncodingException e) {
-            // UTF-8 is a valid format so this should exception should never get thrown
-            log.error(e);
-        }
+        addToFilesZip(BOOK_FOLDER + "pom.xml", pomXML, files);
     }
 
     @Override

@@ -512,4 +512,20 @@ public class DocbookBuildUtilities {
             return null;
         }
     }
+
+    public static <T extends RESTBaseTopicV1<T, ?, ?>> Integer getTopicId(final T topic) {
+        if (topic instanceof RESTTranslatedTopicV1) {
+            return ((RESTTranslatedTopicV1) topic).getTopicId();
+        } else {
+            return topic.getId();
+        }
+    }
+
+    public static <T extends RESTBaseTopicV1<T, ?, ?>> Integer getTopicRevision(final T topic) {
+        if (topic instanceof RESTTranslatedTopicV1) {
+            return ((RESTTranslatedTopicV1) topic).getTopicRevision();
+        } else {
+            return topic.getRevision();
+        }
+    }
 }

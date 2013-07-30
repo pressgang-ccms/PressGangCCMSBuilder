@@ -356,8 +356,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     }
 
     /**
-     * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.
-     *
+     * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.*
      * @param contentSpec     The content specification to build from.
      * @param requester       The user who requested the build.
      * @param buildingOptions The options to be used when building.
@@ -1243,16 +1242,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 }
 
                 /* Find the Topic ID */
-                final Integer topicId;
-                final Integer topicRevision;
-                if (topic instanceof RESTTranslatedTopicV1) {
-                    topicId = ((RESTTranslatedTopicV1) topic).getTopicId();
-                    topicRevision = ((RESTTranslatedTopicV1) topic).getTopicRevision();
-                } else {
-                    topicId = topic.getId();
-                    topicRevision = topic.getRevision();
-                }
-
+                final Integer topicId = DocbookBuildUtilities.getTopicId(topic);
+                final Integer topicRevision = DocbookBuildUtilities.getTopicRevision(topic);
                 boolean revHistoryTopic = ComponentBaseTopicV1.hasTag(topic, CSConstants.REVISION_HISTORY_TAG_ID);
                 boolean legalNoticeTopic = ComponentTopicV1.hasTag(topic, CSConstants.LEGAL_NOTICE_TAG_ID);
 
@@ -1374,14 +1365,6 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
             assert doc != null;
             assert topic != null;
-
-            /* Find the Topic ID */
-            final Integer topicId;
-            if (topic instanceof RESTTranslatedTopicV1) {
-                topicId = ((RESTTranslatedTopicV1) topic).getTopicId();
-            } else {
-                topicId = topic.getId();
-            }
 
             if (doc != null) {
                 // Process the conditional statements
@@ -1768,7 +1751,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         buildBookBase(contentSpec, files, useFixedUrls);
 
         // Add the additional files
-        buildBookAdditions(contentSpec, requester, files);
+        buildBookAdditions(contentSpec, requester, useFixedUrls, files);
 
         // add the images to the book
         addImagesToBook(files, locale);
@@ -1913,13 +1896,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             final String contentSpecPage = DocBookUtilities.buildAppendix(DocBookUtilities.wrapInPara(
                     "<programlisting>" + XMLUtilities.wrapStringInCDATA(contentSpec.toString()) + "</programlisting>"),
                     "Build Content Specification");
-            try {
-                files.put(BOOK_LOCALE_FOLDER + "Build_Content_Specification.xml",
-                        DocBookUtilities.addDocbook45XMLDoctype(contentSpecPage, escapedTitle + ".ent", "appendix").getBytes(ENCODING));
-            } catch (UnsupportedEncodingException e) {
-                // UTF-8 is a valid format so this should exception should never get thrown */
-                log.error(e);
-            }
+                addToFilesZip(BOOK_LOCALE_FOLDER + "Build_Content_Specification.xml",
+                        DocBookUtilities.addDocbook45XMLDoctype(contentSpecPage, escapedTitle + ".ent", "appendix"), files);
 
             // Create and append the XI Include element
             final Element contentSpecXMLNode = XMLUtilities.createXIInclude(bookBase, "Build_Content_Specification.xml");
@@ -1935,12 +1913,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         final String book = DocBookUtilities.addDocbook45XMLDoctype(
                 XMLUtilities.convertNodeToString(bookBase, verbatimElements, inlineElements, contentsInlineElements, true),
                 escapedTitle + ".ent", rootElementName);
-        try {
-            files.put(BOOK_LOCALE_FOLDER + escapedTitle + ".xml", book.getBytes(ENCODING));
-        } catch (UnsupportedEncodingException e) {
-            /* UTF-8 is a valid format so this should exception should never get thrown */
-            log.error(e.getMessage());
-        }
+        addToFilesZip(BOOK_LOCALE_FOLDER + escapedTitle + ".xml", book, files);
     }
 
     /**
@@ -1948,10 +1921,11 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      *
      * @param contentSpec The content specification object to be built.
      * @param requester   The User who requested the book be built.
+     * @param useFixedUrls If during processing the fixed urls should be used.
      * @param files       The mapping of file names/locations to files that will be packaged into the ZIP archive.
      * @throws BuildProcessingException
      */
-    protected void buildBookAdditions(final ContentSpec contentSpec, final String requester,
+    protected void buildBookAdditions(final ContentSpec contentSpec, final String requester, final boolean useFixedUrls,
             final Map<String, byte[]> files) throws BuildProcessingException {
         log.info("\tAdding standard files to ZIP file");
 
@@ -1971,15 +1945,10 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
 
         // Setup Book_Info.xml
         final String fixedBookInfo = buildBookInfoFile(bookInfoTemplate, contentSpec);
-        try {
-            if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-                files.put(BOOK_LOCALE_FOLDER + "Article_Info.xml", fixedBookInfo.getBytes(ENCODING));
-            } else {
-                files.put(BOOK_LOCALE_FOLDER + "Book_Info.xml", fixedBookInfo.getBytes(ENCODING));
-            }
-        } catch (UnsupportedEncodingException e) {
-            /* UTF-8 is a valid format so this should exception should never get thrown */
-            log.error(e);
+        if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
+            addToFilesZip(BOOK_LOCALE_FOLDER + "Article_Info.xml", fixedBookInfo, files);
+        } else {
+            addToFilesZip(BOOK_LOCALE_FOLDER + "Book_Info.xml", fixedBookInfo, files);
         }
 
         // Setup Author_Group.xml
@@ -2016,13 +1985,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         if (prefaceTitleTranslation != null) {
             fixedPrefaceXml = fixedPrefaceXml.replace("<title>Preface</title>", "<title>" + prefaceTitleTranslation + "</title>");
         }
-
-        try {
-            files.put(BOOK_LOCALE_FOLDER + "Preface.xml", fixedPrefaceXml.getBytes(ENCODING));
-        } catch (UnsupportedEncodingException e) {
-            /* UTF-8 is a valid format so this should exception should never get thrown */
-            log.error(e);
-        }
+        addToFilesZip(BOOK_LOCALE_FOLDER + "Preface.xml", fixedPrefaceXml, files);
 
         // Setup the revision history
         buildRevisionHistory(contentSpec, overrides, requester, files);
@@ -2052,12 +2015,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             final String feedbackXML = DocBookUtilities.addDocbook45XMLDoctype(
                     XMLUtilities.convertNodeToString(contentSpec.getFeedback().getXmlDocument(), verbatimElements, inlineElements,
                             contentsInlineElements, true), escapedTitle + ".ent", "section");
-            try {
-                files.put(BOOK_LOCALE_FOLDER + "Feedback.xml", feedbackXML.getBytes(ENCODING));
-            } catch (UnsupportedEncodingException e) {
-                /* UTF-8 is a valid format so this should exception should never get thrown */
-                log.error(e);
-            }
+            addToFilesZip(BOOK_LOCALE_FOLDER + "Feedback.xml", feedbackXML, files);
         }
 
         // Setup Legal_Notice.xml
@@ -2065,41 +2023,68 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             final String legalNoticeXML = DocBookUtilities.addDocbook45XMLDoctype(
                     XMLUtilities.convertNodeToString(contentSpec.getLegalNotice().getXmlDocument(), verbatimElements, inlineElements,
                             contentsInlineElements, true), escapedTitle + ".ent", "legalnotice");
-            try {
-                files.put(BOOK_LOCALE_FOLDER + "Legal_Notice.xml", legalNoticeXML.getBytes(ENCODING));
-            } catch (UnsupportedEncodingException e) {
-                /* UTF-8 is a valid format so this should exception should never get thrown */
-                log.error(e);
-            }
+            addToFilesZip(BOOK_LOCALE_FOLDER + "Legal_Notice.xml", legalNoticeXML, files);
         }
 
         // Build the book .ent file
         final String entFile = buildBookEntityFile(bookEntityTemplate, contentSpec);
-        try {
-            files.put(BOOK_LOCALE_FOLDER + escapedTitle + ".ent", entFile.getBytes(ENCODING));
-        } catch (UnsupportedEncodingException e) {
-            /* UTF-8 is a valid format so this should exception should never get thrown */
-            log.error(e.getMessage());
-        }
+        addToFilesZip(BOOK_LOCALE_FOLDER + escapedTitle + ".ent", entFile, files);
 
         // Setup the images and files folders
-        addBookBaseFilesAndImages(contentSpec, files);
+        addBookBaseFilesAndImages(useFixedUrls, files);
     }
 
     /**
      * Adds the basic Images and Files to the book that are the minimum requirements to build it.
      *
-     * @param contentSpec The content specification object to be built.
+     * @param useFixedUrls If during processing the fixed urls should be used.
      * @param files       The mapping of file names/locations to files that will be packaged into the ZIP archive.
      */
-    protected void addBookBaseFilesAndImages(final ContentSpec contentSpec, final Map<String, byte[]> files) {
+    protected void addBookBaseFilesAndImages(final boolean useFixedUrls, final Map<String, byte[]> files) {
         final String iconSvg = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.ICON_SVG_ID, "").getValue();
-        try {
-            files.put(BOOK_IMAGES_FOLDER + "icon.svg", iconSvg.getBytes(ENCODING));
-        } catch (UnsupportedEncodingException e) {
-            /* UTF-8 is a valid format so this should exception should never get thrown */
-            log.error(e.getMessage());
+        final String pressgangWebsiteJS = buildPressGangWebsiteJS(useFixedUrls);
+
+        addToFilesZip(BOOK_IMAGES_FOLDER + "icon.svg", iconSvg, files);
+        addToFilesZip(BOOK_FILES_FOLDER + "pressgang_website.js", pressgangWebsiteJS, files);
+    }
+
+    /**
+     * Build up the pressgang_website.js file to be used in help overlays from the topics used in the build.
+     *
+     * @param useFixedUrls If during processing the fixed urls should be used.
+     */
+    protected String buildPressGangWebsiteJS(final boolean useFixedUrls) {
+        final StringBuilder retValue = new StringBuilder("pressgang_website_callback([\n");
+
+        final List<T> topics = specDatabase.getAllTopics();
+        boolean initial = true;
+        for (final T topic : topics) {
+            // Insert a newline and comma to separate each array variable only after the first variable has been set
+            if (!initial) {
+                retValue.append(",\n");
+            } else {
+                initial = false;
+            }
+
+            // Find the fixed url to use
+            final Integer topicId = DocbookBuildUtilities.getTopicId(topic);
+            final List<SpecTopic> specTopics = specDatabase.getSpecTopicsForTopicID(topicId);
+            final String fixedUrl = specTopics.get(0).getUniqueLinkId(useFixedUrls);
+
+            // Opening brace
+            retValue.append("\t{");
+
+            // Data
+            retValue.append("\"topicId\":").append(topic.getId());
+            retValue.append(",\"target\":\"").append(fixedUrl).append("\"");
+            retValue.append(",\"title\":\"").append(topic.getTitle().replace("\"", "\\\"")).append("\"");
+
+            // Closing brace
+            retValue.append("}");
         }
+
+        retValue.append("]);");
+        return retValue.toString();
     }
 
     /**
@@ -2248,12 +2233,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         final String chapterString = DocBookUtilities.addDocbook45XMLDoctype(
                 XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true),
                 escapedTitle + ".ent", elementName);
-        try {
-            files.put(BOOK_LOCALE_FOLDER + chapterXMLName, chapterString.getBytes(ENCODING));
-        } catch (UnsupportedEncodingException e) {
-            // UTF-8 is a valid format so this should exception should never get thrown
-            log.error(e);
-        }
+        addToFilesZip(BOOK_LOCALE_FOLDER + chapterXMLName, chapterString, files);
 
         return xiInclude;
     }
@@ -2309,12 +2289,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         final String chapterString = DocBookUtilities.addDocbook45XMLDoctype(
                 XMLUtilities.convertNodeToString(chapter, verbatimElements, inlineElements, contentsInlineElements, true),
                 escapedTitle + ".ent", elementName);
-        try {
-            files.put(BOOK_LOCALE_FOLDER + chapterXMLName, chapterString.getBytes(ENCODING));
-        } catch (UnsupportedEncodingException e) {
-            // UTF-8 is a valid format so this should exception should never get thrown
-            log.error(e);
-        }
+        addToFilesZip(BOOK_LOCALE_FOLDER + chapterXMLName, chapterString, files);
 
         // Create the XIncludes that will get set in the book.xml
         final Element xiInclude = XMLUtilities.createXIInclude(doc, chapterXMLName);
@@ -2538,12 +2513,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     XMLUtilities.convertNodeToString(specTopic.getXmlDocument(), verbatimElements, inlineElements, contentsInlineElements,
                             true), fixedEntityPath + escapedTitle + ".ent", DocBookUtilities.TOPIC_ROOT_NODE_NAME);
 
-            try {
-                files.put(fixedParentFileLocation + topicFileName, topicXML.getBytes(ENCODING));
-            } catch (UnsupportedEncodingException e) {
-                // UTF-8 is a valid format so this should exception should never get thrown
-                log.error(e.getMessage());
-            }
+            addToFilesZip(fixedParentFileLocation + topicFileName, topicXML, files);
 
             return topicFileName;
         }
@@ -2819,12 +2789,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         fixedAuthorGroupXml = DocBookUtilities.addDocbook45XMLDoctype(
                 XMLUtilities.convertNodeToString(authorDoc, verbatimElements, inlineElements, contentsInlineElements, true),
                 escapedTitle + ".ent", "authorgroup");
-        try {
-            files.put(BOOK_LOCALE_FOLDER + "Author_Group.xml", fixedAuthorGroupXml.getBytes(ENCODING));
-        } catch (UnsupportedEncodingException e) {
-            /* UTF-8 is a valid format so this should exception should never get thrown */
-            log.error(e);
-        }
+        addToFilesZip(BOOK_LOCALE_FOLDER + "Author_Group.xml", fixedAuthorGroupXml, files);
     }
 
     /**
@@ -2871,12 +2836,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                         }
                     } else {
                         // Add the revision history directly to the book
-                        try {
-                            files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", buffer.toString().getBytes(ENCODING));
-                        } catch (UnsupportedEncodingException e) {
-                            /* UTF-8 is a valid format so this should exception should never get thrown */
-                            log.error(e.getMessage());
-                        }
+                        addToFilesZip(BOOK_LOCALE_FOLDER + "Revision_History.xml", buffer.toString(), files);
                     }
                 } catch (Exception e) {
                     log.error(e.getMessage());
@@ -2897,12 +2857,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 buildRevisionHistoryFromTemplate(contentSpec, revisionHistoryXML, requester, files);
             } else {
                 // Add the revision history directly to the book
-                try {
-                    files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", revisionHistoryXML.getBytes(ENCODING));
-                } catch (UnsupportedEncodingException e) {
-                    // UTF-8 is a valid format so this should exception should never get thrown */
-                    log.error(e.getMessage());
-                }
+                addToFilesZip(BOOK_LOCALE_FOLDER + "Revision_History.xml", revisionHistoryXML, files);
             }
         } else {
             buildRevisionHistoryFromTemplate(contentSpec, fixedRevisionHistoryXml, requester, files);
@@ -2990,12 +2945,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
         final String fixedRevisionHistoryXml = DocBookUtilities.addDocbook45XMLDoctype(
                 XMLUtilities.convertNodeToString(revHistoryDoc, verbatimElements, inlineElements, contentsInlineElements, true),
                 this.escapedTitle + ".ent", "appendix");
-        try {
-            files.put(BOOK_LOCALE_FOLDER + "Revision_History.xml", fixedRevisionHistoryXml.getBytes(ENCODING));
-        } catch (UnsupportedEncodingException e) {
-            /* UTF-8 is a valid format so this should exception should never get thrown */
-            log.error(e.getMessage());
-        }
+        addToFilesZip(BOOK_LOCALE_FOLDER + "Revision_History.xml", fixedRevisionHistoryXml, files);
     }
 
     /**
@@ -4021,6 +3971,22 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Adds a file to the files ZIP.
+     *
+     * @param path The path to add the file to.
+     * @param file The file to add to the ZIP.
+     * @param files The mapping collection that will get transformed into the ZIP.
+     */
+    protected void addToFilesZip(final String path, final String file, final Map<String, byte[]> files) {
+        try {
+            files.put(path, file.getBytes(ENCODING));
+        } catch (UnsupportedEncodingException e) {
+            /* UTF-8 is a valid format so this should exception should never get thrown */
+            log.error(e.getMessage());
         }
     }
 }
