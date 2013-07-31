@@ -11,6 +11,7 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
     private List<String> injectionTypes = new ArrayList<String>();
     private Boolean injection = true;
     private Map<String, String> overrides = new HashMap<String, String>();
+    private Map<String, String> publicanCfgOverrides = new HashMap<String, String>();
     private Boolean allowEmptySections = false;
     private Boolean showReportPage = false;
     private String locale = null;
@@ -75,6 +76,14 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
 
     public void setOverrides(final Map<String, String> overrides) {
         this.overrides = overrides;
+    }
+
+    public Map<String, String> getPublicanCfgOverrides() {
+        return publicanCfgOverrides;
+    }
+
+    public void setPublicanCfgOverrides(final Map<String, String> publicanCfgOverrides) {
+        this.publicanCfgOverrides = publicanCfgOverrides;
     }
 
     public boolean isAllowEmptySections() {

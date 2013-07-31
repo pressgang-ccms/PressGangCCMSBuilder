@@ -69,10 +69,6 @@ public class PublicanDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extend
 
             // Add the cleaned user defined publican.cfg
             publicanCfg += DocbookBuildUtilities.cleanUserPublicanCfg(contentSpec.getPublicanCfg());
-
-            if (!publicanCfg.matches(".*\n$")) {
-                publicanCfg += "\n";
-            }
         }
 
         if (docbookBuildingOptions.getPublicanShowRemarks()) {
@@ -96,6 +92,25 @@ public class PublicanDocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extend
             publicanCfg += "version: " + version + "\n";
         }
 
-        return publicanCfg;
+        return applyPublicanCfgOverrides(publicanCfg);
+    }
+
+    /**
+     * Applies custom user overrides to the publican.cfg file.
+     *
+     * @param publicanCfg
+     * @return
+     */
+    private String applyPublicanCfgOverrides(final String publicanCfg) {
+        final Map<String, String> publicanCfgOverrides = docbookBuildingOptions.getPublicanCfgOverrides();
+        String retValue = publicanCfg;
+
+        // Loop over each override and remove any entries that may exist and then append the new entry
+        for (final Map.Entry<String, String> publicanCfgOverrideEntry : publicanCfgOverrides.entrySet()) {
+            retValue = retValue.replaceFirst(publicanCfgOverrideEntry.getKey() + ".*?(\\r)?\\n", "");
+            retValue += publicanCfgOverrideEntry.getKey() + ": " + publicanCfgOverrideEntry.getValue() + "\n";
+        }
+
+        return retValue;
     }
 }

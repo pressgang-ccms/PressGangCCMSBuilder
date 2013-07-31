@@ -370,6 +370,10 @@ public class DocbookBuildUtilities {
         // Remove any brand statements
         retValue = retValue.replaceAll("brand\\:\\s*.*($|\\r\\n|\\n)" + "", "");
 
+        if (!retValue.endsWith("\n")) {
+            retValue += "\n";
+        }
+
         return retValue;
     }
 
