@@ -244,4 +244,6 @@ public class BuilderConstants {
      * The StringConstantsID that represents the Invalid Validation Topic template file
      */
     public static final Integer CSP_INVALID_VALIDATION_TOPIC_ERROR_XML_ID = 33;
+
+    public static final Integer PRESSGANG_WEBSITE_NEW_SINCE_PROPERTY = 37;
 }

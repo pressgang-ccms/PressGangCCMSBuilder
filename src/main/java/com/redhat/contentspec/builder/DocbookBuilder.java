@@ -15,6 +15,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,6 +38,7 @@ import com.redhat.contentspec.builder.utils.SAXXMLValidator;
 import com.redhat.contentspec.structures.CSDocbookBuildingOptions;
 import com.redhat.contentspec.structures.SpecDatabase;
 import org.apache.log4j.Logger;
+import org.codehaus.jackson.io.JsonStringEncoder;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.Level;
@@ -2056,6 +2058,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
     protected String buildPressGangWebsiteJS(final boolean useFixedUrls) {
         final StringBuilder retValue = new StringBuilder("pressgang_website_callback([\n");
 
+        final JsonStringEncoder encoder = JsonStringEncoder.getInstance();
+
         final List<T> topics = specDatabase.getAllTopics();
         boolean initial = true;
         for (final T topic : topics) {
@@ -2071,13 +2075,26 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             final List<SpecTopic> specTopics = specDatabase.getSpecTopicsForTopicID(topicId);
             final String fixedUrl = specTopics.get(0).getUniqueLinkId(useFixedUrls);
 
+            // Find the new since value to use
+            final List<RESTAssignedPropertyTagV1> newSinceProperties = ComponentTopicV1.returnProperties(topic,
+                    BuilderConstants.PRESSGANG_WEBSITE_NEW_SINCE_PROPERTY);
+            final List<String> values = new ArrayList<String>();
+            if (newSinceProperties != null) {
+                for (final RESTAssignedPropertyTagV1 newSinceProperty : newSinceProperties) {
+                    values.add(newSinceProperty.getValue());
+                }
+                Collections.sort(values);
+            }
+
             // Opening brace
             retValue.append("\t{");
 
             // Data
             retValue.append("\"topicId\":").append(topic.getId());
-            retValue.append(",\"target\":\"").append(fixedUrl).append("\"");
-            retValue.append(",\"title\":\"").append(topic.getTitle().replace("\"", "\\\"")).append("\"");
+            retValue.append(",\"target\":\"").append(encoder.quoteAsString(fixedUrl)).append("\"");
+            retValue.append(",\"title\":\"").append(encoder.quoteAsString(topic.getTitle())).append("\"");
+            retValue.append(",\"newSince\":\"").append(values.isEmpty() ? "" : encoder.quoteAsString(values.get(values.size() - 1)))
+                    .append("\"");
 
             // Closing brace
             retValue.append("}");
