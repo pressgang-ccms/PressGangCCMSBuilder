@@ -2042,7 +2042,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      * @param useFixedUrls If during processing the fixed urls should be used.
      * @param files       The mapping of file names/locations to files that will be packaged into the ZIP archive.
      */
-    protected void addBookBaseFilesAndImages(final boolean useFixedUrls, final Map<String, byte[]> files) {
+    protected void addBookBaseFilesAndImages(final boolean useFixedUrls, final Map<String, byte[]> files) throws BuildProcessingException {
         final String iconSvg = restManager.getRESTClient().getJSONStringConstant(BuilderConstants.ICON_SVG_ID, "").getValue();
         final String pressgangWebsiteJS = buildPressGangWebsiteJS(useFixedUrls);
 
@@ -2055,7 +2055,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
      *
      * @param useFixedUrls If during processing the fixed urls should be used.
      */
-    protected String buildPressGangWebsiteJS(final boolean useFixedUrls) {
+    protected String buildPressGangWebsiteJS(final boolean useFixedUrls) throws BuildProcessingException {
         final StringBuilder retValue = new StringBuilder("pressgang_website_callback([\n");
 
         final JsonStringEncoder encoder = JsonStringEncoder.getInstance();
@@ -2090,11 +2090,15 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             retValue.append("\t{");
 
             // Data
-            retValue.append("\"topicId\":").append(topic.getId());
-            retValue.append(",\"target\":\"").append(encoder.quoteAsString(fixedUrl)).append("\"");
-            retValue.append(",\"title\":\"").append(encoder.quoteAsString(topic.getTitle())).append("\"");
-            retValue.append(",\"newSince\":\"").append(values.isEmpty() ? "" : encoder.quoteAsString(values.get(values.size() - 1)))
-                    .append("\"");
+            try {
+                retValue.append("\"topicId\":").append(topic.getId());
+                retValue.append(",\"target\":\"").append(new String(encoder.quoteAsUTF8(fixedUrl), "UTF-8")).append("\"");
+                retValue.append(",\"title\":\"").append(new String(encoder.quoteAsUTF8(topic.getTitle()), "UTF-8")).append("\"");
+                retValue.append(",\"newSince\":\"").append(values.isEmpty() ? "" : new String(encoder.quoteAsUTF8(values.get(values.size() -
+                        1)), "UTF-8")).append("\"");
+            } catch (UnsupportedEncodingException e) {
+                throw new BuildProcessingException(e);
+            }
 
             // Closing brace
             retValue.append("}");
