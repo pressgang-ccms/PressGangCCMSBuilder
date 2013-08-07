@@ -3151,7 +3151,7 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
                 }
 
                 if (tags != null && !tags.isEmpty()) {
-                    topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + tags));
+                    topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + StringUtilities.escapeForXML(tags)));
                 }
                 topicErrorItems.add(DocBookUtilities.buildListItem("INFO: <ulink url=\"" + url + "\">Topic URL</ulink>"));
 
@@ -3557,8 +3557,8 @@ public class DocbookBuilder<T extends RESTBaseTopicV1<T, U, V>, U extends RESTBa
             final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(
                     XMLUtilities.convertNodeToString(topicDoc, verbatimElements, inlineElements, contentsInlineElements, true));
             errorDatabase.addError(topic, ErrorType.INVALID_CONTENT,
-                    BuilderConstants.ERROR_INVALID_TOPIC_XML + " The error is <emphasis>" + validator.getErrorText() + "</emphasis>. The " +
-                            "processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+                    BuilderConstants.ERROR_INVALID_TOPIC_XML + " The error is <emphasis>" + StringUtilities.escapeForXML(validator
+                            .getErrorText()) + "</emphasis>. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
             setSpecTopicXMLForError(specTopic, topicXMLErrorTemplate, useFixedUrls);
 
             return false;
