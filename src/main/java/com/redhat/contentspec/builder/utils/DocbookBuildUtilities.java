@@ -404,11 +404,11 @@ public class DocbookBuildUtilities {
         final List<String> xmlErrors = new ArrayList<String>();
         // Check to ensure that if the topic has programlisting elements, that the language is a valid Publican value
         if (!DocbookBuildUtilities.validateProgramListingLanguages(topicDoc)) {
-            xmlErrors.add("Table column declaration doesn't match the number of entry elements.");
+            xmlErrors.add("The Program Listing language is not a valid Publican language.");
         }
         // Check to ensure that if the topic has a table, that the table isn't missing any entries
         if (!DocbookBuildUtilities.validateTopicTables(topicDoc)) {
-            xmlErrors.add("The Program Listing language is not a valid Publican language.");
+            xmlErrors.add("Table column declaration doesn't match the number of entry elements.");
         }
         // Check that the root element matches the topic type
         final String rootElementErrors = checkTopicRootElement(topic, topicDoc);
