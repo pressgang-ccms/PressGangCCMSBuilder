@@ -3355,24 +3355,19 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             topic);
 
                     // Get a list of all property tag items that exist for the current topic
-                    /*final List<RESTAssignedPropertyTagCollectionItemV1> existingUniqueURLs = ComponentTopicV1.returnPropertyItems(topic,
-                            CommonConstants.FIXED_URL_PROP_TAG_ID);*/
-
-                    PropertyTagInTopicWrapper existingUniqueURL = topic.getProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
+                    final List<PropertyTagInTopicWrapper> existingUniqueURLs = topic.getProperties(CommonConstants.FIXED_URL_PROP_TAG_ID);
 
                     // Remove any Duplicate Fixed URL's
-                    // TODO
-                    /*for (int i = 0; i < existingUniqueURLs.size(); i++) {
-                        final RESTAssignedPropertyTagCollectionItemV1 propertyTag = existingUniqueURLs.get(i);
-                        if (propertyTag.getItem() == null) continue;
-
+                    PropertyTagInTopicWrapper existingUniqueURL = null;
+                    for (int i = 0; i < existingUniqueURLs.size(); i++) {
+                        final PropertyTagInTopicWrapper propertyTag = existingUniqueURLs.get(i);
                         if (i == 0) {
-                            existingUniqueURL = propertyTag.getItem();
+                            existingUniqueURL = propertyTag;
                         } else {
-                            updatePropertyTags.addRemoveItem(propertyTag.getItem());
+                            updatePropertyTags.addRemoveItem(propertyTag);
                             topic.getProperties().getItems().remove(propertyTag);
                         }
-                    }*/
+                    }
 
                     if (existingUniqueURL == null || !existingUniqueURL.isValid()) {
                         // generate the base url
