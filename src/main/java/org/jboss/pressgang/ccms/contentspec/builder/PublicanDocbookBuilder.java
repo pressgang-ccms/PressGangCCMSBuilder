@@ -1,7 +1,7 @@
 package org.jboss.pressgang.ccms.contentspec.builder;
 
-import java.io.UnsupportedEncodingException;
 import java.util.Map;
+
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
@@ -27,12 +27,7 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
 
         // Setup publican.cfg
         final String fixedPublicanCfg = buildPublicanCfgFile(buildData, publicanCfg);
-        try {
-            buildData.getOutputFiles().put(buildData.getRootBookFolder() + "publican.cfg", fixedPublicanCfg.getBytes(ENCODING));
-        } catch (UnsupportedEncodingException e) {
-            // UTF-8 is a valid format so this should exception should never get thrown
-            log.error(e);
-        }
+        addToFilesZip(buildData.getRootBookFolder()  + "publican.cfg", fixedPublicanCfg, buildData.getOutputFiles());
     }
 
     /**
@@ -68,10 +63,6 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
                 publicanCfg = publicanCfg.replaceFirst("git_branch:\\s*.*(\\r)?(\\n)?", "");
             }
             publicanCfg += DocbookBuildUtilities.cleanUserPublicanCfg(contentSpec.getPublicanCfg());
-
-            if (!publicanCfg.matches(".*\n$")) {
-                publicanCfg += "\n";
-            }
         }
 
         if (buildData.getBuildOptions().getPublicanShowRemarks()) {
@@ -95,6 +86,25 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
             publicanCfg += "version: " + version + "\n";
         }
 
-        return publicanCfg;
+        return applyPublicanCfgOverrides(buildData, publicanCfg);
+    }
+
+    /**
+     * Applies custom user overrides to the publican.cfg file.
+     *
+     * @param publicanCfg
+     * @return
+     */
+    private String applyPublicanCfgOverrides(final BuildData buildData, final String publicanCfg) {
+        final Map<String, String> publicanCfgOverrides = buildData.getBuildOptions().getPublicanCfgOverrides();
+        String retValue = publicanCfg;
+
+        // Loop over each override and remove any entries that may exist and then append the new entry
+        for (final Map.Entry<String, String> publicanCfgOverrideEntry : publicanCfgOverrides.entrySet()) {
+            retValue = retValue.replaceFirst(publicanCfgOverrideEntry.getKey() + ".*?(\\r)?\\n", "");
+            retValue += publicanCfgOverrideEntry.getKey() + ": " + publicanCfgOverrideEntry.getValue() + "\n";
+        }
+
+        return retValue;
     }
 }

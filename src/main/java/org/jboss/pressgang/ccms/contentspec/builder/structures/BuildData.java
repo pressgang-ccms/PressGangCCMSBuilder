@@ -225,11 +225,11 @@ public class BuildData {
         if (buildOptions.getInsertSurveyLink()) {
             buildOptions.setInsertSurveyLink(contentSpec.isInjectSurveyLinks());
         }
-        if (buildOptions.getForceInjectBugzillaLinks()) {
-            buildOptions.setInsertBugzillaLinks(true);
+        if (buildOptions.getForceInjectBugLinks()) {
+            buildOptions.setInsertBugLinks(true);
         } else {
-            if (buildOptions.getInsertBugzillaLinks()) {
-                buildOptions.setInsertBugzillaLinks(contentSpec.isInjectBugLinks());
+            if (buildOptions.getInsertBugLinks()) {
+                buildOptions.setInsertBugLinks(contentSpec.isInjectBugLinks());
             }
         }
         if (buildOptions.getBuildName() == null || buildOptions.getBuildName().isEmpty()) {

@@ -2,6 +2,7 @@ package org.jboss.pressgang.ccms.contentspec.builder.utils;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -11,6 +12,7 @@ import com.google.code.regexp.Matcher;
 import com.google.code.regexp.Pattern;
 import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
+import org.apache.commons.lang.time.DateUtils;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
@@ -29,12 +31,6 @@ import org.jboss.pressgang.ccms.wrapper.TopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.TranslatedCSNodeWrapper;
 import org.jboss.pressgang.ccms.wrapper.TranslatedTopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.base.BaseTopicWrapper;
-import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.DateTimeFormatterBuilder;
-import org.joda.time.format.DateTimeParser;
-import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -52,16 +48,9 @@ public class DocbookBuildUtilities {
     private static final Logger log = LoggerFactory.getLogger(DocbookBuildUtilities.class);
     private static final String STARTS_WITH_NUMBER_RE = "^(?<Numbers>\\d+)(?<EverythingElse>.*)$";
     private static final String STARTS_WITH_INVALID_SEQUENCE_RE = "^(?<InvalidSeq>[^\\w\\d]+)(?<EverythingElse>.*)$";
-    private static final DateTimeParser[] parsers = {
-            DateTimeFormat.forPattern("MM/dd/yyyy").getParser(),
-            DateTimeFormat.forPattern("EEE MMM dd yyyy").getParser(),
-            DateTimeFormat.forPattern("EEE, MMM dd yyyy").getParser(),
-            DateTimeFormat.forPattern("EEE MMM dd yyyy Z").getParser(),
-            DateTimeFormat.forPattern("EEE dd MMM yyyy").getParser(),
-            DateTimeFormat.forPattern("EEE, dd MMM yyyy").getParser(),
-            DateTimeFormat.forPattern("EEE dd MMM yyyy Z").getParser(),
-            ISODateTimeFormat.basicDateTime().getParser()};
-    private static final DateTimeFormatter formatter = new DateTimeFormatterBuilder().append(null, parsers).toFormatter();
+    private static final String[] DATE_FORMATS = new String[]{
+            "MM-dd-yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "yyyy/MM/dd", "EEE MMM dd yyyy", "EEE, MMM dd yyyy", "EEE MMM dd yyyy Z",
+            "EEE dd MMM yyyy", "EEE,dd MMM yyyy", "EEE dd MMM yyyy Z", "yyyyMMdd", "yyyyMMdd'T'HHmmss.SSSZ"};
 
     /**
      * Adds the levels in the provided Level object to the content spec database.
@@ -398,6 +387,10 @@ public class DocbookBuildUtilities {
         // Remove any brand statements
         retValue = retValue.replaceAll("brand\\:\\s*.*($|\\r\\n|\\n)" + "", "");
 
+        if (!retValue.endsWith("\n")) {
+            retValue += "\n";
+        }
+
         return retValue;
     }
 
@@ -613,11 +606,11 @@ public class DocbookBuildUtilities {
         final List<String> xmlErrors = new ArrayList<String>();
         // Check to ensure that if the topic has programlisting elements, that the language is a valid Publican value
         if (!DocbookBuildUtilities.validateProgramListingLanguages(topicDoc)) {
-            xmlErrors.add("Table column declaration doesn't match the number of entry elements.");
+            xmlErrors.add("The Program Listing language is not a valid Publican language.");
         }
         // Check to ensure that if the topic has a table, that the table isn't missing any entries
         if (!DocbookBuildUtilities.validateTopicTables(topicDoc)) {
-            xmlErrors.add("The Program Listing language is not a valid Publican language.");
+            xmlErrors.add("Table column declaration doesn't match the number of entry elements.");
         }
         // Check that the root element matches the topic type
         final String rootElementErrors = checkTopicRootElement(topic, topicDoc);
@@ -685,7 +678,7 @@ public class DocbookBuildUtilities {
 
         // Find each <revnumber> element and make sure it matches the publican regex
         final NodeList revisions = doc.getElementsByTagName("revision");
-        DateTime previousDate = null;
+        Date previousDate = null;
         for (int i = 0; i < revisions.getLength(); i++) {
             final Element revision = (Element) revisions.item(i);
             final NodeList revnumbers = revision.getElementsByTagName("revnumber");
@@ -703,9 +696,10 @@ public class DocbookBuildUtilities {
             // Check the dates are in chronological order
             if (date != null) {
                 try {
-                    final DateTime revisionDate = formatter.parseDateTime(date.getTextContent());
-                    if (previousDate != null && revisionDate.isAfter(previousDate)) {
-                        return "The revisions in the Revision History are not in decending chronological order.";
+                    final Date revisionDate = DateUtils.parseDate(date.getTextContent(), DATE_FORMATS);
+                    if (previousDate != null && revisionDate.after(previousDate)) {
+                        return "The revisions in the Revision History are not in descending chronological order, " +
+                                "starting from \"" + date.getTextContent() + "\".";
                     }
 
                     previousDate = revisionDate;

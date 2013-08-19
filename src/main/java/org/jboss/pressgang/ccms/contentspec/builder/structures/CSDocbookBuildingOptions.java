@@ -11,6 +11,7 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
     private List<String> injectionTypes = new ArrayList<String>();
     private Boolean injection = true;
     private Map<String, String> overrides = new HashMap<String, String>();
+    private Map<String, String> publicanCfgOverrides = new HashMap<String, String>();
     private Boolean allowEmptySections = false;
     private Boolean showReportPage = false;
     private String locale = null;
@@ -21,7 +22,7 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
     private Boolean useLatestVersions = false;
     private Boolean flattenTopics = false;
     private Boolean flatten = false;
-    private Boolean forceInjectBugzillaLinks = false;
+    private Boolean forceInjectBugLinks = false;
     private Boolean serverBuild = false;
 
     public CSDocbookBuildingOptions() {
@@ -36,7 +37,7 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
         this.setEnableDynamicTreeToc(docbookBuildingOptions.getEnableDynamicTreeToc());
         this.setIgnoreMissingCustomInjections(docbookBuildingOptions.getIgnoreMissingCustomInjections());
         this.setIncludeUntranslatedTopics(docbookBuildingOptions.getIncludeUntranslatedTopics());
-        this.setInsertBugzillaLinks(docbookBuildingOptions.getInsertBugzillaLinks());
+        this.setInsertBugLinks(docbookBuildingOptions.getInsertBugLinks());
         this.setInsertSurveyLink(docbookBuildingOptions.getInsertSurveyLink());
         this.setProcessRelatedTopics(docbookBuildingOptions.getProcessRelatedTopics());
         this.setPublicanShowRemarks(docbookBuildingOptions.getPublicanShowRemarks());
@@ -75,6 +76,14 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
 
     public void setOverrides(final Map<String, String> overrides) {
         this.overrides = overrides;
+    }
+
+    public Map<String, String> getPublicanCfgOverrides() {
+        return publicanCfgOverrides;
+    }
+
+    public void setPublicanCfgOverrides(final Map<String, String> publicanCfgOverrides) {
+        this.publicanCfgOverrides = publicanCfgOverrides;
     }
 
     public boolean isAllowEmptySections() {
@@ -149,12 +158,12 @@ public class CSDocbookBuildingOptions extends DocbookBuildingOptions {
         this.flattenTopics = flattenTopics;
     }
 
-    public Boolean getForceInjectBugzillaLinks() {
-        return forceInjectBugzillaLinks;
+    public Boolean getForceInjectBugLinks() {
+        return forceInjectBugLinks;
     }
 
-    public void setForceInjectBugzillaLinks(Boolean forceInjectBugzillaLinks) {
-        this.forceInjectBugzillaLinks = forceInjectBugzillaLinks;
+    public void setForceInjectBugLinks(Boolean forceInjectBugLinks) {
+        this.forceInjectBugLinks = forceInjectBugLinks;
     }
 
     public Boolean isServerBuild() {
