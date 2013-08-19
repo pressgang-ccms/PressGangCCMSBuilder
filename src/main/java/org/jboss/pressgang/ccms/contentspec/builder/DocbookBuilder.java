@@ -441,7 +441,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // Get the Build Locale
         final String buildLocale = buildingOptions.getLocale() == null ? getDefaultBuildLocale() : buildingOptions.getLocale();
-        if (!buildLocale.equals(getDefaultBuildLocale())) {
+        if (buildLocale.equals(getDefaultBuildLocale())) {
             constantsResourceBundle = ResourceBundle.getBundle("Constants");
         } else {
             constantsResourceBundle = ResourceBundle.getBundle("Constants", LOCALE_MAP.get(buildLocale));
@@ -744,6 +744,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             // Add the topic to the topics collection
             final String key = DocbookBuildUtilities.getTopicBuildKey(topic);
             topics.put(key, topic);
+            buildData.getBuildDatabase().add(specTopic, key);
         }
 
         final Set<String> processedFileNames = new HashSet<String>();
@@ -1731,7 +1732,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final String pressgangWebsiteJS = buildPressGangWebsiteJS(buildData, useFixedUrls);
 
         addToFilesZip(buildData.getBookImagesFolder() + "icon.svg", iconSvg, buildData);
-        addToFilesZip(buildData.getBookImagesFolder() + "pressgang_website.js", pressgangWebsiteJS, buildData);
+        addToFilesZip(buildData.getBookFilesFolder() + "pressgang_website.js", pressgangWebsiteJS, buildData);
     }
 
     /**
