@@ -20,14 +20,14 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
     }
 
     @Override
-    protected void buildBookAdditions(final BuildData buildData) throws BuildProcessingException {
-        super.buildBookAdditions(buildData);
+    protected void buildBookAdditions(final BuildData buildData, final boolean useFixedUrls) throws BuildProcessingException {
+        super.buildBookAdditions(buildData, useFixedUrls);
 
         final String publicanCfg = stringConstantProvider.getStringConstant(BuilderConstants.PUBLICAN_CFG_ID).getValue();
 
         // Setup publican.cfg
         final String fixedPublicanCfg = buildPublicanCfgFile(buildData, publicanCfg);
-        addToFilesZip(buildData.getRootBookFolder()  + "publican.cfg", fixedPublicanCfg, buildData.getOutputFiles());
+        addToFilesZip(buildData.getRootBookFolder()  + "publican.cfg", fixedPublicanCfg, buildData);
     }
 
     /**

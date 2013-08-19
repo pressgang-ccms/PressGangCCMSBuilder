@@ -1,4 +1,4 @@
-package com.redhat.contentspec.builder;
+package org.jboss.pressgang.ccms.contentspec.builder;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -24,8 +24,8 @@ public class JDocbookBuilder extends DocbookBuilder {
     }
 
     @Override
-    protected void buildBookAdditions(final BuildData buildData) throws BuildProcessingException {
-        super.buildBookAdditions(buildData);
+    protected void buildBookAdditions(final BuildData buildData, final boolean useFixedUrls) throws BuildProcessingException {
+        super.buildBookAdditions(buildData, useFixedUrls);
 
         final Map<String, String> overrides = buildData.getBuildOptions().getOverrides();
 
@@ -46,7 +46,7 @@ public class JDocbookBuilder extends DocbookBuilder {
                     }
 
                     // Add the parsed file to the book
-                    buildData.getOutputFiles().put(buildData.getRootBookFolder() + "pom.xml", buffer.toString().getBytes(ENCODING));
+                    addToFilesZip(buildData.getRootBookFolder() + "pom.xml", buffer.toString(), buildData);
                 } catch (Exception e) {
                     log.error(e);
                     buildPom(buildData);
@@ -124,7 +124,7 @@ public class JDocbookBuilder extends DocbookBuilder {
                 final String fixedFile = DocBookUtilities.addDocbook45XMLDoctype(file, entityFileName, rootElementName);
 
                 // Add the file to the book
-                addToFilesZip(buildData.getBookLocaleFolder() + "Common_Content/" + fileName, fixedFile, buildData.getOutputFiles());
+                addToFilesZip(buildData.getBookLocaleFolder() + "Common_Content/" + fileName, fixedFile, buildData);
             }
         }
     }
@@ -167,7 +167,7 @@ public class JDocbookBuilder extends DocbookBuilder {
         // Change the Version
         pomXML = pomXML.replaceFirst("<version>.*</version>", "<version>" + contentSpec.getVersion() + "-SNAPSHOT</version>");
 
-        addToFilesZip(buildData.getRootBookFolder() + "pom.xml", pomXML, buildData.getOutputFiles());
+        addToFilesZip(buildData.getRootBookFolder() + "pom.xml", pomXML, buildData);
     }
 
     @Override

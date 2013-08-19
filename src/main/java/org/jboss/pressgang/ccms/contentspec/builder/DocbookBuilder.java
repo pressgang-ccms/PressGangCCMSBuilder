@@ -1619,7 +1619,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     "<programlisting>" + XMLUtilities.wrapStringInCDATA(contentSpec.toString()) + "</programlisting>"),
                     "Build Content Specification");
                 addToFilesZip(buildData.getBookLocaleFolder() + "Build_Content_Specification.xml",
-                        DocBookUtilities.addDocbook45XMLDoctype(contentSpecPage, escapedTitle + ".ent", "appendix"), buildData.getOutputFiles());
+                        DocBookUtilities.addDocbook45XMLDoctype(contentSpecPage, escapedTitle + ".ent", "appendix"), buildData);
 
             // Create and append the XI Include element
             final Element translateXMLNode = XMLUtilities.createXIInclude(bookBase, "Build_Content_Specification.xml");
@@ -1634,7 +1634,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final String rootElementName = contentSpec.getBookType().toString().toLowerCase().replace("-draft", "");
         final String book = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(bookBase, rootElementName,
                 escapedTitle + ".xml", getXMLFormatProperties());
-        addToFilesZip(buildData.getBookLocaleFolder() + escapedTitle + ".xml", book, buildData.getOutputFiles());
+        addToFilesZip(buildData.getBookLocaleFolder() + escapedTitle + ".xml", book, buildData);
     }
 
     /**
@@ -1667,9 +1667,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Setup Book_Info.xml
         final String fixedBookInfo = buildBookInfoFile(buildData, bookInfoTemplate);
         if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            addToFilesZip(buildData.getBookLocaleFolder() + "Article_Info.xml", fixedBookInfo, files);
+            addToFilesZip(buildData.getBookLocaleFolder() + "Article_Info.xml", fixedBookInfo, buildData);
         } else {
-            addToFilesZip(buildData.getBookLocaleFolder() + "Book_Info.xml", fixedBookInfo, files);
+            addToFilesZip(buildData.getBookLocaleFolder() + "Book_Info.xml", fixedBookInfo, buildData);
         }
 
         // Setup Author_Group.xml
@@ -1686,28 +1686,18 @@ public class DocbookBuilder implements ShutdownAbleApp {
             // Add the override Feedback.xml file to the book
             files.put(buildData.getBookLocaleFolder() + FEEDBACK_FILE_NAME, overrideFiles.get(CSConstants.FEEDBACK_OVERRIDE));
         } else if (contentSpec.getFeedback() != null) {
-            try {
-                final String feedbackXml = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
-                        contentSpec.getFeedback().getXMLDocument(), DocBookUtilities.TOPIC_ROOT_NODE_NAME, buildData.getEntityFileName(),
-                        getXMLFormatProperties());
-                // Add the revision history directly to the book
-                files.put(buildData.getBookLocaleFolder() + FEEDBACK_FILE_NAME, feedbackXml.getBytes(ENCODING));
-            } catch (UnsupportedEncodingException e) {
-                // UTF-8 is a valid format so this should exception should never get thrown
-                log.error(e.getMessage());
-            }
+            final String feedbackXml = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
+                    contentSpec.getFeedback().getXMLDocument(), DocBookUtilities.TOPIC_ROOT_NODE_NAME, buildData.getEntityFileName(),
+                    getXMLFormatProperties());
+            // Add the revision history directly to the book
+            addToFilesZip(buildData.getBookLocaleFolder() + FEEDBACK_FILE_NAME, feedbackXml, buildData);
         }
 
         // Setup Legal_Notice.xml
         if (contentSpec.getLegalNotice() != null) {
             final String legalNoticeXML = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
                     contentSpec.getLegalNotice().getXMLDocument(), "legalnotice", buildData.getEntityFileName(), getXMLFormatProperties());
-            try {
-                files.put(buildData.getBookLocaleFolder() + LEGAL_NOTICE_FILE_NAME, legalNoticeXML.getBytes("UTF-8"));
-            } catch (UnsupportedEncodingException e) {
-                /* UTF-8 is a valid format so this should exception should never get thrown */
-                log.error(e);
-            }
+            addToFilesZip(buildData.getBookLocaleFolder() + LEGAL_NOTICE_FILE_NAME, legalNoticeXML, buildData);
         }
 
         // Setup Preface.xml
@@ -1717,25 +1707,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
         if (prefaceTitleTranslation != null) {
             fixedPrefaceXml = fixedPrefaceXml.replace("<title>Preface</title>", "<title>" + prefaceTitleTranslation + "</title>");
         }
-
-        try {
-            files.put(buildData.getBookLocaleFolder() + PREFACE_FILE_NAME, fixedPrefaceXml.getBytes(ENCODING));
-        } catch (UnsupportedEncodingException e) {
-            // UTF-8 is a valid format so this should exception should never get thrown
-            log.error(e.getMessage());
-        }
+        addToFilesZip(buildData.getBookLocaleFolder() + PREFACE_FILE_NAME, fixedPrefaceXml, buildData);
 
         // Setup Revision_History.xml
         buildRevisionHistory(buildData, overrides);
 
         // Build the book .ent file
         final String entFile = buildBookEntityFile(buildData, bookEntityTemplate);
-        try {
-            files.put(buildData.getBookLocaleFolder() + buildData.getEntityFileName(), entFile.getBytes(ENCODING));
-        } catch (UnsupportedEncodingException e) {
-            // UTF-8 is a valid format so this should exception should never get thrown
-            log.error(e.getMessage());
-        }
+        addToFilesZip(buildData.getBookLocaleFolder() + buildData.getEntityFileName(), entFile, buildData);
 
         // Setup the images and files folders
         addBookBaseFilesAndImages(buildData, useFixedUrls);
@@ -1751,8 +1730,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
     final String iconSvg = stringConstantProvider.getStringConstant(BuilderConstants.ICON_SVG_ID).getValue();
         final String pressgangWebsiteJS = buildPressGangWebsiteJS(buildData, useFixedUrls);
 
-        addToFilesZip(buildData.getBookImagesFolder() + "icon.svg", iconSvg, buildData.getOutputFiles());
-        addToFilesZip(buildData.getBookImagesFolder() + "pressgang_website.js", pressgangWebsiteJS, buildData.getOutputFiles());
+        addToFilesZip(buildData.getBookImagesFolder() + "icon.svg", iconSvg, buildData);
+        addToFilesZip(buildData.getBookImagesFolder() + "pressgang_website.js", pressgangWebsiteJS, buildData);
     }
 
     /**
@@ -1765,7 +1744,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         final JsonStringEncoder encoder = JsonStringEncoder.getInstance();
 
-        final List<BaseTopicWrapper> topics = buildData.getBuildDatabase().getAllTopics();
+        final List<? extends BaseTopicWrapper<?>> topics = buildData.getBuildDatabase().getAllTopics();
         boolean initial = true;
         for (final BaseTopicWrapper<?> topic : topics) {
             // Insert a newline and comma to separate each array variable only after the first variable has been set
@@ -1973,7 +1952,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Add the boiler plate text and add the chapter to the book
         final String chapterString = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(chapter, elementName,
                 buildData.getEntityFileName(), getXMLFormatProperties());
-        addToFilesZip(buildData.getBookLocaleFolder() + chapterXMLName, chapterString, buildData.getOutputFiles());
+        addToFilesZip(buildData.getBookLocaleFolder() + chapterXMLName, chapterString, buildData);
 
         return xiInclude;
     }
@@ -2030,7 +2009,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Add the boiler plate text and add the chapter to the book
         final String chapterString = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(chapter, elementName,
                 buildData.getEntityFileName(), getXMLFormatProperties());
-        addToFilesZip(buildData.getBookLocaleFolder() + chapterXMLName, chapterString, buildData.getOutputFiles());
+        addToFilesZip(buildData.getBookLocaleFolder() + chapterXMLName, chapterString, buildData);
 
         // Create the XIncludes that will get set in the book.xml
         final Element xiInclude = XMLUtilities.createXIInclude(doc, chapterXMLName);
@@ -2247,7 +2226,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             final String topicXML = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(specTopic.getXMLDocument(),
                     DocBookUtilities.TOPIC_ROOT_NODE_NAME, fixedEntityPath + buildData.getEntityFileName(), getXMLFormatProperties());
 
-            addToFilesZip(fixedParentFileLocation + topicFileName, topicXML, buildData.getOutputFiles());
+            addToFilesZip(fixedParentFileLocation + topicFileName, topicXML, buildData);
 
             return topicFileName;
         }
@@ -2502,7 +2481,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Add the Author_Group.xml to the book
         fixedAuthorGroupXml = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(authorDoc, "authorgroup",
                 buildData.getEntityFileName(), getXMLFormatProperties());
-        addToFilesZip(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, fixedAuthorGroupXml, buildData.getOutputFiles());
+        addToFilesZip(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, fixedAuthorGroupXml, buildData);
     }
 
     /**
@@ -2549,7 +2528,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             buildRevisionHistoryFromTemplate(buildData, revHistoryOverride);
                         }
                     } else {
-                        addToFilesZip(buildData.getBookLocaleFolder() + "Revision_History.xml", buffer.toString(), buildData.getOutputFiles());
+                        addToFilesZip(buildData.getBookLocaleFolder() + "Revision_History.xml", buffer.toString(), buildData);
                     }
                 } catch (Exception e) {
                     log.error(e.getMessage());
@@ -2570,7 +2549,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             } else {
                 // Add the revision history directly to the book
                 addToFilesZip(buildData.getBookLocaleFolder() + REVISION_HISTORY_FILE_NAME,
-                            revisionHistoryXML, buildData.getOutputFiles());
+                            revisionHistoryXML, buildData);
             }
         } else {
             buildRevisionHistoryFromTemplate(buildData, fixedRevisionHistoryXml);
@@ -2658,7 +2637,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final String fixedRevisionHistoryXml = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(revHistoryDoc, "appendix",
                 buildData.getEntityFileName(), getXMLFormatProperties());
         addToFilesZip(buildData.getBookLocaleFolder() + REVISION_HISTORY_FILE_NAME,
-                    fixedRevisionHistoryXml, buildData.getOutputFiles());
+                    fixedRevisionHistoryXml, buildData);
     }
 
     /**
@@ -3587,11 +3566,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
      *
      * @param path The path to add the file to.
      * @param file The file to add to the ZIP.
-     * @param files The mapping collection that will get transformed into the ZIP.
+     * @param buildData
      */
-    protected void addToFilesZip(final String path, final String file, final Map<String, byte[]> files) {
+    protected void addToFilesZip(final String path, final String file, BuildData buildData) {
         try {
-            files.put(path, file.getBytes(ENCODING));
+            buildData.getOutputFiles().put(path, file.getBytes(ENCODING));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
             log.error(e.getMessage());
