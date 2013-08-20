@@ -612,8 +612,6 @@ public class DocbookBuilder implements ShutdownAbleApp {
     @SuppressWarnings("unchecked")
     protected void validateTopicLinks(final BuildData buildData, final Set<String> bookIdAttributes,
             final boolean useFixedUrls) throws BuildProcessingException {
-        log.info("Doing " + buildData.getBuildLocale() + " Topic Link Pass");
-
         final List<SpecTopic> topics = buildData.getBuildDatabase().getAllSpecTopics();
         final Set<Integer> processedTopics = new HashSet<Integer>();
         for (final SpecTopic specTopic : topics) {
