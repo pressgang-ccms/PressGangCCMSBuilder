@@ -67,7 +67,7 @@ public class JDocbookBuilder extends DocbookBuilder {
      *
      * @param buildData
      */
-    protected void addPublicanCommonContentToBook(final BuildData buildData) {
+    protected void addPublicanCommonContentToBook(final BuildData buildData) throws BuildProcessingException {
         final ContentSpec contentSpec = buildData.getContentSpec();
         final String commonContentLocale = buildData.getOutputLocale();
         final String commonContentDirectory = buildData.getBuildOptions().getCommonContentDirectory() == null ? BuilderConstants
@@ -129,7 +129,7 @@ public class JDocbookBuilder extends DocbookBuilder {
         }
     }
 
-    protected void buildPom(final BuildData buildData) {
+    protected void buildPom(final BuildData buildData) throws BuildProcessingException {
         final ContentSpec contentSpec = buildData.getContentSpec();
         final String outputLocale = buildData.getOutputLocale();
         final String escapedTitle = buildData.getEscapedBookTitle();

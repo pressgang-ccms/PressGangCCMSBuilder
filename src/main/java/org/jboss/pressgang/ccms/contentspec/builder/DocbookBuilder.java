@@ -165,6 +165,7 @@ import org.w3c.dom.NodeList;
  */
 public class DocbookBuilder implements ShutdownAbleApp {
     protected static final Logger log = Logger.getLogger(DocbookBuilder.class);
+    protected static final DateFormat DATE_FORMATTER = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
     protected static final List<Integer> validKeywordCategoryIds = CollectionUtilities.toArrayList(CSConstants.TECHNOLOGY_CATEGORY_ID,
             CSConstants.RELEASE_CATEGORY_ID, CSConstants.SEO_METADATA_CATEGORY_ID, CSConstants.COMMON_NAME_CATEGORY_ID,
             CSConstants.CONCERN_CATEGORY_ID, CSConstants.CONTENT_TYPE_CATEGORY_ID, CSConstants.PROGRAMMING_LANGUAGE_CATEGORY_ID);
@@ -1848,7 +1849,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param entityFileTemplate The entity file template to add content to.
      * @return The book .ent file filled with content from the Content Spec.
      */
-    protected String buildBookEntityFile(final BuildData buildData, final String entityFileTemplate) {
+    protected String buildBookEntityFile(final BuildData buildData, final String entityFileTemplate) throws BuildProcessingException {
         final ContentSpec contentSpec = buildData.getContentSpec();
         // Setup the <<contentSpec.title>>.ent file
         String entFile = entityFileTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, buildData.getEscapedBookTitle());
@@ -1885,15 +1886,18 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
             entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, fixedBZURL.toString());
         } catch (UnsupportedEncodingException e) {
-            log.error(e);
+            throw new BuildProcessingException(e);
         }
 
         // Add the build date entity
         if (!entFile.endsWith("\n")) {
             entFile += "\n";
         }
-        final DateFormat formatter = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
-        entFile += "<!ENTITY BUILD_DATE \"" + formatter.format(buildData.getBuildDate()) + "\">\n";
+        try {
+            entFile += "<!ENTITY BUILD_DATE \"" + URLEncoder.encode(DATE_FORMATTER.format(buildData.getBuildDate()), ENCODING) + "\">\n";
+        } catch (UnsupportedEncodingException e) {
+            throw new BuildProcessingException(e);
+        }
 
         return entFile;
     }
@@ -2202,7 +2206,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @return The Topics filename.
      */
     protected String createTopicXMLFile(final BuildData buildData, final SpecTopic specTopic, final String parentFileLocation,
-            final boolean useFixedUrls) {
+            final boolean useFixedUrls) throws BuildProcessingException {
         String topicFileName;
         final BaseTopicWrapper<?> topic = specTopic.getTopic();
 
@@ -3213,7 +3217,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             entityData = BuilderConstants.DUMMY_CS_NAME_ENT_FILE.getBytes(ENCODING);
         } catch (UnsupportedEncodingException e) {
             // UTF-8 is a valid format so this should exception should never get thrown
-            log.error("", e);
+            throw new BuildProcessingException(e);
         }
 
         // Validate the topic against its DTD/Schema
@@ -3569,12 +3573,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param file The file to add to the ZIP.
      * @param buildData
      */
-    protected void addToFilesZip(final String path, final String file, BuildData buildData) {
+    protected void addToFilesZip(final String path, final String file, BuildData buildData) throws BuildProcessingException {
         try {
             buildData.getOutputFiles().put(path, file.getBytes(ENCODING));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
-            log.error(e.getMessage());
+            throw new BuildProcessingException(e);
         }
     }
 }
