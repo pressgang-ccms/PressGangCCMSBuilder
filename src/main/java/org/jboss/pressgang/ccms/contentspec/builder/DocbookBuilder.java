@@ -165,7 +165,6 @@ import org.w3c.dom.NodeList;
  */
 public class DocbookBuilder implements ShutdownAbleApp {
     protected static final Logger log = Logger.getLogger(DocbookBuilder.class);
-    protected static final DateFormat DATE_FORMATTER = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
     protected static final List<Integer> validKeywordCategoryIds = CollectionUtilities.toArrayList(CSConstants.TECHNOLOGY_CATEGORY_ID,
             CSConstants.RELEASE_CATEGORY_ID, CSConstants.SEO_METADATA_CATEGORY_ID, CSConstants.COMMON_NAME_CATEGORY_ID,
             CSConstants.CONCERN_CATEGORY_ID, CSConstants.CONTENT_TYPE_CATEGORY_ID, CSConstants.PROGRAMMING_LANGUAGE_CATEGORY_ID);
@@ -1282,7 +1281,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 } else {
                     // Add the standard boilerplate xml
                     xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, buildData.getContentSpec().getBugzillaBugLinkOptions(),
-                            buildData.getBuildOptions(), buildData.getZanataDetails());
+                            buildData.getBuildOptions(), buildData.getBuildDate(), buildData.getZanataDetails());
 
                     // Make sure the XML is valid docbook after the standard processing has been done
                     validateTopicXML(buildData, specTopic, doc, useFixedUrls);
@@ -1885,16 +1884,6 @@ public class DocbookBuilder implements ShutdownAbleApp {
             }
 
             entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, fixedBZURL.toString());
-        } catch (UnsupportedEncodingException e) {
-            throw new BuildProcessingException(e);
-        }
-
-        // Add the build date entity
-        if (!entFile.endsWith("\n")) {
-            entFile += "\n";
-        }
-        try {
-            entFile += "<!ENTITY BUILD_DATE \"" + URLEncoder.encode(DATE_FORMATTER.format(buildData.getBuildDate()), ENCODING) + "\">\n";
         } catch (UnsupportedEncodingException e) {
             throw new BuildProcessingException(e);
         }
