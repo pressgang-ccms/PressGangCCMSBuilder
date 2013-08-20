@@ -106,61 +106,61 @@ import org.w3c.dom.NodeList;
  * A builder to build Docbook compatible output using a Content Specification. The builder works in the following stages:
  * <br />
  * <ol>
- *     <li>
- *         Populate Pass
- *         <ul>
- *             <li>Downloads all the topics using the REST API and creates the SpecTopic/Level database.</li>
- *         </ul>
- *     </li>
- *     <li>
- *         Topic Pass
- *         <ul>
- *             <li>Goes through each topic and converts the XML into a DOM element. If the XML is empty or can't be converted into a
- *             DOM element it is replaced by a template. Then it initials all the SpecTopics with the XML and Topic information.</li>
- *         </ul>
- *     </li>
- *     <li>
- *         Spec Topic First Pass
- *         <ul>
- *             <li>Goes through each SpecTopic and processes the XML to remove conditional statements. This stage also collects all of
- *             the xml id's in the book, which are used in the next step.
- *             </li>
- *         </ul>
- *     </li>
- *     <li>
- *         Topic First Pass
- *         <ul>
- *             <li>Goes through each SpecTopic and processes the XML to check that each &lt;xref&gt; or &lt;link&gt; has a valid
- *             reference to some point in the book.
- *             </li>
- *         </ul>
- *     </li>
- *     <li>
- *         Spec Topic Second Pass
- *         <ul>
- *             <li>Goes through each SpecTopic and processes the XML to resolve injections and then do a proper validation on the XML
- *             content. It will then go through the XML and fix any possible duplicate ids (for example if the same topic is included
- *             twice in a Content Spec).
- *             </li>
- *         </ul>
- *     </li>
- *     <li>
- *         Link Second Pass
- *         <ul>
- *             <li>Goes through each SpecTopic and fixes any links where the link may no longer exist due to the linked topic being
- *             replaced by an error template. If there is any found, than the old link is set to point to the error template.
- *             </li>
- *         </ul>
- *     </li>
- *     <li>
- *         Build Pass
- *         <ul>
- *             <li>This step also builds the book structure using the content specification and goes through and converts each SpecTopics
- *             DOM XML representation into a XML string. This step will also download any images and additional files and add them to the
- *             output.
- *             </li>
- *         </ul>
- *     </li>
+ * <li>
+ * Populate Pass
+ * <ul>
+ * <li>Downloads all the topics using the REST API and creates the SpecTopic/Level database.</li>
+ * </ul>
+ * </li>
+ * <li>
+ * Topic Pass
+ * <ul>
+ * <li>Goes through each topic and converts the XML into a DOM element. If the XML is empty or can't be converted into a
+ * DOM element it is replaced by a template. Then it initials all the SpecTopics with the XML and Topic information.</li>
+ * </ul>
+ * </li>
+ * <li>
+ * Spec Topic First Pass
+ * <ul>
+ * <li>Goes through each SpecTopic and processes the XML to remove conditional statements. This stage also collects all of
+ * the xml id's in the book, which are used in the next step.
+ * </li>
+ * </ul>
+ * </li>
+ * <li>
+ * Topic First Pass
+ * <ul>
+ * <li>Goes through each SpecTopic and processes the XML to check that each &lt;xref&gt; or &lt;link&gt; has a valid
+ * reference to some point in the book.
+ * </li>
+ * </ul>
+ * </li>
+ * <li>
+ * Spec Topic Second Pass
+ * <ul>
+ * <li>Goes through each SpecTopic and processes the XML to resolve injections and then do a proper validation on the XML
+ * content. It will then go through the XML and fix any possible duplicate ids (for example if the same topic is included
+ * twice in a Content Spec).
+ * </li>
+ * </ul>
+ * </li>
+ * <li>
+ * Link Second Pass
+ * <ul>
+ * <li>Goes through each SpecTopic and fixes any links where the link may no longer exist due to the linked topic being
+ * replaced by an error template. If there is any found, than the old link is set to point to the error template.
+ * </li>
+ * </ul>
+ * </li>
+ * <li>
+ * Build Pass
+ * <ul>
+ * <li>This step also builds the book structure using the content specification and goes through and converts each SpecTopics
+ * DOM XML representation into a XML string. This step will also download any images and additional files and add them to the
+ * output.
+ * </li>
+ * </ul>
+ * </li>
  * </ol>
  */
 public class DocbookBuilder implements ShutdownAbleApp {
@@ -670,7 +670,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * Populates the SpecTopicDatabase with the SpecTopics inside the content specification. It also adds the equivalent real
      * topics to each SpecTopic.
      *
-     * @param buildData        Information and data structures for the build.
+     * @param buildData Information and data structures for the build.
      * @return True if the database was populated successfully otherwise false.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
@@ -1217,6 +1217,25 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final List<T> topics = buildData.getBuildDatabase().getAllTopics(true);
         relatedTopicsDatabase.setTopics(topics);
 
+        final BugLinkStrategy bugLinkStrategy;
+        final BaseBugLinkOptions bugOptions;
+        if (buildData.getContentSpec().getBugLinks().equals(BugLinkType.JIRA)) {
+            bugOptions = buildData.getContentSpec().getJIRABugLinkOptions();
+            bugLinkStrategy = new JIRABugLinkStrategy(bugOptions.getBaseUrl());
+        } else if (buildData.getContentSpec().getBugLinks().equals(BugLinkType.BUGZILLA)) {
+            bugOptions = buildData.getContentSpec().getBugzillaBugLinkOptions();
+            try {
+                bugLinkStrategy = new BugzillaBugLinkStrategy(bugOptions.getBaseUrl());
+            } catch (ConnectionException e) {
+                throw new BuildProcessingException(e);
+            }
+        } else {
+            bugOptions = null;
+            bugLinkStrategy = null;
+        }
+
+        final DocbookXMLPreProcessor xmlPreProcessor = new DocbookXMLPreProcessor(getConstants(), bugLinkStrategy);
+
         for (final SpecTopic specTopic : specTopics) {
             // Check if the app should be shutdown
             if (isShuttingDown.get()) {
@@ -1238,25 +1257,6 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
             assert doc != null;
             assert topic != null;
-
-            final BugLinkStrategy bugLinkStrategy;
-            final BaseBugLinkOptions bugOptions;
-            if (buildData.getContentSpec().getBugLinks().equals(BugLinkType.JIRA)) {
-                bugOptions = buildData.getContentSpec().getJIRABugLinkOptions();
-                bugLinkStrategy = new JIRABugLinkStrategy(bugOptions.getBaseUrl());
-            } else if (buildData.getContentSpec().getBugLinks().equals(BugLinkType.BUGZILLA)) {
-                bugOptions = buildData.getContentSpec().getBugzillaBugLinkOptions();
-                try {
-                    bugLinkStrategy = new BugzillaBugLinkStrategy(bugOptions.getBaseUrl());
-                } catch (ConnectionException e) {
-                    throw new BuildProcessingException(e);
-                }
-            } else {
-                bugOptions = null;
-                bugLinkStrategy = null;
-            }
-
-            final DocbookXMLPreProcessor xmlPreProcessor = new DocbookXMLPreProcessor(getConstants(), bugLinkStrategy);
 
             if (doc != null) {
                 final boolean valid = processSpecTopicInjections(buildData, specTopic, xmlPreProcessor, relatedTopicsDatabase,
@@ -1280,8 +1280,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     DocbookBuildUtilities.setSpecTopicXMLForError(specTopic, topicXMLErrorTemplate, useFixedUrls);
                 } else {
                     // Add the standard boilerplate xml
-                    xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, buildData.getContentSpec().getBugzillaBugLinkOptions(),
-                            buildData.getBuildOptions(), buildData.getBuildDate(), buildData.getZanataDetails());
+                    xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, bugOptions, buildData.getBuildOptions(),
+                            buildData.getBuildDate(), buildData.getZanataDetails());
 
                     // Make sure the XML is valid docbook after the standard processing has been done
                     validateTopicXML(buildData, specTopic, doc, useFixedUrls);
@@ -1619,8 +1619,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
             final String contentSpecPage = DocBookUtilities.buildAppendix(DocBookUtilities.wrapInPara(
                     "<programlisting>" + XMLUtilities.wrapStringInCDATA(contentSpec.toString()) + "</programlisting>"),
                     "Build Content Specification");
-                addToFilesZip(buildData.getBookLocaleFolder() + "Build_Content_Specification.xml",
-                        DocBookUtilities.addDocbook45XMLDoctype(contentSpecPage, escapedTitle + ".ent", "appendix"), buildData);
+            addToFilesZip(buildData.getBookLocaleFolder() + "Build_Content_Specification.xml",
+                    DocBookUtilities.addDocbook45XMLDoctype(contentSpecPage, escapedTitle + ".ent", "appendix"), buildData);
 
             // Create and append the XI Include element
             final Element translateXMLNode = XMLUtilities.createXIInclude(bookBase, "Build_Content_Specification.xml");
@@ -1641,7 +1641,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
     /**
      * Builds the basics of a Docbook from the resource files for a specific content specification.
      *
-     * @param buildData Information and data structures for the build.
+     * @param buildData    Information and data structures for the build.
      * @param useFixedUrls If during processing the fixed urls should be used.
      * @return A Document object to be used in generating the book.xml
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
@@ -1724,11 +1724,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
     /**
      * Adds the basic Images and Files to the book that are the minimum requirements to build it.
      *
-     * @param buildData Information and data structures for the build.
+     * @param buildData    Information and data structures for the build.
      * @param useFixedUrls If during processing the fixed urls should be used.
      */
     protected void addBookBaseFilesAndImages(final BuildData buildData, final boolean useFixedUrls) throws BuildProcessingException {
-    final String iconSvg = stringConstantProvider.getStringConstant(BuilderConstants.ICON_SVG_ID).getValue();
+        final String iconSvg = stringConstantProvider.getStringConstant(BuilderConstants.ICON_SVG_ID).getValue();
         final String pressgangWebsiteJS = buildPressGangWebsiteJS(buildData, useFixedUrls);
 
         addToFilesZip(buildData.getBookImagesFolder() + "icon.svg", iconSvg, buildData);
@@ -1779,8 +1779,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 retValue.append("\"topicId\":").append(topicId);
                 retValue.append(",\"target\":\"").append(new String(encoder.quoteAsUTF8(fixedUrl), "UTF-8")).append("\"");
                 retValue.append(",\"title\":\"").append(new String(encoder.quoteAsUTF8(topic.getTitle()), "UTF-8")).append("\"");
-                retValue.append(",\"newSince\":\"").append(values.isEmpty() ? "" : new String(encoder.quoteAsUTF8(values.get(values.size() -
-                        1)), "UTF-8")).append("\"");
+                retValue.append(",\"newSince\":\"").append(
+                        values.isEmpty() ? "" : new String(encoder.quoteAsUTF8(values.get(values.size() - 1)), "UTF-8")).append("\"");
             } catch (UnsupportedEncodingException e) {
                 throw new BuildProcessingException(e);
             }
@@ -2092,7 +2092,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                         // Remove the initial file location as we only want where it lives in the topics directory
                         final String fixedParentFileLocation = buildData.getBuildOptions().getFlattenTopics() ? "topics/" :
-                                parentFileLocation.replace(buildData.getBookLocaleFolder(), "");
+                                parentFileLocation.replace(
+                                buildData.getBookLocaleFolder(), "");
 
                         topicNode = XMLUtilities.createXIInclude(chapter, fixedParentFileLocation + topicFileName);
                     }
@@ -2512,7 +2513,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                         buffer.append(line + "\n");
                     }
 
-                    if (buildData.getBuildOptions().getRevisionMessages() != null && !buildData.getBuildOptions().getRevisionMessages().isEmpty()) {
+                    if (buildData.getBuildOptions().getRevisionMessages() != null && !buildData.getBuildOptions().getRevisionMessages()
+                            .isEmpty()) {
                         // Add a revision message to the Revision_History.xml
                         final String revHistoryOverride = buffer.toString();
                         final String docType = XMLUtilities.findDocumentType(revHistoryOverride);
@@ -2542,8 +2544,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 buildRevisionHistoryFromTemplate(buildData, revisionHistoryXML);
             } else {
                 // Add the revision history directly to the book
-                addToFilesZip(buildData.getBookLocaleFolder() + REVISION_HISTORY_FILE_NAME,
-                            revisionHistoryXML, buildData);
+                addToFilesZip(buildData.getBookLocaleFolder() + REVISION_HISTORY_FILE_NAME, revisionHistoryXML, buildData);
             }
         } else {
             buildRevisionHistoryFromTemplate(buildData, fixedRevisionHistoryXml);
@@ -2630,8 +2631,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Add the revision history to the book
         final String fixedRevisionHistoryXml = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(revHistoryDoc, "appendix",
                 buildData.getEntityFileName(), getXMLFormatProperties());
-        addToFilesZip(buildData.getBookLocaleFolder() + REVISION_HISTORY_FILE_NAME,
-                    fixedRevisionHistoryXml, buildData);
+        addToFilesZip(buildData.getBookLocaleFolder() + REVISION_HISTORY_FILE_NAME, fixedRevisionHistoryXml, buildData);
     }
 
     /**
@@ -3558,8 +3558,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
     /**
      * Adds a file to the files ZIP.
      *
-     * @param path The path to add the file to.
-     * @param file The file to add to the ZIP.
+     * @param path      The path to add the file to.
+     * @param file      The file to add to the ZIP.
      * @param buildData
      */
     protected void addToFilesZip(final String path, final String file, BuildData buildData) throws BuildProcessingException {
