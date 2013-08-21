@@ -55,6 +55,7 @@ import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
 import org.jboss.pressgang.ccms.contentspec.sort.AuthorInformationComparator;
 import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
+import org.jboss.pressgang.ccms.contentspec.utils.TranslationUtilities;
 import org.jboss.pressgang.ccms.docbook.compiling.BugLinkStrategy;
 import org.jboss.pressgang.ccms.docbook.processing.BugzillaBugLinkStrategy;
 import org.jboss.pressgang.ccms.docbook.processing.DocbookXMLPreProcessor;
@@ -581,7 +582,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 }
             }
 
-            ContentSpecUtilities.replaceTranslatedStrings(translatedContentSpec.getContentSpec(), contentSpec, translations);
+            TranslationUtilities.replaceTranslatedStrings(translatedContentSpec.getContentSpec(), contentSpec, translations);
         }
     }
 
