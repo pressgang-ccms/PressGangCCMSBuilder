@@ -443,9 +443,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Get the Build Locale
         final String buildLocale = buildingOptions.getLocale() == null ? getDefaultBuildLocale() : buildingOptions.getLocale();
         if (buildLocale.equals(getDefaultBuildLocale()) || !LOCALE_MAP.containsKey(buildLocale)) {
-            constantsResourceBundle = ResourceBundle.getBundle("Constants");
+            constantsResourceBundle = ResourceBundle.getBundle("Constants", new UTF8ResourceBundleControl());
         } else {
-            constantsResourceBundle = ResourceBundle.getBundle("Constants", LOCALE_MAP.get(buildLocale));
+            constantsResourceBundle = ResourceBundle.getBundle("Constants", LOCALE_MAP.get(buildLocale), new UTF8ResourceBundleControl());
         }
 
         // If there is no requester specified than set it as unknown
