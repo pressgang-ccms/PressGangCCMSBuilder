@@ -832,8 +832,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final TopicWrapper topic = topicProvider.getTopic(specTopic.getDBId(), specTopic.getRevision());
         String key = DocbookBuildUtilities.getTopicBuildKey(topic);
 
-        // If the topic has already been processed then return
-        if (translatedTopics.containsKey(key)) return;
+        // If the topic has already been processed then add the spec topic and return
+        if (translatedTopics.containsKey(key)) {
+            buildData.getBuildDatabase().add(specTopic, key);
+            return;
+        }
 
         // Get the matching latest translated topic and pushed translated topics
         final Pair<TranslatedTopicWrapper, TranslatedTopicWrapper> latestTranslations = getLatestTranslations(buildData, topic,
