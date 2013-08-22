@@ -442,7 +442,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // Get the Build Locale
         final String buildLocale = buildingOptions.getLocale() == null ? getDefaultBuildLocale() : buildingOptions.getLocale();
-        if (buildLocale.equals(getDefaultBuildLocale())) {
+        if (buildLocale.equals(getDefaultBuildLocale()) || !LOCALE_MAP.containsKey(buildLocale)) {
             constantsResourceBundle = ResourceBundle.getBundle("Constants");
         } else {
             constantsResourceBundle = ResourceBundle.getBundle("Constants", LOCALE_MAP.get(buildLocale));
@@ -583,6 +583,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
             }
 
             TranslationUtilities.replaceTranslatedStrings(translatedContentSpec.getContentSpec(), contentSpec, translations);
+
+            // Set the Unique Ids so that they can be used later
+            setTranslationUniqueIds(contentSpec, translatedContentSpec);
         }
     }
 
@@ -898,7 +901,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         translatedTopic.setTopic(topic);
         translatedTopic.setId(topic.getId() * -1);
 
-        final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(translatedTopic);
+        final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(topic);
 
         /*
          * Try and use the untranslated default locale translated topic as the base for the dummy topic. If that fails then
@@ -3458,6 +3461,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
             if (existingUniqueURL == null) {
                 existingUniqueURL = propertyTagProvider.newPropertyTagInTopic(topic);
                 existingUniqueURL.setId(CommonConstants.FIXED_URL_PROP_TAG_ID);
+                if (topic.getProperties() == null) {
+                    topic.setProperties(propertyTagProvider.newPropertyTagInTopicCollection(topic));
+                }
                 topic.getProperties().addItem(existingUniqueURL);
             }
 
