@@ -68,6 +68,7 @@ import org.jboss.pressgang.ccms.docbook.structures.TopicImageData;
 import org.jboss.pressgang.ccms.provider.BlobConstantProvider;
 import org.jboss.pressgang.ccms.provider.ContentSpecProvider;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
+import org.jboss.pressgang.ccms.provider.FileProvider;
 import org.jboss.pressgang.ccms.provider.ImageProvider;
 import org.jboss.pressgang.ccms.provider.PropertyTagProvider;
 import org.jboss.pressgang.ccms.provider.StringConstantProvider;
@@ -80,10 +81,13 @@ import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.ExceptionUtilities;
 import org.jboss.pressgang.ccms.utils.common.StringUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
+import org.jboss.pressgang.ccms.utils.common.ZipUtilities;
 import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
 import org.jboss.pressgang.ccms.utils.structures.Pair;
 import org.jboss.pressgang.ccms.wrapper.BlobConstantWrapper;
+import org.jboss.pressgang.ccms.wrapper.FileWrapper;
 import org.jboss.pressgang.ccms.wrapper.ImageWrapper;
+import org.jboss.pressgang.ccms.wrapper.LanguageFileWrapper;
 import org.jboss.pressgang.ccms.wrapper.LanguageImageWrapper;
 import org.jboss.pressgang.ccms.wrapper.PropertyTagInTopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.StringConstantWrapper;
@@ -1156,8 +1160,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(
-                            specTopic.getRevision())) {
+                            .equals(specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             buildData.getErrorDatabase().addWarning(topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -1488,6 +1491,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // add the images to the book
         addImagesToBook(buildData);
 
+        // add any additional files to the book
+        addAdditionalFilesToBook(buildData);
+
         return files;
     }
 
@@ -1624,7 +1630,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             final String contentSpecPage = DocBookUtilities.buildAppendix(DocBookUtilities.wrapInPara(
                     "<programlisting>" + XMLUtilities.wrapStringInCDATA(contentSpec.toString()) + "</programlisting>"),
                     "Build Content Specification");
-            addToFilesZip(buildData.getBookLocaleFolder() + "Build_Content_Specification.xml",
+            addToZip(buildData.getBookLocaleFolder() + "Build_Content_Specification.xml",
                     DocBookUtilities.addDocbook45XMLDoctype(contentSpecPage, escapedTitle + ".ent", "appendix"), buildData);
 
             // Create and append the XI Include element
@@ -1640,7 +1646,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final String rootElementName = contentSpec.getBookType().toString().toLowerCase().replace("-draft", "");
         final String book = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(bookBase, rootElementName,
                 escapedTitle + ".xml", getXMLFormatProperties());
-        addToFilesZip(buildData.getBookLocaleFolder() + escapedTitle + ".xml", book, buildData);
+        addToZip(buildData.getBookLocaleFolder() + escapedTitle + ".xml", book, buildData);
     }
 
     /**
@@ -1673,9 +1679,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Setup Book_Info.xml
         final String fixedBookInfo = buildBookInfoFile(buildData, bookInfoTemplate);
         if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            addToFilesZip(buildData.getBookLocaleFolder() + "Article_Info.xml", fixedBookInfo, buildData);
+            addToZip(buildData.getBookLocaleFolder() + "Article_Info.xml", fixedBookInfo, buildData);
         } else {
-            addToFilesZip(buildData.getBookLocaleFolder() + "Book_Info.xml", fixedBookInfo, buildData);
+            addToZip(buildData.getBookLocaleFolder() + "Book_Info.xml", fixedBookInfo, buildData);
         }
 
         // Setup Author_Group.xml
@@ -1696,14 +1702,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     contentSpec.getFeedback().getXMLDocument(), DocBookUtilities.TOPIC_ROOT_NODE_NAME, buildData.getEntityFileName(),
                     getXMLFormatProperties());
             // Add the revision history directly to the book
-            addToFilesZip(buildData.getBookLocaleFolder() + FEEDBACK_FILE_NAME, feedbackXml, buildData);
+            addToZip(buildData.getBookLocaleFolder() + FEEDBACK_FILE_NAME, feedbackXml, buildData);
         }
 
         // Setup Legal_Notice.xml
         if (contentSpec.getLegalNotice() != null) {
             final String legalNoticeXML = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
                     contentSpec.getLegalNotice().getXMLDocument(), "legalnotice", buildData.getEntityFileName(), getXMLFormatProperties());
-            addToFilesZip(buildData.getBookLocaleFolder() + LEGAL_NOTICE_FILE_NAME, legalNoticeXML, buildData);
+            addToZip(buildData.getBookLocaleFolder() + LEGAL_NOTICE_FILE_NAME, legalNoticeXML, buildData);
         }
 
         // Setup Preface.xml
@@ -1713,14 +1719,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
         if (prefaceTitleTranslation != null) {
             fixedPrefaceXml = fixedPrefaceXml.replace("<title>Preface</title>", "<title>" + prefaceTitleTranslation + "</title>");
         }
-        addToFilesZip(buildData.getBookLocaleFolder() + PREFACE_FILE_NAME, fixedPrefaceXml, buildData);
+        addToZip(buildData.getBookLocaleFolder() + PREFACE_FILE_NAME, fixedPrefaceXml, buildData);
 
         // Setup Revision_History.xml
         buildRevisionHistory(buildData, overrides);
 
         // Build the book .ent file
         final String entFile = buildBookEntityFile(buildData, bookEntityTemplate);
-        addToFilesZip(buildData.getBookLocaleFolder() + buildData.getEntityFileName(), entFile, buildData);
+        addToZip(buildData.getBookLocaleFolder() + buildData.getEntityFileName(), entFile, buildData);
 
         // Setup the images and files folders
         addBookBaseFilesAndImages(buildData, useFixedUrls);
@@ -1736,8 +1742,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final String iconSvg = stringConstantProvider.getStringConstant(BuilderConstants.ICON_SVG_ID).getValue();
         final String pressgangWebsiteJS = buildPressGangWebsiteJS(buildData, useFixedUrls);
 
-        addToFilesZip(buildData.getBookImagesFolder() + "icon.svg", iconSvg, buildData);
-        addToFilesZip(buildData.getBookFilesFolder() + "pressgang_website.js", pressgangWebsiteJS, buildData);
+        addToZip(buildData.getBookImagesFolder() + "icon.svg", iconSvg, buildData);
+        addToZip(buildData.getBookFilesFolder() + "pressgang_website.js", pressgangWebsiteJS, buildData);
     }
 
     /**
@@ -1951,7 +1957,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Add the boiler plate text and add the chapter to the book
         final String chapterString = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(chapter, elementName,
                 buildData.getEntityFileName(), getXMLFormatProperties());
-        addToFilesZip(buildData.getBookLocaleFolder() + chapterXMLName, chapterString, buildData);
+        addToZip(buildData.getBookLocaleFolder() + chapterXMLName, chapterString, buildData);
 
         return xiInclude;
     }
@@ -2008,7 +2014,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Add the boiler plate text and add the chapter to the book
         final String chapterString = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(chapter, elementName,
                 buildData.getEntityFileName(), getXMLFormatProperties());
-        addToFilesZip(buildData.getBookLocaleFolder() + chapterXMLName, chapterString, buildData);
+        addToZip(buildData.getBookLocaleFolder() + chapterXMLName, chapterString, buildData);
 
         // Create the XIncludes that will get set in the book.xml
         final Element xiInclude = XMLUtilities.createXIInclude(doc, chapterXMLName);
@@ -2226,7 +2232,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             final String topicXML = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(specTopic.getXMLDocument(),
                     DocBookUtilities.TOPIC_ROOT_NODE_NAME, fixedEntityPath + buildData.getEntityFileName(), getXMLFormatProperties());
 
-            addToFilesZip(fixedParentFileLocation + topicFileName, topicXML, buildData);
+            addToZip(fixedParentFileLocation + topicFileName, topicXML, buildData);
 
             return topicFileName;
         }
@@ -2309,8 +2315,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                         if (languageImageFile != null && languageImageFile.getImageData() != null) {
                             success = true;
-                            buildData.getOutputFiles().put(buildData.getBookLocaleFolder() + imageLocation.getImageName(),
-                                    languageImageFile.getImageData());
+                            addToZip(buildData.getBookLocaleFolder() + imageLocation.getImageName(), languageImageFile.getImageData(),
+                                    buildData);
                         } else {
                             buildData.getErrorDatabase().addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES,
                                     "ImageFile ID " + imageID + " from image location " + imageLocation.getImageName() + " was not found!");
@@ -2481,7 +2487,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Add the Author_Group.xml to the book
         fixedAuthorGroupXml = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(authorDoc, "authorgroup",
                 buildData.getEntityFileName(), getXMLFormatProperties());
-        addToFilesZip(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, fixedAuthorGroupXml, buildData);
+        addToZip(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, fixedAuthorGroupXml, buildData);
     }
 
     /**
@@ -2529,7 +2535,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             buildRevisionHistoryFromTemplate(buildData, revHistoryOverride);
                         }
                     } else {
-                        addToFilesZip(buildData.getBookLocaleFolder() + "Revision_History.xml", buffer.toString(), buildData);
+                        addToZip(buildData.getBookLocaleFolder() + "Revision_History.xml", buffer.toString(), buildData);
                     }
                 } catch (Exception e) {
                     log.error(e.getMessage());
@@ -2549,7 +2555,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 buildRevisionHistoryFromTemplate(buildData, revisionHistoryXML);
             } else {
                 // Add the revision history directly to the book
-                addToFilesZip(buildData.getBookLocaleFolder() + REVISION_HISTORY_FILE_NAME, revisionHistoryXML, buildData);
+                addToZip(buildData.getBookLocaleFolder() + REVISION_HISTORY_FILE_NAME, revisionHistoryXML, buildData);
             }
         } else {
             buildRevisionHistoryFromTemplate(buildData, fixedRevisionHistoryXml);
@@ -2636,7 +2642,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Add the revision history to the book
         final String fixedRevisionHistoryXml = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(revHistoryDoc, "appendix",
                 buildData.getEntityFileName(), getXMLFormatProperties());
-        addToFilesZip(buildData.getBookLocaleFolder() + REVISION_HISTORY_FILE_NAME, fixedRevisionHistoryXml, buildData);
+        addToZip(buildData.getBookLocaleFolder() + REVISION_HISTORY_FILE_NAME, fixedRevisionHistoryXml, buildData);
     }
 
     /**
@@ -3329,8 +3335,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                     // Create the PropertyTagCollection to be used to update any data
                     final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
-                            .newPropertyTagInTopicCollection(
-                            topic);
+                            .newPropertyTagInTopicCollection(topic);
 
                     // Get a list of all property tag items that exist for the current topic
                     final List<PropertyTagInTopicWrapper> existingUniqueURLs = topic.getProperties(CommonConstants.FIXED_URL_PROP_TAG_ID);
@@ -3570,12 +3575,84 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param file      The file to add to the ZIP.
      * @param buildData
      */
-    protected void addToFilesZip(final String path, final String file, BuildData buildData) throws BuildProcessingException {
+    protected void addToZip(final String path, final String file, BuildData buildData) throws BuildProcessingException {
         try {
             buildData.getOutputFiles().put(path, file.getBytes(ENCODING));
         } catch (UnsupportedEncodingException e) {
             /* UTF-8 is a valid format so this should exception should never get thrown */
             throw new BuildProcessingException(e);
+        }
+    }
+
+    /**
+     * Adds a file to the files ZIP.
+     *
+     * @param path      The path to add the file to.
+     * @param file      The file to add to the ZIP.
+     * @param buildData
+     */
+    protected void addToZip(final String path, final byte[] data, final BuildData buildData) {
+        buildData.getOutputFiles().put(path, data);
+    }
+
+    /**
+     * Adds the additional files defined in a content spec to the book.
+     *
+     * @param buildData
+     */
+    protected void addAdditionalFilesToBook(final BuildData buildData) throws BuildProcessingException {
+        final FileProvider fileProvider = providerFactory.getProvider(FileProvider.class);
+        final ContentSpec contentSpec = buildData.getContentSpec();
+
+        if (contentSpec.getFiles() != null) {
+            log.info("\tDownloading Additional Files");
+
+            for (final org.jboss.pressgang.ccms.contentspec.File file : contentSpec.getFiles()) {
+                final FileWrapper fileEntity = fileProvider.getFile(file.getId(), file.getRevision());
+
+                // Find the file that matches this locale. If the locale isn't found then use the default locale
+                LanguageFileWrapper languageFileFile = null;
+                if (fileEntity.getLanguageFiles() != null && fileEntity.getLanguageFiles().getItems() != null) {
+                    final List<LanguageFileWrapper> languageFiles = fileEntity.getLanguageFiles().getItems();
+                    for (final LanguageFileWrapper languageFile : languageFiles) {
+                        if (languageFile.getLocale().equals(buildData.getBuildLocale())) {
+                            languageFileFile = languageFile;
+                        } else if (languageFile.getLocale().equals(getDefaultBuildLocale()) && languageFileFile == null) {
+                            languageFileFile = languageFile;
+                        }
+                    }
+                }
+
+                if (languageFileFile != null && languageFileFile.getFileData() != null) {
+                    // Determine the file path
+                    final String filePath;
+                    if (fileEntity.getFilePath() != null) {
+                        if (fileEntity.getFilePath().endsWith("/") || fileEntity.getFilePath().endsWith("\\")) {
+                            filePath = fileEntity.getFilePath();
+                        } else {
+                            filePath = fileEntity.getFilePath() + "/";
+                        }
+                    } else {
+                        filePath = "";
+                    }
+
+                    // Explode the ZIP archive if requested
+                    if (fileEntity.isExplodeArchive()) {
+                        try {
+                            final Map<String, byte[]> files = ZipUtilities.unzipFile(languageFileFile.getFileData(), false);
+                            for (final Entry<String, byte[]> entry : files.entrySet()) {
+                                addToZip(buildData.getBookFilesFolder() + filePath + entry.getKey(), entry.getValue(), buildData);
+                            }
+                        } catch (IOException e) {
+                            throw new BuildProcessingException(e);
+                        }
+                    } else {
+                        addToZip(buildData.getBookFilesFolder() + filePath + fileEntity.getFilename(), languageFileFile.getFileData(), buildData);
+                    }
+                } else {
+                    throw new BuildProcessingException("File ID " + fileEntity.getId() + " was not found!");
+                }
+            }
         }
     }
 }

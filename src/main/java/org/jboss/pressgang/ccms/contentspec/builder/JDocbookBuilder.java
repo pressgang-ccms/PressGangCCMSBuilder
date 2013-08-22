@@ -46,7 +46,7 @@ public class JDocbookBuilder extends DocbookBuilder {
                     }
 
                     // Add the parsed file to the book
-                    addToFilesZip(buildData.getRootBookFolder() + "pom.xml", buffer.toString(), buildData);
+                    addToZip(buildData.getRootBookFolder() + "pom.xml", buffer.toString(), buildData);
                 } catch (Exception e) {
                     log.error(e);
                     buildPom(buildData);
@@ -124,7 +124,7 @@ public class JDocbookBuilder extends DocbookBuilder {
                 final String fixedFile = DocBookUtilities.addDocbook45XMLDoctype(file, entityFileName, rootElementName);
 
                 // Add the file to the book
-                addToFilesZip(buildData.getBookLocaleFolder() + "Common_Content/" + fileName, fixedFile, buildData);
+                addToZip(buildData.getBookLocaleFolder() + "Common_Content/" + fileName, fixedFile, buildData);
             }
         }
     }
@@ -167,7 +167,7 @@ public class JDocbookBuilder extends DocbookBuilder {
         // Change the Version
         pomXML = pomXML.replaceFirst("<version>.*</version>", "<version>" + contentSpec.getVersion() + "-SNAPSHOT</version>");
 
-        addToFilesZip(buildData.getRootBookFolder() + "pom.xml", pomXML, buildData);
+        addToZip(buildData.getRootBookFolder() + "pom.xml", pomXML, buildData);
     }
 
     @Override

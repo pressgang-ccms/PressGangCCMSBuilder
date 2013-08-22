@@ -27,7 +27,7 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
 
         // Setup publican.cfg
         final String fixedPublicanCfg = buildPublicanCfgFile(buildData, publicanCfg);
-        addToFilesZip(buildData.getRootBookFolder()  + "publican.cfg", fixedPublicanCfg, buildData);
+        addToZip(buildData.getRootBookFolder() + "publican.cfg", fixedPublicanCfg, buildData);
     }
 
     /**
