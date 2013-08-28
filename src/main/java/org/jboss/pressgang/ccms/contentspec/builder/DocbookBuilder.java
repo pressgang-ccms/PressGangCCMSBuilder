@@ -1118,7 +1118,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
             if (doc != null) {
                 // Process the conditional statements
-                if (!buildData.getContentSpec().getPublicanCfg().contains("condition:")) {
+                if (buildData.getContentSpec().getPublicanCfg() == null || !buildData.getContentSpec().getPublicanCfg().contains(
+                        "condition:")) {
                     final String condition = specTopic.getConditionStatement(true);
                     DocBookUtilities.processConditions(condition, doc, BuilderConstants.DEFAULT_CONDITION);
                 }
@@ -1159,7 +1160,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(specTopic.getRevision())) {
+                            .equals(
+                            specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             buildData.getErrorDatabase().addWarning(topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -3330,7 +3332,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                     // Create the PropertyTagCollection to be used to update any data
                     final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
-                            .newPropertyTagInTopicCollection(topic);
+                            .newPropertyTagInTopicCollection(
+                            topic);
 
                     // Get a list of all property tag items that exist for the current topic
                     final List<PropertyTagInTopicWrapper> existingUniqueURLs = topic.getProperties(CommonConstants.FIXED_URL_PROP_TAG_ID);
@@ -3642,7 +3645,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             throw new BuildProcessingException(e);
                         }
                     } else {
-                        addToZip(buildData.getBookFilesFolder() + filePath + fileEntity.getFilename(), languageFileFile.getFileData(), buildData);
+                        addToZip(buildData.getBookFilesFolder() + filePath + fileEntity.getFilename(), languageFileFile.getFileData(),
+                                buildData);
                     }
                 } else {
                     throw new BuildProcessingException("File ID " + fileEntity.getId() + " was not found!");
