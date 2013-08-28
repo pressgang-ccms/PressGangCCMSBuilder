@@ -29,7 +29,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.j2bugzilla.base.ConnectionException;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.io.JsonStringEncoder;
@@ -1232,11 +1231,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             bugLinkStrategy = new JIRABugLinkStrategy(bugOptions.getBaseUrl());
         } else if (buildData.getContentSpec().getBugLinks().equals(BugLinkType.BUGZILLA)) {
             bugOptions = buildData.getContentSpec().getBugzillaBugLinkOptions();
-            try {
-                bugLinkStrategy = new BugzillaBugLinkStrategy(bugOptions.getBaseUrl());
-            } catch (ConnectionException e) {
-                throw new BuildProcessingException(e);
-            }
+            bugLinkStrategy = new BugzillaBugLinkStrategy(bugOptions.getBaseUrl());
         } else {
             bugOptions = null;
             bugLinkStrategy = null;
