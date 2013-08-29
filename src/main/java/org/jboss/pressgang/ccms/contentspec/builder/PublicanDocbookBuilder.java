@@ -41,8 +41,11 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
         final ContentSpec contentSpec = buildData.getContentSpec();
         final Map<String, String> overrides = buildData.getBuildOptions().getOverrides();
 
-        final String brand = overrides.containsKey(CSConstants.BRAND_OVERRIDE) ? overrides.get(
-                CSConstants.BRAND_OVERRIDE) : (contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND : contentSpec.getBrand());
+        final String brandOverride = overrides.containsKey(CSConstants.BRAND_OVERRIDE) ? overrides.get(
+                CSConstants.BRAND_OVERRIDE) : (overrides.containsKey(CSConstants.BRAND_ALT_OVERRIDE) ? overrides.get(
+                CSConstants.BRAND_ALT_OVERRIDE) : null);
+        final String brand = brandOverride != null ? brandOverride : (contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND :
+                contentSpec.getBrand());
 
         // Setup publican.cfg
         String publicanCfg = publicanCfgTemplate.replaceAll(BuilderConstants.BRAND_REGEX, brand);
