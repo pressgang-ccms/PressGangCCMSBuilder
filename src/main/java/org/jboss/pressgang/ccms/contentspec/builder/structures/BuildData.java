@@ -235,7 +235,7 @@ public class BuildData {
         if (buildOptions.getBuildName() == null || buildOptions.getBuildName().isEmpty()) {
             buildOptions.setBuildName(
                     (contentSpec.getId() != null ? (contentSpec.getId() + ", ") : "") + contentSpec.getTitle() + "-" + contentSpec
-                            .getVersion() + "-" + contentSpec.getEdition());
+                            .getVersion() + (contentSpec.getEdition() == null ? "" : ("-" + contentSpec.getEdition())));
         }
         if (!buildOptions.getDraft()) {
             if (contentSpec.getBookType() == BookType.ARTICLE_DRAFT || contentSpec.getBookType() == BookType.BOOK_DRAFT) {
