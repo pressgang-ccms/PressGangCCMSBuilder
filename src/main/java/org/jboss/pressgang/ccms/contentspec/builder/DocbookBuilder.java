@@ -839,6 +839,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 } else if (translatedTopic == null) {
                     translatedTopic = createDummyTranslatedTopicFromExisting(baseTranslatedTopic, buildData.getBuildLocale());
                 }
+                translatedTopic.setTranslatedCSNode(translatedCSNode);
 
                 // Create the key and add the topic to the build database
                 String key = DocbookBuildUtilities.getTranslatedTopicBuildKey(translatedTopic, translatedCSNode);
