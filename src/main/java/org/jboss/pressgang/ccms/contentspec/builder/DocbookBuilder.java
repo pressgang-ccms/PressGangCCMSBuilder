@@ -40,7 +40,6 @@ import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingExc
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.CSDocbookBuildingOptions;
-import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.DocbookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.ReportUtilities;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.SAXXMLValidator;
@@ -52,6 +51,7 @@ import org.jboss.pressgang.ccms.contentspec.enums.BugLinkType;
 import org.jboss.pressgang.ccms.contentspec.enums.LevelType;
 import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
 import org.jboss.pressgang.ccms.contentspec.sort.AuthorInformationComparator;
+import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.TranslationUtilities;
@@ -74,6 +74,7 @@ import org.jboss.pressgang.ccms.provider.StringConstantProvider;
 import org.jboss.pressgang.ccms.provider.TagProvider;
 import org.jboss.pressgang.ccms.provider.TopicProvider;
 import org.jboss.pressgang.ccms.provider.TranslatedCSNodeProvider;
+import org.jboss.pressgang.ccms.provider.TranslatedContentSpecProvider;
 import org.jboss.pressgang.ccms.provider.TranslatedTopicProvider;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
@@ -82,6 +83,7 @@ import org.jboss.pressgang.ccms.utils.common.StringUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
 import org.jboss.pressgang.ccms.utils.common.ZipUtilities;
 import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
+import org.jboss.pressgang.ccms.utils.constants.CommonFilterConstants;
 import org.jboss.pressgang.ccms.utils.structures.Pair;
 import org.jboss.pressgang.ccms.wrapper.BlobConstantWrapper;
 import org.jboss.pressgang.ccms.wrapper.FileWrapper;
@@ -559,16 +561,18 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
     protected void pullTranslations(final ContentSpec contentSpec, final String locale) throws BuildProcessingException {
-        final TranslatedContentSpecWrapper translatedContentSpec = EntityUtilities.getTranslatedContentSpecById(providerFactory,
-                contentSpec.getId(), contentSpec.getRevision());
+        final CollectionWrapper<TranslatedContentSpecWrapper> translatedContentSpecs = providerFactory.getProvider
+                (TranslatedContentSpecProvider.class).getTranslatedContentSpecsWithQuery("query;" +
+                CommonFilterConstants.ZANATA_IDS_FILTER_VAR + "=CS" + contentSpec.getId() + "-" + contentSpec.getRevision());
 
         // Ensure that the passed content spec has a translation
-        if (translatedContentSpec == null) {
+        if (translatedContentSpecs == null || translatedContentSpecs.isEmpty()) {
             throw new BuildProcessingException(
                     "Unable to find any translations for Content Spec " + contentSpec.getId() + (contentSpec.getRevision() == null ? "" :
                             (", Revision " + contentSpec.getRevision())));
         }
 
+        final TranslatedContentSpecWrapper translatedContentSpec = translatedContentSpecs.getItems().get(0);
         if (translatedContentSpec.getTranslatedNodes() != null) {
             final Map<String, String> translations = new HashMap<String, String>();
 
