@@ -784,7 +784,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param buildData        Information and data structures for the build.
      * @param translatedTopics The translated topic collection to add translated topics to.
      */
-    private void populateTranslatedTopicDatabase(final BuildData buildData, final Map<String, BaseTopicWrapper<?>> translatedTopics) {
+    private void populateTranslatedTopicDatabase(final BuildData buildData, final Map<String, BaseTopicWrapper<?>> translatedTopics) throws BuildProcessingException {
         // Loop over each Spec Topic in the content spec and get it's translated topic
         final List<SpecTopic> specTopics = buildData.getContentSpec().getSpecTopics();
         for (final SpecTopic specTopic : specTopics) {
@@ -810,15 +810,37 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @return
      */
     protected void getTranslatedTopicForSpecTopic(final BuildData buildData, final SpecTopic specTopic,
-            final Map<String, BaseTopicWrapper<?>> translatedTopics) {
+            final Map<String, BaseTopicWrapper<?>> translatedTopics) throws BuildProcessingException {
         // Check if the spec topic has a matching translated topic node, if not then create a dummy topic
         if (specTopic.getTranslationUniqueId() != null) {
             final TranslatedCSNodeWrapper translatedCSNode = translatedCSNodeProvider.getTranslatedCSNode(
                     Integer.parseInt(specTopic.getTranslationUniqueId()));
 
             // Check if the translated node has a specific conditional translated topic, otherwise find the normal translated topic
-            if (translatedCSNode.getTranslatedTopic() != null) {
-                final TranslatedTopicWrapper translatedTopic = translatedCSNode.getTranslatedTopic();
+            if (translatedCSNode.getTranslatedTopics() != null && !translatedCSNode.getTranslatedTopics().isEmpty()) {
+                TranslatedTopicWrapper translatedTopic = null;
+                TranslatedTopicWrapper baseTranslatedTopic = null;
+                for (final TranslatedTopicWrapper csNodeTranslatedTopic : translatedCSNode.getTranslatedTopics().getItems()) {
+                    // Check if the build lang and translated topic lang matches
+                    if (buildData.getBuildLocale().equals(csNodeTranslatedTopic.getLocale())) {
+                        translatedTopic = csNodeTranslatedTopic;
+                    }
+
+                    // Check if the translation is the original topics translation
+                    if (csNodeTranslatedTopic.getTopic().getLocale().equals(csNodeTranslatedTopic.getLocale())) {
+                        baseTranslatedTopic = csNodeTranslatedTopic;
+                    }
+                }
+
+                // Check that we found a matching translated topic, if not create a dummy one from the base translated topic
+                if (translatedTopic == null && baseTranslatedTopic == null) {
+                    throw new BuildProcessingException("Topic " + specTopic.getId() + " exists without a matching source Translated " +
+                            "Topic");
+                } else if (translatedTopic == null) {
+                    translatedTopic = createDummyTranslatedTopicFromExisting(baseTranslatedTopic, buildData.getBuildLocale());
+                }
+
+                // Create the key and add the topic to the build database
                 String key = DocbookBuildUtilities.getTranslatedTopicBuildKey(translatedTopic, translatedCSNode);
                 translatedTopics.put(key, translatedTopic);
                 buildData.getBuildDatabase().add(specTopic, key);
@@ -914,19 +936,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
          * create a dummy topic from the passed RESTTopicV1.
          */
         if (pushedTranslatedTopic != null) {
-            final TranslatedTopicWrapper defaultLocaleTranslatedTopic = pushedTranslatedTopic.clone(false);
-
-            // Negate the ID to show it isn't a proper translated topic
-            defaultLocaleTranslatedTopic.setId(topic.getId() * -1);
-
-            // Prefix the locale to show that it is missing the related translated topic
-            defaultLocaleTranslatedTopic.setTitle(
-                    "[" + defaultLocaleTranslatedTopic.getLocale() + "] " + defaultLocaleTranslatedTopic.getTitle());
-
-            // Change the locale since the default locale translation is being transformed into a dummy translation
-            defaultLocaleTranslatedTopic.setLocale(locale);
-
-            return defaultLocaleTranslatedTopic;
+            return createDummyTranslatedTopicFromExisting(pushedTranslatedTopic, locale);
         } else {
             // If we get to this point then no translation exists or the default locale translation failed to be downloaded.
             translatedTopic.setTopicId(topic.getId());
@@ -943,6 +953,31 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
             return translatedTopic;
         }
+    }
+
+    /**
+     * Creates a dummy translated topic from an existing translated topic so that a book can be built using the same relationships as a
+     * normal build.
+     *
+     * @param translatedTopic  The translated topic to create the dummy translated topic from.
+     * @param locale The locale to build the dummy translations for.
+     * @return The dummy translated topic.
+     */
+    private TranslatedTopicWrapper createDummyTranslatedTopicFromExisting(final TranslatedTopicWrapper translatedTopic,
+            final String locale) {
+        final TranslatedTopicWrapper defaultLocaleTranslatedTopic = translatedTopic.clone(false);
+
+        // Negate the ID to show it isn't a proper translated topic
+        defaultLocaleTranslatedTopic.setId(translatedTopic.getTopicId() * -1);
+
+        // Prefix the locale to show that it is missing the related translated topic
+        defaultLocaleTranslatedTopic.setTitle(
+                "[" + defaultLocaleTranslatedTopic.getLocale() + "] " + defaultLocaleTranslatedTopic.getTitle());
+
+        // Change the locale since the default locale translation is being transformed into a dummy translation
+        defaultLocaleTranslatedTopic.setLocale(locale);
+
+        return defaultLocaleTranslatedTopic;
     }
 
     /**
