@@ -566,7 +566,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         if (translatedContentSpec == null) {
             throw new BuildProcessingException(
                     "Unable to find any translations for Content Spec " + contentSpec.getId() + (contentSpec.getRevision() == null ? "" :
-                            (", Revision" + contentSpec.getRevision())));
+                            (", Revision " + contentSpec.getRevision())));
         }
 
         if (translatedContentSpec.getTranslatedNodes() != null) {
