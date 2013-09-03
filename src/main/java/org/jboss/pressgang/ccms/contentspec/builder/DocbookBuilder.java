@@ -40,7 +40,7 @@ import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingExc
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.CSDocbookBuildingOptions;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.XMLFormatProperties;
+import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.DocbookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.ReportUtilities;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.SAXXMLValidator;
