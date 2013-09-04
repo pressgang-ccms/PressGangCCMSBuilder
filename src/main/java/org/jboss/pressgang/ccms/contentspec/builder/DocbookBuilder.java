@@ -561,8 +561,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
     protected void pullTranslations(final ContentSpec contentSpec, final String locale) throws BuildProcessingException {
-        final CollectionWrapper<TranslatedContentSpecWrapper> translatedContentSpecs = providerFactory.getProvider
-                (TranslatedContentSpecProvider.class).getTranslatedContentSpecsWithQuery("query;" +
+        final CollectionWrapper<TranslatedContentSpecWrapper> translatedContentSpecs = providerFactory.getProvider(
+                TranslatedContentSpecProvider.class).getTranslatedContentSpecsWithQuery("query;" +
                 CommonFilterConstants.ZANATA_IDS_FILTER_VAR + "=CS" + contentSpec.getId() + "-" + contentSpec.getRevision());
 
         // Ensure that the passed content spec has a translation
@@ -788,7 +788,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param buildData        Information and data structures for the build.
      * @param translatedTopics The translated topic collection to add translated topics to.
      */
-    private void populateTranslatedTopicDatabase(final BuildData buildData, final Map<String, BaseTopicWrapper<?>> translatedTopics) throws BuildProcessingException {
+    private void populateTranslatedTopicDatabase(final BuildData buildData,
+            final Map<String, BaseTopicWrapper<?>> translatedTopics) throws BuildProcessingException {
         // Loop over each Spec Topic in the content spec and get it's translated topic
         final List<SpecTopic> specTopics = buildData.getContentSpec().getSpecTopics();
         for (final SpecTopic specTopic : specTopics) {
@@ -815,6 +816,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
      */
     protected void getTranslatedTopicForSpecTopic(final BuildData buildData, final SpecTopic specTopic,
             final Map<String, BaseTopicWrapper<?>> translatedTopics) throws BuildProcessingException {
+        final TopicWrapper topic = topicProvider.getTopic(specTopic.getDBId(), specTopic.getRevision());
+
         // Check if the spec topic has a matching translated topic node, if not then create a dummy topic
         if (specTopic.getTranslationUniqueId() != null) {
             final TranslatedCSNodeWrapper translatedCSNode = translatedCSNodeProvider.getTranslatedCSNode(
@@ -822,26 +825,22 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
             // Check if the translated node has a specific conditional translated topic, otherwise find the normal translated topic
             if (translatedCSNode.getTranslatedTopics() != null && !translatedCSNode.getTranslatedTopics().isEmpty()) {
+                // Get the matching latest translated topic and pushed translated topics
+                final Pair<TranslatedTopicWrapper, TranslatedTopicWrapper> latestTranslations = getLatestTranslations(buildData,
+                        translatedCSNode.getTranslatedTopics(), specTopic.getRevision(), topic.getLocale());
+                final TranslatedTopicWrapper latestTranslatedTopic = latestTranslations.getFirst();
+                final TranslatedTopicWrapper latestPushedTranslatedTopic = latestTranslations.getSecond();
+
+                // If the latest translation and latest pushed topic matches, then use that if not a dummy topic should be created
                 TranslatedTopicWrapper translatedTopic = null;
-                TranslatedTopicWrapper baseTranslatedTopic = null;
-                for (final TranslatedTopicWrapper csNodeTranslatedTopic : translatedCSNode.getTranslatedTopics().getItems()) {
-                    // Check if the build lang and translated topic lang matches
-                    if (buildData.getBuildLocale().equals(csNodeTranslatedTopic.getLocale())) {
-                        translatedTopic = csNodeTranslatedTopic;
-                    }
-
-                    // Check if the translation is the original topics translation
-                    if (csNodeTranslatedTopic.getTopic().getLocale().equals(csNodeTranslatedTopic.getLocale())) {
-                        baseTranslatedTopic = csNodeTranslatedTopic;
-                    }
-                }
-
-                // Check that we found a matching translated topic, if not create a dummy one from the base translated topic
-                if (translatedTopic == null && baseTranslatedTopic == null) {
-                    throw new BuildProcessingException("Topic " + specTopic.getId() + " exists without a matching source Translated " +
-                            "Topic");
-                } else if (translatedTopic == null) {
-                    translatedTopic = createDummyTranslatedTopicFromExisting(baseTranslatedTopic, buildData.getBuildLocale());
+                if (latestTranslatedTopic != null && latestPushedTranslatedTopic != null && latestPushedTranslatedTopic.getTopicRevision
+                        ().equals(
+                        latestTranslatedTopic.getTopicRevision())) {
+                    translatedTopic = latestTranslatedTopic;
+                } else if (latestPushedTranslatedTopic != null) {
+                    translatedTopic = createDummyTranslatedTopicFromExisting(latestPushedTranslatedTopic, buildData.getBuildLocale());
+                } else {
+                    translatedTopic = createDummyTranslatedTopic(topic, buildData.getBuildLocale());
                 }
                 translatedTopic.setTranslatedCSNode(translatedCSNode);
 
@@ -850,16 +849,15 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 translatedTopics.put(key, translatedTopic);
                 buildData.getBuildDatabase().add(specTopic, key);
             } else {
-                getLatestTranslatedTopicForSpecTopic(buildData, specTopic, translatedTopics);
+                getLatestTranslatedTopicForSpecTopic(buildData, specTopic, topic, translatedTopics);
             }
         } else {
-            getLatestTranslatedTopicForSpecTopic(buildData, specTopic, translatedTopics);
+            getLatestTranslatedTopicForSpecTopic(buildData, specTopic, topic, translatedTopics);
         }
     }
 
-    protected void getLatestTranslatedTopicForSpecTopic(final BuildData buildData, final SpecTopic specTopic,
+    protected void getLatestTranslatedTopicForSpecTopic(final BuildData buildData, final SpecTopic specTopic, final TopicWrapper topic,
             final Map<String, BaseTopicWrapper<?>> translatedTopics) {
-        final TopicWrapper topic = topicProvider.getTopic(specTopic.getDBId(), specTopic.getRevision());
         String key = DocbookBuildUtilities.getTopicBuildKey(topic);
 
         // If the topic has already been processed then add the spec topic and return
@@ -880,7 +878,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             translatedTopics.put(key, latestTranslatedTopic);
             buildData.getBuildDatabase().add(specTopic, key);
         } else {
-            final TranslatedTopicWrapper translatedTopic = createDummyTranslatedTopic(topic, buildData.getBuildLocale());
+            final TranslatedTopicWrapper translatedTopic = createDummyTranslatedTopicFromTopic(topic, buildData.getBuildLocale());
             translatedTopics.put(key, translatedTopic);
             buildData.getBuildDatabase().add(specTopic, key);
         }
@@ -898,10 +896,26 @@ public class DocbookBuilder implements ShutdownAbleApp {
      */
     private Pair<TranslatedTopicWrapper, TranslatedTopicWrapper> getLatestTranslations(final BuildData buildData, final TopicWrapper topic,
             final Integer rev) {
+        return getLatestTranslations(buildData, topic.getTranslatedTopics(), rev, topic.getLocale());
+    }
+
+    /**
+     * Find the latest pushed and translated topics for a topic. We need to do this since translations are only added when some
+     * content is added in Zanata. So if the latest translated topic doesn't match the topic revision of the latest pushed then
+     * we will need to create a dummy topic for the latest pushed topic.
+     *
+     * @param buildData        Information and data structures for the build.
+     * @param translatedTopics The translated topics to search find the latest translated topic and pushed translation.
+     * @param rev              The revision for the topic as specified in the ContentSpec.
+     * @param baseLocale       The original sources locale.
+     * @return A Pair whose first element is the Latest Translated Topic and second element is the Latest Pushed Translation.
+     */
+    private Pair<TranslatedTopicWrapper, TranslatedTopicWrapper> getLatestTranslations(final BuildData buildData,
+            final CollectionWrapper<TranslatedTopicWrapper> translatedTopics, final Integer rev, final String baseLocale) {
         TranslatedTopicWrapper latestTranslatedTopic = null;
         TranslatedTopicWrapper latestPushedTranslatedTopic = null;
-        if (topic.getTranslatedTopics() != null && topic.getTranslatedTopics().getItems() != null) {
-            final List<TranslatedTopicWrapper> topics = topic.getTranslatedTopics().getItems();
+        if (translatedTopics != null && translatedTopics.getItems() != null) {
+            final List<TranslatedTopicWrapper> topics = translatedTopics.getItems();
             for (final TranslatedTopicWrapper tempTopic : topics) {
                 // Find the Latest Translated Topic
                 if (buildData.getBuildLocale().equals(
@@ -911,7 +925,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 }
 
                 // Find the Latest Pushed Topic
-                if (topic.getLocale().equals(
+                if (baseLocale.equals(
                         tempTopic.getLocale()) && (latestPushedTranslatedTopic == null || latestPushedTranslatedTopic.getTopicRevision()
                         < tempTopic.getTopicRevision()) && (rev == null || tempTopic.getTopicRevision() <= rev)) {
                     latestPushedTranslatedTopic = tempTopic;
@@ -929,11 +943,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param locale The locale to build the dummy translations for.
      * @return The dummy translated topic.
      */
-    private TranslatedTopicWrapper createDummyTranslatedTopic(final TopicWrapper topic, final String locale) {
-        final TranslatedTopicWrapper translatedTopic = translatedTopicProvider.newTranslatedTopic();
-        translatedTopic.setTopic(topic);
-        translatedTopic.setId(topic.getId() * -1);
-
+    private TranslatedTopicWrapper createDummyTranslatedTopicFromTopic(final TopicWrapper topic, final String locale) {
         final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(topic);
 
         /*
@@ -943,29 +953,44 @@ public class DocbookBuilder implements ShutdownAbleApp {
         if (pushedTranslatedTopic != null) {
             return createDummyTranslatedTopicFromExisting(pushedTranslatedTopic, locale);
         } else {
-            // If we get to this point then no translation exists or the default locale translation failed to be downloaded.
-            translatedTopic.setTopicId(topic.getId());
-            translatedTopic.setTopicRevision(topic.getRevision());
-            translatedTopic.setTranslationPercentage(100);
-            translatedTopic.setXml(topic.getXml());
-            translatedTopic.setTags(topic.getTags());
-            translatedTopic.setSourceURLs(topic.getSourceURLs());
-            translatedTopic.setProperties(topic.getProperties());
-            translatedTopic.setLocale(locale);
-
-            // Prefix the locale to show that it is missing the related translated topic
-            translatedTopic.setTitle("[" + topic.getLocale() + "] " + topic.getTitle());
-
-            return translatedTopic;
+            return createDummyTranslatedTopic(topic, locale);
         }
+    }
+
+    /**
+     * Creates a dummy translated topic so that a book can be built using the same relationships as a normal build.
+     *
+     * @param topic  The topic to create the dummy topic from.
+     * @param locale The locale to build the dummy translations for.
+     * @return The dummy translated topic.
+     */
+    private TranslatedTopicWrapper createDummyTranslatedTopic(final TopicWrapper topic, final String locale) {
+        final TranslatedTopicWrapper translatedTopic = translatedTopicProvider.newTranslatedTopic();
+        translatedTopic.setTopic(topic);
+        translatedTopic.setId(topic.getId() * -1);
+
+        // If we get to this point then no translation exists or the default locale translation failed to be downloaded.
+        translatedTopic.setTopicId(topic.getId());
+        translatedTopic.setTopicRevision(topic.getRevision());
+        translatedTopic.setTranslationPercentage(100);
+        translatedTopic.setXml(topic.getXml());
+        translatedTopic.setTags(topic.getTags());
+        translatedTopic.setSourceURLs(topic.getSourceURLs());
+        translatedTopic.setProperties(topic.getProperties());
+        translatedTopic.setLocale(locale);
+
+        // Prefix the locale to show that it is missing the related translated topic
+        translatedTopic.setTitle("[" + topic.getLocale() + "] " + topic.getTitle());
+
+        return translatedTopic;
     }
 
     /**
      * Creates a dummy translated topic from an existing translated topic so that a book can be built using the same relationships as a
      * normal build.
      *
-     * @param translatedTopic  The translated topic to create the dummy translated topic from.
-     * @param locale The locale to build the dummy translations for.
+     * @param translatedTopic The translated topic to create the dummy translated topic from.
+     * @param locale          The locale to build the dummy translations for.
      * @return The dummy translated topic.
      */
     private TranslatedTopicWrapper createDummyTranslatedTopicFromExisting(final TranslatedTopicWrapper translatedTopic,
