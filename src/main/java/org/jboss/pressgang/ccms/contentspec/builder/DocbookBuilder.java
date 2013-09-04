@@ -1879,12 +1879,15 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         String bookInfo = bookInfoTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, buildData.getEscapedBookTitle());
         // Set the book title
-        bookInfo = bookInfo.replaceAll(BuilderConstants.TITLE_REGEX, contentSpec.getTitle());
+        bookInfo = bookInfo.replaceAll(BuilderConstants.TITLE_REGEX,
+                DocbookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeTitleString(contentSpec.getTitle())));
         // Set the book subtitle
         bookInfo = bookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX,
-                contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : contentSpec.getSubtitle());
+                contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : DocbookBuildUtilities.escapeForReplaceAll(
+                        StringUtilities.escapeForXML(contentSpec.getSubtitle())));
         // Set the book product
-        bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
+        bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX,
+                DocbookBuildUtilities.escapeForReplaceAll(StringUtilities.escapeForXML(contentSpec.getProduct())));
         // Set the book product version
         bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion() == null ? "" : contentSpec.getVersion());
         // Set or remove the book edition
@@ -1901,7 +1904,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Set the book abstract
         bookInfo = bookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX,
                 contentSpec.getAbstract() == null ? BuilderConstants.DEFAULT_ABSTRACT : ("<abstract>\n\t\t<para>\n\t\t\t" +
-                        contentSpec.getAbstract() + "\n\t\t</para>\n\t</abstract>\n"));
+                        DocbookBuildUtilities.escapeForReplaceAll(StringUtilities.escapeForXML(contentSpec.getAbstract())) +
+                        "\n\t\t</para>\n\t</abstract>\n"));
         // Set the book to have a Legal Notice
         bookInfo = bookInfo.replaceAll(BuilderConstants.LEGAL_NOTICE_REGEX, BuilderConstants.LEGAL_NOTICE_XML);
 
@@ -1925,15 +1929,21 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final ContentSpec contentSpec = buildData.getContentSpec();
         // Setup the <<contentSpec.title>>.ent file
         String entFile = entityFileTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, buildData.getEscapedBookTitle());
-        entFile = entFile.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
-        entFile = entFile.replaceAll(BuilderConstants.TITLE_REGEX, buildData.getOriginalBookTitle());
+        entFile = entFile.replaceAll(BuilderConstants.PRODUCT_REGEX,
+                DocbookBuildUtilities.escapeForReplaceAll(DocbookBuildUtilities.escapeForXMLEntity(contentSpec.getProduct())));
+        entFile = entFile.replaceAll(BuilderConstants.TITLE_REGEX,
+                DocbookBuildUtilities.escapeForReplaceAll(DocbookBuildUtilities.escapeTitleForXMLEntity(buildData.getOriginalBookTitle())));
         entFile = entFile.replaceAll(BuilderConstants.YEAR_FORMAT_REGEX, contentSpec.getCopyrightYear() == null ? Integer.toString(
                 Calendar.getInstance().get(Calendar.YEAR)) : contentSpec.getCopyrightYear());
-        entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_COPYRIGHT_REGEX, contentSpec.getCopyrightHolder());
-        entFile = entFile.replaceAll(BuilderConstants.BZPRODUCT_REGEX,
-                contentSpec.getBugzillaProduct() == null ? buildData.getOriginalBookProduct() : contentSpec.getBugzillaProduct());
-        entFile = entFile.replaceAll(BuilderConstants.BZCOMPONENT_REGEX,
-                contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec.getBugzillaComponent());
+        entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_COPYRIGHT_REGEX,
+                DocbookBuildUtilities.escapeForReplaceAll(DocbookBuildUtilities.escapeForXMLEntity(contentSpec.getCopyrightHolder())));
+        entFile = entFile.replaceAll(BuilderConstants.BZPRODUCT_REGEX, DocbookBuildUtilities.escapeForReplaceAll(
+                DocbookBuildUtilities.escapeForXMLEntity(
+                        contentSpec.getBugzillaProduct() == null ? buildData.getOriginalBookProduct() : contentSpec.getBugzillaProduct())));
+        entFile = entFile.replaceAll(BuilderConstants.BZCOMPONENT_REGEX, DocbookBuildUtilities.escapeForReplaceAll(
+                DocbookBuildUtilities.escapeForXMLEntity(
+                        contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec
+                                .getBugzillaComponent())));
 
         try {
             final StringBuilder fixedBZURL = new StringBuilder();
@@ -2005,9 +2015,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Create the chapter.xml
         final Element titleNode = chapter.createElement("title");
         if (buildData.isTranslationBuild() && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty()) {
-            titleNode.setTextContent(level.getTranslatedTitle());
+            titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTranslatedTitle()));
         } else {
-            titleNode.setTextContent(level.getTitle());
+            titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTitle()));
         }
         chapter.getDocumentElement().appendChild(titleNode);
         chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
@@ -2064,9 +2074,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Create the chapter.xml
         final Element titleNode = chapter.createElement("title");
         if (buildData.isTranslationBuild() && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty()) {
-            titleNode.setTextContent(level.getTranslatedTitle());
+            titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTranslatedTitle()));
         } else {
-            titleNode.setTextContent(level.getTitle());
+            titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTitle()));
         }
         chapter.getDocumentElement().appendChild(titleNode);
         chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
@@ -2131,9 +2141,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 // Create the section and its title
                 final Element sectionNode = chapter.createElement("section");
                 final Element sectionTitleNode = chapter.createElement("title");
-                if (buildData.isTranslationBuild() && childLevel.getTranslatedTitle() != null && !childLevel.getTranslatedTitle().isEmpty())
-                    sectionTitleNode.setTextContent(childLevel.getTranslatedTitle());
-                else sectionTitleNode.setTextContent(childLevel.getTitle());
+                if (buildData.isTranslationBuild() && childLevel.getTranslatedTitle() != null && !childLevel.getTranslatedTitle().isEmpty
+                        ()) {
+                    sectionTitleNode.setTextContent(DocBookUtilities.escapeTitleString(childLevel.getTranslatedTitle()));
+                } else {
+                    sectionTitleNode.setTextContent(DocBookUtilities.escapeTitleString(childLevel.getTitle()));
+                }
                 sectionNode.appendChild(sectionTitleNode);
                 sectionNode.setAttribute("id", childLevel.getUniqueLinkId(useFixedUrls));
 

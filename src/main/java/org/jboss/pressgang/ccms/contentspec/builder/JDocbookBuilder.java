@@ -11,6 +11,7 @@ import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
+import org.jboss.pressgang.ccms.contentspec.builder.utils.DocbookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
@@ -149,7 +150,7 @@ public class JDocbookBuilder extends DocbookBuilder {
         // Change the GroupId
         final String groupId;
         if (contentSpec.getGroupId() != null) {
-            groupId = contentSpec.getGroupId().replace("$", "\\$");
+            groupId = DocbookBuildUtilities.escapeForReplaceAll(contentSpec.getGroupId());
         } else {
             groupId = DocBookUtilities.escapeTitle(originalProduct).replace("_", "-").toLowerCase();
         }
@@ -158,7 +159,7 @@ public class JDocbookBuilder extends DocbookBuilder {
         // Change the ArtifactId
         final String artifactId;
         if (contentSpec.getArtifactId() != null) {
-            artifactId = contentSpec.getArtifactId().replace("$", "\\$");
+            artifactId = DocbookBuildUtilities.escapeForReplaceAll(contentSpec.getArtifactId());
         } else {
             artifactId = escapedTitle.toLowerCase().replace("_", "-") + "-" + outputLocale;
         }

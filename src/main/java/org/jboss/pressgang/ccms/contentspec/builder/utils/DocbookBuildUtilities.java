@@ -24,6 +24,7 @@ import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
+import org.jboss.pressgang.ccms.utils.common.StringUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
 import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
 import org.jboss.pressgang.ccms.utils.structures.Pair;
@@ -66,6 +67,24 @@ public class DocbookBuildUtilities {
         for (final Level childLevel : level.getChildLevels()) {
             addLevelsToDatabase(buildDatabase, childLevel);
         }
+    }
+
+    /**
+     * Cleans a string to escape any characters that will break a {@link java.lang.String.replaceAll()} operation
+     *
+     * @param input
+     * @return
+     */
+    public static String escapeForReplaceAll(final String input) {
+        return input == null ? null : java.util.regex.Matcher.quoteReplacement(input);
+    }
+
+    public static String escapeForXMLEntity(final String input) {
+        return StringUtilities.escapeForXML(input).replace("%", "&percnt;");
+    }
+
+    public static String escapeTitleForXMLEntity(final String input) {
+        return DocBookUtilities.escapeTitleString(input).replace("%", "&percnt;");
     }
 
     /**

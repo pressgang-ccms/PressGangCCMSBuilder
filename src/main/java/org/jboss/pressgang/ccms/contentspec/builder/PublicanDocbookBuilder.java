@@ -77,7 +77,7 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
         }
 
         publicanCfg += "docname: " + buildData.getEscapedBookTitle().replaceAll("_", " ") + "\n";
-        publicanCfg += "product: " + buildData.getOriginalBookProduct() + "\n";
+        publicanCfg += "product: " + escapeProduct(buildData.getOriginalBookProduct()) + "\n";
 
         if (buildData.getBuildOptions().getCvsPkgOption() != null) {
             publicanCfg += "cvs_pkg: " + buildData.getBuildOptions().getCvsPkgOption() + "\n";
@@ -90,6 +90,10 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
         }
 
         return applyPublicanCfgOverrides(buildData, publicanCfg);
+    }
+
+    private String escapeProduct(final String product) {
+        return product == null ? null : product.replaceAll("[^0-9a-zA-Z_\\-\\.\\+]", "");
     }
 
     /**
