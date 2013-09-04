@@ -2879,6 +2879,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 final String tags = EntityUtilities.getCommaSeparatedTagList(topic);
                 final String url = topic.getPressGangURL();
 
+                topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + topic.getTitle()));
                 if (tags != null && !tags.isEmpty()) {
                     topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + tags));
                 }
@@ -2894,10 +2895,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                 /*
                  * this should never be false, because a topic will only be listed in the errors collection once a error or
-                 * warning has been added. The count of 1 comes from the standard list items we added above for the tags and
+                 * warning has been added. The count of 2 comes from the standard list items we added above for the title and
                  * url.
                  */
-                if (topicErrorItems.size() > 1) {
+                if (topicErrorItems.size() > 2) {
                     final String title;
                     if (topic instanceof TranslatedTopicWrapper) {
                         title = "Topic ID " + topic.getTopicId() + ", Revision " + topic.getTopicRevision();
