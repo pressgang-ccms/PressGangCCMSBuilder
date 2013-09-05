@@ -2463,7 +2463,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
             if (authorTags.size() > 0) {
                 for (final TagWrapper author : authorTags) {
                     if (!authorIDtoAuthor.containsKey(author.getId())) {
-                        final AuthorInformation authorInfo = EntityUtilities.getAuthorInformation(providerFactory, author.getId());
+                        final AuthorInformation authorInfo = EntityUtilities.getAuthorInformation(providerFactory, author.getId(),
+                                author.getRevision());
                         if (authorInfo != null) {
                             authorIDtoAuthor.put(author.getId(), authorInfo);
                         }
@@ -2691,7 +2692,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // An assigned writer tag exists for the User so check if there is an AuthorInformation tuple for that writer
         if (author != null) {
-            AuthorInformation authorInfo = EntityUtilities.getAuthorInformation(providerFactory, author.getId());
+            AuthorInformation authorInfo = EntityUtilities.getAuthorInformation(providerFactory, author.getId(), author.getRevision());
             if (authorInfo != null) {
                 final Element revision = generateRevision(buildData, revHistoryDoc, authorInfo);
 
