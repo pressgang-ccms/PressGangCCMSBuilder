@@ -171,6 +171,7 @@ import org.w3c.dom.NodeList;
  */
 public class DocbookBuilder implements ShutdownAbleApp {
     protected static final Logger log = Logger.getLogger(DocbookBuilder.class);
+    protected static final boolean INCLUDE_CHECKSUMS = false;
     protected static final List<Integer> validKeywordCategoryIds = CollectionUtilities.toArrayList(CSConstants.TECHNOLOGY_CATEGORY_ID,
             CSConstants.RELEASE_CATEGORY_ID, CSConstants.SEO_METADATA_CATEGORY_ID, CSConstants.COMMON_NAME_CATEGORY_ID,
             CSConstants.CONCERN_CATEGORY_ID, CSConstants.CONTENT_TYPE_CATEGORY_ID, CSConstants.PROGRAMMING_LANGUAGE_CATEGORY_ID);
@@ -1690,7 +1691,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Build the content specification page
         if (!buildData.getBuildOptions().getSuppressContentSpecPage()) {
             final String contentSpecPage = DocBookUtilities.buildAppendix(DocBookUtilities.wrapInPara(
-                    "<programlisting>" + XMLUtilities.wrapStringInCDATA(contentSpec.toString()) + "</programlisting>"),
+                    "<programlisting>" + XMLUtilities.wrapStringInCDATA(contentSpec.toString(INCLUDE_CHECKSUMS)) + "</programlisting>"),
                     "Build Content Specification");
             addToZip(buildData.getBookLocaleFolder() + "Build_Content_Specification.xml",
                     DocBookUtilities.addDocbook45XMLDoctype(contentSpecPage, escapedTitle + ".ent", "appendix"), buildData);
