@@ -3707,7 +3707,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     if (languageFileFile != null && languageFileFile.getFileData() != null) {
                         // Determine the file path
                         final String filePath;
-                        if (fileEntity.getFilePath() != null) {
+                        if (!isNullOrEmpty(fileEntity.getFilePath())) {
                             if (fileEntity.getFilePath().endsWith("/") || fileEntity.getFilePath().endsWith("\\")) {
                                 filePath = fileEntity.getFilePath();
                             } else {
