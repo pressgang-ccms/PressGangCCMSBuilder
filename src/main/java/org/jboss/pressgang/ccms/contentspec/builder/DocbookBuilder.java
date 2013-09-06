@@ -76,6 +76,7 @@ import org.jboss.pressgang.ccms.provider.TopicProvider;
 import org.jboss.pressgang.ccms.provider.TranslatedCSNodeProvider;
 import org.jboss.pressgang.ccms.provider.TranslatedContentSpecProvider;
 import org.jboss.pressgang.ccms.provider.TranslatedTopicProvider;
+import org.jboss.pressgang.ccms.provider.exception.NotFoundException;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.ExceptionUtilities;
@@ -3687,50 +3688,54 @@ public class DocbookBuilder implements ShutdownAbleApp {
             log.info("\tDownloading Additional Files");
 
             for (final org.jboss.pressgang.ccms.contentspec.File file : contentSpec.getFiles()) {
-                final FileWrapper fileEntity = fileProvider.getFile(file.getId(), file.getRevision());
+                try {
+                    final FileWrapper fileEntity = fileProvider.getFile(file.getId(), file.getRevision());
 
-                // Find the file that matches this locale. If the locale isn't found then use the default locale
-                LanguageFileWrapper languageFileFile = null;
-                if (fileEntity.getLanguageFiles() != null && fileEntity.getLanguageFiles().getItems() != null) {
-                    final List<LanguageFileWrapper> languageFiles = fileEntity.getLanguageFiles().getItems();
-                    for (final LanguageFileWrapper languageFile : languageFiles) {
-                        if (languageFile.getLocale().equals(buildData.getBuildLocale())) {
-                            languageFileFile = languageFile;
-                        } else if (languageFile.getLocale().equals(getDefaultBuildLocale()) && languageFileFile == null) {
-                            languageFileFile = languageFile;
-                        }
-                    }
-                }
-
-                if (languageFileFile != null && languageFileFile.getFileData() != null) {
-                    // Determine the file path
-                    final String filePath;
-                    if (fileEntity.getFilePath() != null) {
-                        if (fileEntity.getFilePath().endsWith("/") || fileEntity.getFilePath().endsWith("\\")) {
-                            filePath = fileEntity.getFilePath();
-                        } else {
-                            filePath = fileEntity.getFilePath() + "/";
-                        }
-                    } else {
-                        filePath = "";
-                    }
-
-                    // Explode the ZIP archive if requested
-                    if (fileEntity.isExplodeArchive()) {
-                        try {
-                            final Map<String, byte[]> files = ZipUtilities.unzipFile(languageFileFile.getFileData(), false);
-                            for (final Entry<String, byte[]> entry : files.entrySet()) {
-                                addToZip(buildData.getBookFilesFolder() + filePath + entry.getKey(), entry.getValue(), buildData);
+                    // Find the file that matches this locale. If the locale isn't found then use the default locale
+                    LanguageFileWrapper languageFileFile = null;
+                    if (fileEntity.getLanguageFiles() != null && fileEntity.getLanguageFiles().getItems() != null) {
+                        final List<LanguageFileWrapper> languageFiles = fileEntity.getLanguageFiles().getItems();
+                        for (final LanguageFileWrapper languageFile : languageFiles) {
+                            if (languageFile.getLocale().equals(buildData.getBuildLocale())) {
+                                languageFileFile = languageFile;
+                            } else if (languageFile.getLocale().equals(getDefaultBuildLocale()) && languageFileFile == null) {
+                                languageFileFile = languageFile;
                             }
-                        } catch (IOException e) {
-                            throw new BuildProcessingException(e);
+                        }
+                    }
+
+                    if (languageFileFile != null && languageFileFile.getFileData() != null) {
+                        // Determine the file path
+                        final String filePath;
+                        if (fileEntity.getFilePath() != null) {
+                            if (fileEntity.getFilePath().endsWith("/") || fileEntity.getFilePath().endsWith("\\")) {
+                                filePath = fileEntity.getFilePath();
+                            } else {
+                                filePath = fileEntity.getFilePath() + "/";
+                            }
+                        } else {
+                            filePath = "";
+                        }
+
+                        // Explode the ZIP archive if requested
+                        if (fileEntity.isExplodeArchive()) {
+                            try {
+                                final Map<String, byte[]> files = ZipUtilities.unzipFile(languageFileFile.getFileData(), false);
+                                for (final Entry<String, byte[]> entry : files.entrySet()) {
+                                    addToZip(buildData.getBookFilesFolder() + filePath + entry.getKey(), entry.getValue(), buildData);
+                                }
+                            } catch (IOException e) {
+                                throw new BuildProcessingException(e);
+                            }
+                        } else {
+                            addToZip(buildData.getBookFilesFolder() + filePath + fileEntity.getFilename(), languageFileFile.getFileData(),
+                                    buildData);
                         }
                     } else {
-                        addToZip(buildData.getBookFilesFolder() + filePath + fileEntity.getFilename(), languageFileFile.getFileData(),
-                                buildData);
+                        throw new BuildProcessingException("File ID " + fileEntity.getId() + " has no language files!");
                     }
-                } else {
-                    throw new BuildProcessingException("File ID " + fileEntity.getId() + " was not found!");
+                } catch (NotFoundException e) {
+                    throw new BuildProcessingException("File ID " + file.getId() + " could not be found!");
                 }
             }
         }
