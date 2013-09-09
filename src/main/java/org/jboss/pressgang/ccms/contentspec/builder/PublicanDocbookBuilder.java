@@ -93,7 +93,7 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
     }
 
     private String escapeProduct(final String product) {
-        return product == null ? null : product.replaceAll("[^0-9a-zA-Z_\\-\\.\\+]", "");
+        return product == null ? null : product.replaceAll("[^0-9a-zA-Z_\\-\\.\\+ ]", "");
     }
 
     /**
