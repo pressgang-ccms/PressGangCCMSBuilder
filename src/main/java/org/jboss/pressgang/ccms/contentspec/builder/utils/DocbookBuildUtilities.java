@@ -1,8 +1,8 @@
 package org.jboss.pressgang.ccms.contentspec.builder.utils;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -20,8 +20,8 @@ import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.CSDocbookBuildingOptions;
-import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
+import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.StringUtilities;
@@ -49,9 +49,9 @@ public class DocbookBuildUtilities {
     private static final Logger log = LoggerFactory.getLogger(DocbookBuildUtilities.class);
     private static final String STARTS_WITH_NUMBER_RE = "^(?<Numbers>\\d+)(?<EverythingElse>.*)$";
     private static final String STARTS_WITH_INVALID_SEQUENCE_RE = "^(?<InvalidSeq>[^\\w\\d]+)(?<EverythingElse>.*)$";
-    private static final String[] DATE_FORMATS = new String[]{
-            "MM-dd-yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "yyyy/MM/dd", "EEE MMM dd yyyy", "EEE, MMM dd yyyy", "EEE MMM dd yyyy Z",
-            "EEE dd MMM yyyy", "EEE,dd MMM yyyy", "EEE dd MMM yyyy Z", "yyyyMMdd", "yyyyMMdd'T'HHmmss.SSSZ"};
+    private static final String[] DATE_FORMATS = new String[]{"MM-dd-yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "yyyy/MM/dd", "EEE MMM dd yyyy",
+            "EEE, MMM dd yyyy", "EEE MMM dd yyyy Z", "EEE dd MMM yyyy", "EEE,dd MMM yyyy", "EEE dd MMM yyyy Z", "yyyyMMdd",
+            "yyyyMMdd'T'HHmmss.SSSZ"};
 
     /**
      * Adds the levels in the provided Level object to the content spec database.
@@ -612,7 +612,8 @@ public class DocbookBuildUtilities {
         for (int i = 0; i < programListings.getLength(); i++) {
             final Element programListing = (Element) programListings.item(i);
             if (programListing.hasAttribute("language")) {
-                if (!BuilderConstants.VALID_PROGRAM_LISTING_LANGS.contains(programListing.getAttribute("language"))) {
+                if (!BuilderConstants.VALID_PROGRAM_LISTING_LANGS_LOWERCASE.contains(
+                        programListing.getAttribute("language").toLowerCase())) {
                     valid = false;
                 }
             }

@@ -185,6 +185,11 @@ public class BuilderConstants {
 
     public static final List<String> VALID_PROGRAM_LISTING_LANGS = Arrays.asList("Java", "SQL", "C", "C++", "Bash", "Perl", "JavaScript",
             "Python", "XML", "Ruby", "C#", "HTML", "CSS", "Javadoc", "Haskell", "Lua", "Makefile", "Pascal", "RPM Spec", "Diff");
+
+    public static final List<String> VALID_PROGRAM_LISTING_LANGS_LOWERCASE = Arrays.asList("java", "sql", "c", "c++", "bash", "perl",
+            "javaScript", "python", "xml", "ruby", "c#", "html", "css", "javadoc", "haskell", "lua", "makefile", "pascal", "rpm spec",
+            "diff");
+
     /**
      * The StringConstantsID that represents the icon.svg file
      */
