@@ -35,6 +35,9 @@ import org.codehaus.jackson.io.JsonStringEncoder;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
+import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
+import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkOptions;
+import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkStrategyFactory;
 import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
@@ -45,7 +48,6 @@ import org.jboss.pressgang.ccms.contentspec.builder.utils.ReportUtilities;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.SAXXMLValidator;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
 import org.jboss.pressgang.ccms.contentspec.entities.AuthorInformation;
-import org.jboss.pressgang.ccms.contentspec.entities.BaseBugLinkOptions;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
 import org.jboss.pressgang.ccms.contentspec.enums.BugLinkType;
 import org.jboss.pressgang.ccms.contentspec.enums.LevelType;
@@ -55,10 +57,7 @@ import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.TranslationUtilities;
-import org.jboss.pressgang.ccms.docbook.compiling.BugLinkStrategy;
-import org.jboss.pressgang.ccms.docbook.processing.BugzillaBugLinkStrategy;
 import org.jboss.pressgang.ccms.docbook.processing.DocbookXMLPreProcessor;
-import org.jboss.pressgang.ccms.docbook.processing.JIRABugLinkStrategy;
 import org.jboss.pressgang.ccms.docbook.structures.TocTopicDatabase;
 import org.jboss.pressgang.ccms.docbook.structures.TopicErrorData;
 import org.jboss.pressgang.ccms.docbook.structures.TopicErrorDatabase.ErrorLevel;
@@ -1293,18 +1292,17 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final List<T> topics = buildData.getBuildDatabase().getAllTopics(true);
         relatedTopicsDatabase.setTopics(topics);
 
-        final BugLinkStrategy bugLinkStrategy;
-        final BaseBugLinkOptions bugOptions;
+        final BugLinkType bugLinkType = buildData.getContentSpec().getBugLinks();
+        final BugLinkOptions bugOptions;
         if (buildData.getContentSpec().getBugLinks().equals(BugLinkType.JIRA)) {
             bugOptions = buildData.getContentSpec().getJIRABugLinkOptions();
-            bugLinkStrategy = new JIRABugLinkStrategy(bugOptions.getBaseUrl());
         } else if (buildData.getContentSpec().getBugLinks().equals(BugLinkType.BUGZILLA)) {
             bugOptions = buildData.getContentSpec().getBugzillaBugLinkOptions();
-            bugLinkStrategy = new BugzillaBugLinkStrategy(bugOptions.getBaseUrl());
         } else {
             bugOptions = null;
-            bugLinkStrategy = null;
         }
+        final BaseBugLinkStrategy bugLinkStrategy = BugLinkStrategyFactory.getInstance().create(bugLinkType,
+                bugOptions == null ? null : bugOptions.getBaseUrl());
 
         final DocbookXMLPreProcessor xmlPreProcessor = new DocbookXMLPreProcessor(getConstants(), bugLinkStrategy);
 
