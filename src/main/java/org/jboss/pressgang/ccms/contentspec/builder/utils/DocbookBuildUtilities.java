@@ -381,9 +381,9 @@ public class DocbookBuildUtilities {
 
         if (bookVersion == null) {
             rev.append(BuilderConstants.DEFAULT_EDITION + ".0.0");
-        } else if (contentSpec.getEdition().matches("^[0-9]+\\.[0-9]+\\.[0-9]+$")) {
+        } else if (bookVersion.matches("^[0-9]+\\.[0-9]+\\.[0-9]+$")) {
             rev.append(bookVersion);
-        } else if (contentSpec.getEdition().matches("^[0-9]+\\.[0-9]+$")) {
+        } else if (bookVersion.matches("^[0-9]+\\.[0-9]+$")) {
             rev.append(bookVersion + ".0");
         } else {
             rev.append(bookVersion + ".0.0");
