@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -12,7 +13,6 @@ import com.google.code.regexp.Matcher;
 import com.google.code.regexp.Pattern;
 import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
-import org.apache.commons.lang.time.DateUtils;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
@@ -716,7 +716,7 @@ public class DocbookBuildUtilities {
             // Check the dates are in chronological order
             if (date != null) {
                 try {
-                    final Date revisionDate = DateUtils.parseDate(date.getTextContent(), DATE_FORMATS);
+                    final Date revisionDate = DateUtils.parseDate(date.getTextContent(), Locale.ENGLISH, DATE_FORMATS);
                     if (previousDate != null && revisionDate.after(previousDate)) {
                         return "The revisions in the Revision History are not in descending chronological order, " +
                                 "starting from \"" + date.getTextContent() + "\".";

@@ -11,7 +11,7 @@
     <groupId>org.jboss.pressgang.ccms.contentspec</groupId>
     <artifactId>builder</artifactId>
     <name>PressGang CCMS Content Spec Builder</name>
-    <version>0.2.1-SNAPSHOT</version>
+    <version>0.2.2-SNAPSHOT</version>
 
     <scm>
         <url>https://github.com/pressgang-ccms/PressGangCCMSBuilder</url>
