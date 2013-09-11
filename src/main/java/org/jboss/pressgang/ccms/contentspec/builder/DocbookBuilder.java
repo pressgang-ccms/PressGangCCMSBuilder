@@ -794,10 +794,23 @@ public class DocbookBuilder implements ShutdownAbleApp {
      */
     private void populateTranslatedTopicDatabase(final BuildData buildData,
             final Map<String, BaseTopicWrapper<?>> translatedTopics) throws BuildProcessingException {
-        // Loop over each Spec Topic in the content spec and get it's translated topic
         final List<SpecTopic> specTopics = buildData.getContentSpec().getSpecTopics();
+
+        final int showPercent = 10;
+        final float total = specTopics.size();
+        float current = 0;
+        int lastPercent = 0;
+
+        // Loop over each Spec Topic in the content spec and get it's translated topic
         for (final SpecTopic specTopic : specTopics) {
             getTranslatedTopicForSpecTopic(buildData, specTopic, translatedTopics);
+
+            ++current;
+            final int percent = Math.round(current / total * 100);
+            if (percent - lastPercent >= showPercent) {
+                lastPercent = percent;
+                log.info("\tPopulate " + buildData.getBuildLocale() + " Database Pass " + percent + "% Done");
+            }
         }
 
         // Ensure that our translated topics FixedURLs are still valid
