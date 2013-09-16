@@ -580,11 +580,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
             // Iterate over each translated node and build up the list of translated strings for the content spec.
             final List<TranslatedCSNodeWrapper> translatedCSNodes = translatedContentSpec.getTranslatedNodes().getItems();
             for (final TranslatedCSNodeWrapper translatedCSNode : translatedCSNodes) {
-                if (translatedCSNode.getTranslatedStrings() != null) {
-                    final List<TranslatedCSNodeStringWrapper> translatedCSNodeStrings = translatedCSNode.getTranslatedStrings().getItems();
-                    for (final TranslatedCSNodeStringWrapper translatedCSNodeString : translatedCSNodeStrings) {
-                        if (translatedCSNodeString.getLocale().equals(locale)) {
-                            translations.put(translatedCSNode.getOriginalString(), translatedCSNodeString.getTranslatedString());
+                // Only process nodes that have content pushed to Zanata
+                if (!isNullOrEmpty(translatedCSNode.getOriginalString())) {
+                    if (translatedCSNode.getTranslatedStrings() != null) {
+                        final List<TranslatedCSNodeStringWrapper> translatedCSNodeStrings = translatedCSNode.getTranslatedStrings().getItems();
+                        for (final TranslatedCSNodeStringWrapper translatedCSNodeString : translatedCSNodeStrings) {
+                            if (translatedCSNodeString.getLocale().equals(locale)) {
+                                translations.put(translatedCSNode.getOriginalString(), translatedCSNodeString.getTranslatedString());
+                            }
                         }
                     }
                 }
@@ -791,10 +794,23 @@ public class DocbookBuilder implements ShutdownAbleApp {
      */
     private void populateTranslatedTopicDatabase(final BuildData buildData,
             final Map<String, BaseTopicWrapper<?>> translatedTopics) throws BuildProcessingException {
-        // Loop over each Spec Topic in the content spec and get it's translated topic
         final List<SpecTopic> specTopics = buildData.getContentSpec().getSpecTopics();
+
+        final int showPercent = 10;
+        final float total = specTopics.size();
+        float current = 0;
+        int lastPercent = 0;
+
+        // Loop over each Spec Topic in the content spec and get it's translated topic
         for (final SpecTopic specTopic : specTopics) {
             getTranslatedTopicForSpecTopic(buildData, specTopic, translatedTopics);
+
+            ++current;
+            final int percent = Math.round(current / total * 100);
+            if (percent - lastPercent >= showPercent) {
+                lastPercent = percent;
+                log.info("\tPopulate " + buildData.getBuildLocale() + " Database Pass " + percent + "% Done");
+            }
         }
 
         // Ensure that our translated topics FixedURLs are still valid
@@ -837,8 +853,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 if (latestTranslatedTopic != null && latestPushedTranslatedTopic != null && latestPushedTranslatedTopic.getTopicRevision
                         ().equals(
                         latestTranslatedTopic.getTopicRevision())) {
-                    translatedTopic = latestTranslatedTopic;
+                    translatedTopic = translatedTopicProvider.getTranslatedTopic(latestTranslatedTopic.getId());
                 } else if (latestPushedTranslatedTopic != null) {
+                    latestPushedTranslatedTopic.setTopic(topic);
                     translatedTopic = createDummyTranslatedTopicFromExisting(latestPushedTranslatedTopic, buildData.getBuildLocale());
                 } else {
                     translatedTopic = createDummyTranslatedTopic(topic, buildData.getBuildLocale());
@@ -876,7 +893,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // If the latest translation and latest pushed topic matches, then use that if not a dummy topic should be created
         if (latestTranslatedTopic != null && latestPushedTranslatedTopic != null && latestPushedTranslatedTopic.getTopicRevision().equals(
                 latestTranslatedTopic.getTopicRevision())) {
-            translatedTopics.put(key, latestTranslatedTopic);
+            final TranslatedTopicWrapper translatedTopic = translatedTopicProvider.getTranslatedTopic(latestTranslatedTopic.getId());
+            translatedTopics.put(key, translatedTopic);
             buildData.getBuildDatabase().add(specTopic, key);
         } else {
             final TranslatedTopicWrapper translatedTopic = createDummyTranslatedTopicFromTopic(topic, buildData.getBuildLocale());
@@ -952,6 +970,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
          * create a dummy topic from the passed RESTTopicV1.
          */
         if (pushedTranslatedTopic != null) {
+            pushedTranslatedTopic.setTopic(topic);
             return createDummyTranslatedTopicFromExisting(pushedTranslatedTopic, locale);
         } else {
             return createDummyTranslatedTopic(topic, locale);
@@ -1461,42 +1480,46 @@ public class DocbookBuilder implements ShutdownAbleApp {
             // Handle any errors that occurred while processing the injections
             valid = processSpecTopicInjectionErrors(buildData, topic, customInjectionErrors);
 
-            // Check for dummy topics
-            if (topic instanceof TranslatedTopicWrapper) {
-                // Add the warning for the topics relationships that haven't been translated
-                if (topic.getOutgoingRelationships() != null && topic.getOutgoingRelationships().getItems() != null) {
-                    final List<? extends BaseTopicWrapper<?>> relatedTopics = topic.getOutgoingRelationships().getItems();
-                    for (final BaseTopicWrapper<?> relatedTopic : relatedTopics) {
-                        // Check if the app should be shutdown
-                        if (isShuttingDown.get()) {
-                            return false;
-                        }
-
-                        final TranslatedTopicWrapper relatedTranslatedTopic = (TranslatedTopicWrapper) relatedTopic;
-
-                        // Only show errors for topics that weren't included in the injections
-                        if (!customInjectionErrors.contains(relatedTranslatedTopic.getTopicId())) {
-                            if ((!baseLevel.isSpecTopicInLevelByTopicID(
-                                    relatedTranslatedTopic.getTopicId()) && !buildData.getBuildOptions().getIgnoreMissingCustomInjections
-                                    ()) || baseLevel.isSpecTopicInLevelByTopicID(
-                                    relatedTranslatedTopic.getTopicId())) {
-                                if (EntityUtilities.isDummyTopic(relatedTopic) && EntityUtilities.hasBeenPushedForTranslation(
-                                        relatedTranslatedTopic)) {
-                                    buildData.getErrorDatabase().addWarning(topic,
-                                            "Topic ID " + relatedTranslatedTopic.getTopicId() + ", " +
-                                                    "Revision " + relatedTranslatedTopic.getTopicRevision() + ", " +
-                                                    "Title \"" + relatedTopic.getTitle() + "\" is an untranslated topic.");
-                                } else if (EntityUtilities.isDummyTopic(relatedTopic)) {
-                                    buildData.getErrorDatabase().addWarning(topic,
-                                            "Topic ID " + relatedTranslatedTopic.getTopicId() + ", " +
-                                                    "Revision " + relatedTranslatedTopic.getTopicRevision() + ", " +
-                                                    "Title \"" + relatedTopic.getTitle() + "\" hasn't been pushed for translation.");
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            /*
+             * NOTE: The code below has been commented out because it has to do with the old building mechanism and should probably be
+             * removed.
+             */
+//            // Check for dummy topics
+//            if (topic instanceof TranslatedTopicWrapper) {
+//                // Add the warning for the topics relationships that haven't been translated
+//                if (topic.getOutgoingRelationships() != null && topic.getOutgoingRelationships().getItems() != null) {
+//                    final List<? extends BaseTopicWrapper<?>> relatedTopics = topic.getOutgoingRelationships().getItems();
+//                    for (final BaseTopicWrapper<?> relatedTopic : relatedTopics) {
+//                        // Check if the app should be shutdown
+//                        if (isShuttingDown.get()) {
+//                            return false;
+//                        }
+//
+//                        final TranslatedTopicWrapper relatedTranslatedTopic = (TranslatedTopicWrapper) relatedTopic;
+//
+//                        // Only show errors for topics that weren't included in the injections
+//                        if (!customInjectionErrors.contains(relatedTranslatedTopic.getTopicId())) {
+//                            if ((!baseLevel.isSpecTopicInLevelByTopicID(
+//                                    relatedTranslatedTopic.getTopicId()) && !buildData.getBuildOptions().getIgnoreMissingCustomInjections
+//                                    ()) || baseLevel.isSpecTopicInLevelByTopicID(
+//                                    relatedTranslatedTopic.getTopicId())) {
+//                                if (EntityUtilities.isDummyTopic(relatedTopic) && EntityUtilities.hasBeenPushedForTranslation(
+//                                        relatedTranslatedTopic)) {
+//                                    buildData.getErrorDatabase().addWarning(topic,
+//                                            "Topic ID " + relatedTranslatedTopic.getTopicId() + ", " +
+//                                                    "Revision " + relatedTranslatedTopic.getTopicRevision() + ", " +
+//                                                    "Title \"" + relatedTopic.getTitle() + "\" is an untranslated topic.");
+//                                } else if (EntityUtilities.isDummyTopic(relatedTopic)) {
+//                                    buildData.getErrorDatabase().addWarning(topic,
+//                                            "Topic ID " + relatedTranslatedTopic.getTopicId() + ", " +
+//                                                    "Revision " + relatedTranslatedTopic.getTopicRevision() + ", " +
+//                                                    "Title \"" + relatedTopic.getTitle() + "\" hasn't been pushed for translation.");
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
+//            }
         }
 
         return valid;
