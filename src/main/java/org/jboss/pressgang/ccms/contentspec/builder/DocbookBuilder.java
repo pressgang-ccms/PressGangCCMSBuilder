@@ -2270,11 +2270,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 // Merge the info text
                 final NodeList sectionIntroChildren = sectionInfoNodes.get(0).getChildNodes();
                 final Node firstNode = introNode.getFirstChild();
-                for (int i = 0; i < sectionIntroChildren.getLength(); i++) {
+                while (sectionIntroChildren.getLength() > 0) {
                     if (firstNode != null) {
-                        introNode.insertBefore(sectionIntroChildren.item(i), firstNode);
+                        introNode.insertBefore(sectionIntroChildren.item(0), firstNode);
                     } else {
-                        introNode.appendChild(sectionIntroChildren.item(i));
+                        introNode.appendChild(sectionIntroChildren.item(0));
                     }
                 }
             }
@@ -2289,8 +2289,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // Move the contents of the section to the chapter/level
         final NodeList sectionChildren = section.getChildNodes();
-        for (int i = 0; i < sectionChildren.getLength(); i++) {
-            parentNode.appendChild(sectionChildren.item(i));
+        while (sectionChildren.getLength() > 0) {
+            parentNode.appendChild(sectionChildren.item(0));
         }
     }
 
