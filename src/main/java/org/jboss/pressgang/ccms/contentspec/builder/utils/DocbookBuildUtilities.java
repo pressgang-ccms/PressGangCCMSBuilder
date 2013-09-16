@@ -716,7 +716,7 @@ public class DocbookBuildUtilities {
             // Check the dates are in chronological order
             if (date != null) {
                 try {
-                    final Date revisionDate = DateUtils.parseDate(date.getTextContent(), Locale.ENGLISH, DATE_FORMATS);
+                    final Date revisionDate = DateUtils.parseDate(cleanDate(date.getTextContent()), Locale.ENGLISH, DATE_FORMATS);
                     if (previousDate != null && revisionDate.after(previousDate)) {
                         return "The revisions in the Revision History are not in descending chronological order, " +
                                 "starting from \"" + date.getTextContent() + "\".";
@@ -737,5 +737,21 @@ public class DocbookBuildUtilities {
         } else {
             return null;
         }
+    }
+
+    /**
+     * Basic method to clean a date string to fix any partial day names. It currently cleans "Thur", "Thurs" and "Tues".
+     *
+     * @param dateString
+     * @return
+     */
+    private static String cleanDate(final String dateString) {
+        if (dateString == null) {
+            return dateString;
+        }
+
+        return dateString.replace("Tues", "Tue")
+                .replace("Thur", "Thu")
+                .replace("Thurs", "Thu");
     }
 }
