@@ -1730,7 +1730,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Change the DOM Document into a string so it can be added to the ZIP
         final String rootElementName = contentSpec.getBookType().toString().toLowerCase().replace("-draft", "");
         final String book = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(bookBase, rootElementName,
-                escapedTitle + ".xml", getXMLFormatProperties());
+                escapedTitle + ".ent", getXMLFormatProperties());
         addToZip(buildData.getBookLocaleFolder() + escapedTitle + ".xml", book, buildData);
     }
 
