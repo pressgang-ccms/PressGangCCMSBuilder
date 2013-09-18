@@ -1,5 +1,7 @@
 package org.jboss.pressgang.ccms.contentspec.builder;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -166,7 +168,15 @@ public class JDocbookBuilder extends DocbookBuilder {
         pomXML = pomXML.replaceFirst("<artifactId>.*</artifactId>", "<artifactId>" + artifactId + "</artifactId>");
 
         // Change the Version
-        pomXML = pomXML.replaceFirst("<version>.*</version>", "<version>" + contentSpec.getVersion() + "-SNAPSHOT</version>");
+        final String version;
+        if (!isNullOrEmpty(contentSpec.getBookVersion())) {
+            version = contentSpec.getBookVersion();
+        } else if (!isNullOrEmpty(contentSpec.getEdition())) {
+            version = contentSpec.getEdition();
+        } else {
+            version = contentSpec.getVersion();
+        }
+        pomXML = pomXML.replaceFirst("<version>.*</version>", "<version>" + version + "-SNAPSHOT</version>");
 
         addToZip(buildData.getRootBookFolder() + "pom.xml", pomXML, buildData);
     }
