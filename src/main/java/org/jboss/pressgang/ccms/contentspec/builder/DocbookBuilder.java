@@ -583,7 +583,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 // Only process nodes that have content pushed to Zanata
                 if (!isNullOrEmpty(translatedCSNode.getOriginalString())) {
                     if (translatedCSNode.getTranslatedStrings() != null) {
-                        final List<TranslatedCSNodeStringWrapper> translatedCSNodeStrings = translatedCSNode.getTranslatedStrings().getItems();
+                        final List<TranslatedCSNodeStringWrapper> translatedCSNodeStrings = translatedCSNode.getTranslatedStrings()
+                                .getItems();
                         for (final TranslatedCSNodeStringWrapper translatedCSNodeString : translatedCSNodeStrings) {
                             if (translatedCSNodeString.getLocale().equals(locale)) {
                                 translations.put(translatedCSNode.getOriginalString(), translatedCSNodeString.getTranslatedString());
@@ -1976,17 +1977,20 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 fixedBZURL.append("enter_bug.cgi");
                 // Add in the product specific link details
                 if (contentSpec.getBugzillaProduct() != null) {
-                    fixedBZURL.append("?product=").append(URLEncoder.encode(contentSpec.getBugzillaProduct(), ENCODING));
+                    final String encodedProduct = URLEncoder.encode(contentSpec.getBugzillaProduct(), ENCODING);
+                    fixedBZURL.append("?product=").append(encodedProduct.replace("%", "&percnt;"));
                     if (contentSpec.getBugzillaComponent() != null) {
-                        fixedBZURL.append("&amp;component=").append(URLEncoder.encode(contentSpec.getBugzillaComponent(), ENCODING));
+                        final String encodedComponent = URLEncoder.encode(contentSpec.getBugzillaComponent(), ENCODING);
+                        fixedBZURL.append("&amp;component=").append(encodedComponent.replace("%", "&percnt;"));
                     }
                     if (contentSpec.getBugzillaVersion() != null) {
-                        fixedBZURL.append("&amp;version=").append(URLEncoder.encode(contentSpec.getBugzillaVersion(), ENCODING));
+                        final String encodedVersion = URLEncoder.encode(contentSpec.getBugzillaVersion(), ENCODING);
+                        fixedBZURL.append("&amp;version=").append(encodedVersion.replace("&", "&percnt;"));
                     }
                 }
                 fixedBZURL.append("'>").append(BuilderConstants.DEFAULT_BUGZILLA_URL).append("</ulink>");
             } else {
-                fixedBZURL.append(contentSpec.getBugzillaURL());
+                fixedBZURL.append(contentSpec.getBugzillaURL().replace("&", "&percnt;"));
             }
 
             entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, fixedBZURL.toString());
