@@ -380,13 +380,19 @@ public class DocbookBuildUtilities {
         }
 
         if (bookVersion == null) {
-            rev.append(BuilderConstants.DEFAULT_EDITION + ".0.0");
-        } else if (bookVersion.matches("^[0-9]+\\.[0-9]+\\.[0-9]+$")) {
-            rev.append(bookVersion);
-        } else if (bookVersion.matches("^[0-9]+\\.[0-9]+$")) {
-            rev.append(bookVersion + ".0");
+            rev.append(BuilderConstants.DEFAULT_EDITION).append(".0.0");
         } else {
-            rev.append(bookVersion + ".0.0");
+            // Remove any beta/alpha declarations
+            final String removeContent = bookVersion.replaceAll("^(([0-9]+)|([0-9]+.[0-9]+)|([0-9]+.[0-9]+.[0-9]+))", "");
+            final String fixedBookVersion = bookVersion.replace(removeContent, "");
+
+            if (fixedBookVersion.matches("^[0-9]+\\.[0-9]+\\.[0-9]+$")) {
+                rev.append(fixedBookVersion);
+            } else if (fixedBookVersion.matches("^[0-9]+\\.[0-9]+$")) {
+                rev.append(fixedBookVersion).append(".0");
+            } else {
+                rev.append(fixedBookVersion).append(".0.0");
+            }
         }
 
         return rev.toString();
