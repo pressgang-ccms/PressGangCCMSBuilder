@@ -1928,7 +1928,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Set the book abstract
         bookInfo = bookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX,
                 contentSpec.getAbstract() == null ? BuilderConstants.DEFAULT_ABSTRACT : ("<abstract>\n\t\t<para>\n\t\t\t" +
-                        DocbookBuildUtilities.escapeForReplaceAll(StringUtilities.escapeForXML(contentSpec.getAbstract())) +
+                        DocbookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeTitleString(contentSpec.getAbstract())) +
                         "\n\t\t</para>\n\t</abstract>\n"));
         // Set the book to have a Legal Notice
         bookInfo = bookInfo.replaceAll(BuilderConstants.LEGAL_NOTICE_REGEX, BuilderConstants.LEGAL_NOTICE_XML);
