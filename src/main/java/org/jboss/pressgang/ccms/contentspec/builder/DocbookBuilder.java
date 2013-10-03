@@ -1130,6 +1130,47 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                 // Make sure the topic has the correct root element and other items
                 if (revHistoryTopic) {
+                    // If it is a translated build then check if we have anything more to merge together
+                    if (buildData.isTranslationBuild()) {
+                        final TranslatedTopicWrapper translatedTopic = (TranslatedTopicWrapper) topic;
+                        if (!isNullOrEmpty(translatedTopic.getTranslatedAdditionalXML())) {
+                            Document additionalXMLDoc = null;
+                            try {
+                                additionalXMLDoc = XMLUtilities.convertStringToDocument(translatedTopic.getTranslatedAdditionalXML());
+                            } catch (Exception ex) {
+                                final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
+                                        getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
+                                buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
+                                        BuilderConstants.ERROR_INVALID_TOPIC_XML + " " + StringUtilities.escapeForXML(ex.getMessage()));
+                                topicDoc = DocbookBuildUtilities.setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
+                            }
+
+                            if (additionalXMLDoc != null) {
+                                // Merge the two together
+                                try {
+                                    DocbookBuildUtilities.mergeRevisionHistories(topicDoc, additionalXMLDoc);
+                                } catch (BuildProcessingException ex) {
+                                    final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
+                                            getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
+                                    final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(translatedTopic.getTranslatedAdditionalXML());
+                                    buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
+                                            BuilderConstants.ERROR_BAD_XML_STRUCTURE + " " + StringUtilities.escapeForXML(
+                                                    ex.getMessage()) + " The processed XML is <programlisting>" + xmlStringInCDATA +
+                                                    "</programlisting>");
+                                    topicDoc = DocbookBuildUtilities.setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
+                                }
+                            } else {
+                                final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
+                                        getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
+                                final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(translatedTopic.getTranslatedAdditionalXML());
+                                buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
+                                        BuilderConstants.ERROR_INVALID_XML_CONTENT + " The processed XML is <programlisting>" +
+                                                xmlStringInCDATA + "</programlisting>");
+                                topicDoc = DocbookBuildUtilities.setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
+                            }
+                        }
+                    }
+
                     DocBookUtilities.wrapDocumentInAppendix(topicDoc);
                     topicDoc.getDocumentElement().setAttribute("id", "appe-" + buildData.getEscapedBookTitle() + "-Revision_History");
                 } else if (legalNoticeTopic) {
@@ -3543,7 +3584,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             }
         } catch (final Exception ex) {
             // Dump the exception to the command prompt, and restart the loop
-            log.error(ExceptionUtilities.getStackTrace(ex));
+            log.debug(ExceptionUtilities.getStackTrace(ex));
         }
 
         // did we blow the try count?
