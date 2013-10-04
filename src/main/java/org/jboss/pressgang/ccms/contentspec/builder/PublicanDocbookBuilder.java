@@ -86,7 +86,7 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
         // Add a version if one wasn't specified
         if ((contentSpec.getVersion() == null || contentSpec.getVersion().isEmpty()) && !publicanCfg.contains("version:")) {
             String version = contentSpec.getBookVersion() != null ? contentSpec.getBookVersion() : BuilderConstants.DEFAULT_VERSION;
-            publicanCfg += "version: " + version + "\n";
+            publicanCfg += "version: " + escapeVersion(version) + "\n";
         }
 
         return applyPublicanCfgOverrides(buildData, publicanCfg);
@@ -94,6 +94,10 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
 
     private String escapeProduct(final String product) {
         return product == null ? null : product.replaceAll("[^0-9a-zA-Z_\\-\\.\\+ ]", "");
+    }
+
+    private String escapeVersion(final String version) {
+        return version == null ? null : version.replaceAll("\\s+", "-");
     }
 
     /**
