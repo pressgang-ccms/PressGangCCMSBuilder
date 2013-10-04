@@ -51,10 +51,12 @@ import org.jboss.pressgang.ccms.contentspec.entities.AuthorInformation;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
 import org.jboss.pressgang.ccms.contentspec.enums.BugLinkType;
 import org.jboss.pressgang.ccms.contentspec.enums.LevelType;
+import org.jboss.pressgang.ccms.contentspec.exceptions.ParsingException;
 import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
 import org.jboss.pressgang.ccms.contentspec.sort.AuthorInformationComparator;
 import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
+import org.jboss.pressgang.ccms.contentspec.utils.DocBookUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.TranslationUtilities;
 import org.jboss.pressgang.ccms.docbook.processing.DocbookXMLPreProcessor;
@@ -77,7 +79,6 @@ import org.jboss.pressgang.ccms.provider.TranslatedContentSpecProvider;
 import org.jboss.pressgang.ccms.provider.TranslatedTopicProvider;
 import org.jboss.pressgang.ccms.provider.exception.NotFoundException;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
-import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.ExceptionUtilities;
 import org.jboss.pressgang.ccms.utils.common.StringUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
@@ -1148,8 +1149,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             if (additionalXMLDoc != null) {
                                 // Merge the two together
                                 try {
-                                    DocbookBuildUtilities.mergeRevisionHistories(topicDoc, additionalXMLDoc);
-                                } catch (BuildProcessingException ex) {
+                                    DocBookUtilities.mergeRevisionHistories(topicDoc, additionalXMLDoc);
+                                } catch (ParsingException ex) {
                                     final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
                                             getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
                                     final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(translatedTopic.getTranslatedAdditionalXML());
