@@ -1,5 +1,7 @@
 package org.jboss.pressgang.ccms.contentspec.builder;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 import java.util.Map;
 
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
@@ -84,8 +86,14 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
         }
 
         // Add a version if one wasn't specified
-        if ((contentSpec.getVersion() == null || contentSpec.getVersion().isEmpty()) && !publicanCfg.contains("version:")) {
-            String version = contentSpec.getBookVersion() != null ? contentSpec.getBookVersion() : BuilderConstants.DEFAULT_VERSION;
+        if (!publicanCfg.contains("version:")) {
+            String version = contentSpec.getBookVersion();
+            if (isNullOrEmpty(version)) {
+                version = contentSpec.getVersion();
+            }
+            if (isNullOrEmpty(version)) {
+                version = BuilderConstants.DEFAULT_VERSION;
+            }
             publicanCfg += "version: " + escapeVersion(version) + "\n";
         }
 
