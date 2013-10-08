@@ -1,9 +1,12 @@
 package org.jboss.pressgang.ccms.contentspec.builder.utils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -21,6 +24,7 @@ import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingExc
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.CSDocbookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
+import org.jboss.pressgang.ccms.contentspec.sort.RevisionNodeSort;
 import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
@@ -302,6 +306,8 @@ public class DocbookBuildUtilities {
             topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll("(?<=<(/)?)section(?=>)", "appendix");
         } else if (topic.hasTag(CSConstants.LEGAL_NOTICE_TAG_ID)) {
             topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll("(?<=<(/)?)section(?=>)", "legalnotice");
+        } else if (topic.hasTag(CSConstants.AUTHOR_GROUP_TAG_ID)) {
+            topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll("(?<=<(/)?)section(?=>)", "authorgroup");
         }
 
         return topicXMLErrorTemplate;
@@ -664,6 +670,10 @@ public class DocbookBuildUtilities {
             if (!doc.getDocumentElement().getNodeName().equals("legalnotice")) {
                 xmlErrors.append("Legal Notice topics must be a &lt;legalnotice&gt;.\n");
             }
+        } else if (topic.hasTag(CSConstants.AUTHOR_GROUP_TAG_ID)) {
+            if (!doc.getDocumentElement().getNodeName().equals("authorgroup")) {
+                xmlErrors.append("Author Group topics must be a &lt;authorgroup&gt;.\n");
+            }
         } else {
             if (!doc.getDocumentElement().getNodeName().equals(DocBookUtilities.TOPIC_ROOT_NODE_NAME)) {
                 xmlErrors.append("Topics must be a &lt;" + DocBookUtilities.TOPIC_ROOT_NODE_NAME + "&gt;.\n");
@@ -759,5 +769,69 @@ public class DocbookBuildUtilities {
         return dateString.replace("Tues", "Tue")
                 .replace("Thur", "Thu")
                 .replace("Thurs", "Thu");
+    }
+
+    public static void mergeRevisionHistories(final Document mainDoc, final Document mergeDoc) throws BuildProcessingException {
+        final NodeList revhistories = mainDoc.getElementsByTagName("revhistory");
+        if (revhistories.getLength() > 0) {
+            final Element revhistory = (Element) revhistories.item(0);
+
+            // Get the revision nodes
+            final NodeList docRevisions = mainDoc.getElementsByTagName("revision");
+            final NodeList additionalDocRevisions = mergeDoc.getElementsByTagName("revision");
+            final List<Element> revisionNodes = new LinkedList<Element>();
+            for (int i = 0; i < docRevisions.getLength(); i++) {
+                revisionNodes.add((Element) docRevisions.item(i));
+            }
+            for (int i = 0; i < additionalDocRevisions.getLength(); i++) {
+                revisionNodes.add((Element) additionalDocRevisions.item(i));
+            }
+
+            // Sort the revisions
+            Collections.sort(revisionNodes, new RevisionNodeSort());
+
+            // Insert the additional revisions
+            final ListIterator<Element> listIterator = revisionNodes.listIterator(revisionNodes.size());
+
+            Node prevNode = null;
+            while (listIterator.hasPrevious()) {
+                final Element revisionNode = listIterator.previous();
+
+                // The node is from the additional doc
+                if (!revisionNode.getOwnerDocument().equals(mainDoc)) {
+                    final Node importedNode = mainDoc.importNode(revisionNode, true);
+
+                    if (prevNode == null) {
+                        revhistory.appendChild(importedNode);
+                    } else {
+                        prevNode.getParentNode().insertBefore(importedNode, prevNode);
+                    }
+                    prevNode = importedNode;
+                } else {
+                    prevNode = revisionNode;
+                }
+            }
+        } else {
+            throw new BuildProcessingException("The main document has no <revhistory> element and therefore can't be merged.");
+        }
+    }
+
+    public static void mergeAuthorGroups(final Document mainDoc, final Document mergeDoc) throws BuildProcessingException {
+        final NodeList authorGroups = mainDoc.getElementsByTagName("authorgroup");
+        final NodeList mergeAuthorGroups = mergeDoc.getElementsByTagName("authorgroup");
+        if (authorGroups.getLength() > 0 && mergeAuthorGroups.getLength() > 0) {
+            final Element authorGroup = (Element) authorGroups.item(0);
+            final Node mergeAuthorGroup = mainDoc.importNode(authorGroups.item(0), true);
+
+            // Move all the authors/editors/othercredits to the main doc
+            final NodeList mergeAuthorGroupChildren = mergeAuthorGroup.getChildNodes();
+            while (mergeAuthorGroupChildren.getLength() > 0) {
+                authorGroup.appendChild(mergeAuthorGroupChildren.item(0));
+            }
+        } else if (mergeAuthorGroups.getLength() > 0) {
+            throw new BuildProcessingException("The translated document has no <authorgroup> element and therefore can't be merged.");
+        } else {
+            throw new BuildProcessingException("The main document has no <authorgroup> element and therefore can't be merged.");
+        }
     }
 }

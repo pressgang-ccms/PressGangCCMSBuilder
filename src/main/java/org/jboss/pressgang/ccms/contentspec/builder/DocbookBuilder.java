@@ -51,12 +51,11 @@ import org.jboss.pressgang.ccms.contentspec.entities.AuthorInformation;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
 import org.jboss.pressgang.ccms.contentspec.enums.BugLinkType;
 import org.jboss.pressgang.ccms.contentspec.enums.LevelType;
-import org.jboss.pressgang.ccms.contentspec.exceptions.ParsingException;
+import org.jboss.pressgang.ccms.contentspec.enums.TopicType;
 import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
 import org.jboss.pressgang.ccms.contentspec.sort.AuthorInformationComparator;
 import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
-import org.jboss.pressgang.ccms.contentspec.utils.DocBookUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.TranslationUtilities;
 import org.jboss.pressgang.ccms.docbook.processing.DocbookXMLPreProcessor;
@@ -79,6 +78,7 @@ import org.jboss.pressgang.ccms.provider.TranslatedContentSpecProvider;
 import org.jboss.pressgang.ccms.provider.TranslatedTopicProvider;
 import org.jboss.pressgang.ccms.provider.exception.NotFoundException;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
+import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.ExceptionUtilities;
 import org.jboss.pressgang.ccms.utils.common.StringUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
@@ -1072,6 +1072,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                 boolean revHistoryTopic = topic.hasTag(CSConstants.REVISION_HISTORY_TAG_ID);
                 boolean legalNoticeTopic = topic.hasTag(CSConstants.LEGAL_NOTICE_TAG_ID);
+                boolean authorGroupTopic = topic.hasTag(CSConstants.AUTHOR_GROUP_TAG_ID);
 
                 Document topicDoc = null;
                 final String topicXML = topic.getXml();
@@ -1133,47 +1134,20 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 if (revHistoryTopic) {
                     // If it is a translated build then check if we have anything more to merge together
                     if (buildData.isTranslationBuild()) {
-                        final TranslatedTopicWrapper translatedTopic = (TranslatedTopicWrapper) topic;
-                        if (!isNullOrEmpty(translatedTopic.getTranslatedAdditionalXML())) {
-                            Document additionalXMLDoc = null;
-                            try {
-                                additionalXMLDoc = XMLUtilities.convertStringToDocument(translatedTopic.getTranslatedAdditionalXML());
-                            } catch (Exception ex) {
-                                final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
-                                        getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
-                                buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
-                                        BuilderConstants.ERROR_INVALID_TOPIC_XML + " " + StringUtilities.escapeForXML(ex.getMessage()));
-                                topicDoc = DocbookBuildUtilities.setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
-                            }
-
-                            if (additionalXMLDoc != null) {
-                                // Merge the two together
-                                try {
-                                    DocBookUtilities.mergeRevisionHistories(topicDoc, additionalXMLDoc);
-                                } catch (ParsingException ex) {
-                                    final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
-                                            getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
-                                    final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(translatedTopic.getTranslatedAdditionalXML());
-                                    buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
-                                            BuilderConstants.ERROR_BAD_XML_STRUCTURE + " " + StringUtilities.escapeForXML(
-                                                    ex.getMessage()) + " The processed XML is <programlisting>" + xmlStringInCDATA +
-                                                    "</programlisting>");
-                                    topicDoc = DocbookBuildUtilities.setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
-                                }
-                            } else {
-                                final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
-                                        getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
-                                final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(translatedTopic.getTranslatedAdditionalXML());
-                                buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
-                                        BuilderConstants.ERROR_INVALID_XML_CONTENT + " The processed XML is <programlisting>" +
-                                                xmlStringInCDATA + "</programlisting>");
-                                topicDoc = DocbookBuildUtilities.setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
-                            }
-                        }
+                        topicDoc = mergeAdditionalTranslatedXML(buildData, topicDoc, (TranslatedTopicWrapper) topic,
+                                TopicType.REVISION_HISTORY, useFixedUrls);
                     }
 
                     DocBookUtilities.wrapDocumentInAppendix(topicDoc);
                     topicDoc.getDocumentElement().setAttribute("id", "appe-" + buildData.getEscapedBookTitle() + "-Revision_History");
+                } else if (authorGroupTopic) {
+                    // If it is a translated build then check if we have anything more to merge together
+                    if (buildData.isTranslationBuild()) {
+                        topicDoc = mergeAdditionalTranslatedXML(buildData, topicDoc, (TranslatedTopicWrapper) topic, TopicType.AUTHOR_GROUP,
+                                useFixedUrls);
+                    }
+
+                    DocBookUtilities.wrapDocumentInAuthorGroup(topicDoc);
                 } else if (legalNoticeTopic) {
                     DocBookUtilities.wrapDocumentInLegalNotice(topicDoc);
                 } else {
@@ -1214,6 +1188,65 @@ public class DocbookBuilder implements ShutdownAbleApp {
         } else {
             log.info("\tProcessing 0 Topics");
         }
+    }
+
+    /**
+     * Merges the Additional Translated XML of a Translated Topic into the original Topic XML content.
+     *
+     * @param buildData
+     * @param topicDoc        The transformed original XML content.
+     * @param translatedTopic The Translated Topic that is being merged.
+     * @param topicType       The type of topic being merged.
+     * @param useFixedUrls    If fixed urls should be used.
+     * @return The merged DOM document.
+     * @throws BuildProcessingException
+     */
+    private Document mergeAdditionalTranslatedXML(BuildData buildData, final Document topicDoc,
+            final TranslatedTopicWrapper translatedTopic, final TopicType topicType,
+            final boolean useFixedUrls) throws BuildProcessingException {
+        Document retValue = topicDoc;
+        if (!isNullOrEmpty(translatedTopic.getTranslatedAdditionalXML())) {
+            Document additionalXMLDoc = null;
+            try {
+                additionalXMLDoc = XMLUtilities.convertStringToDocument(translatedTopic.getTranslatedAdditionalXML());
+            } catch (Exception ex) {
+                final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(translatedTopic,
+                        getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
+                buildData.getErrorDatabase().addError(translatedTopic, ErrorType.INVALID_CONTENT,
+                        BuilderConstants.ERROR_INVALID_TOPIC_XML + " " + StringUtilities.escapeForXML(ex.getMessage()));
+                retValue = DocbookBuildUtilities.setTopicXMLForError(translatedTopic, topicXMLErrorTemplate, useFixedUrls);
+            }
+
+            if (additionalXMLDoc != null) {
+                // Merge the two together
+                try {
+                    if (TopicType.AUTHOR_GROUP.equals(topicType)) {
+                        DocbookBuildUtilities.mergeAuthorGroups(topicDoc, additionalXMLDoc);
+                    } else if (TopicType.REVISION_HISTORY.equals(topicType)) {
+                        DocbookBuildUtilities.mergeRevisionHistories(topicDoc, additionalXMLDoc);
+                    }
+                } catch (BuildProcessingException ex) {
+                    final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(translatedTopic,
+                            getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
+                    final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(translatedTopic.getTranslatedAdditionalXML());
+                    buildData.getErrorDatabase().addError(translatedTopic, ErrorType.INVALID_CONTENT,
+                            BuilderConstants.ERROR_BAD_XML_STRUCTURE + " " + StringUtilities.escapeForXML(
+                                    ex.getMessage()) + " The processed XML is <programlisting>" + xmlStringInCDATA +
+                                    "</programlisting>");
+                    retValue = DocbookBuildUtilities.setTopicXMLForError(translatedTopic, topicXMLErrorTemplate, useFixedUrls);
+                }
+            } else {
+                final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(translatedTopic,
+                        getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
+                final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(translatedTopic.getTranslatedAdditionalXML());
+                this.buildData.getErrorDatabase().addError(translatedTopic, ErrorType.INVALID_CONTENT,
+                        BuilderConstants.ERROR_INVALID_XML_CONTENT + " The processed XML is <programlisting>" +
+                                xmlStringInCDATA + "</programlisting>");
+                retValue = DocbookBuildUtilities.setTopicXMLForError(translatedTopic, topicXMLErrorTemplate, useFixedUrls);
+            }
+        }
+
+        return retValue;
     }
 
     /**
@@ -1791,7 +1824,6 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final ContentSpec contentSpec = buildData.getContentSpec();
         final Map<String, String> overrides = buildData.getBuildOptions().getOverrides();
         final Map<String, byte[]> overrideFiles = buildData.getOverrideFiles();
-        final Map<String, byte[]> files = buildData.getOutputFiles();
 
         // Load the templates from the server
         final String bookEntityTemplate = stringConstantProvider.getStringConstant(BuilderConstants.BOOK_ENT_ID).getValue();
@@ -1815,8 +1847,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Setup Author_Group.xml
         if (overrides.containsKey(CSConstants.AUTHOR_GROUP_OVERRIDE) && overrideFiles.containsKey(CSConstants.AUTHOR_GROUP_OVERRIDE)) {
             // Add the override Author_Group.xml file to the book
-            files.put(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, overrideFiles.get(CSConstants.AUTHOR_GROUP_OVERRIDE));
-
+            addToZip(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, overrideFiles.get(CSConstants.AUTHOR_GROUP_OVERRIDE),
+                    buildData);
+        } else if (contentSpec.getAuthorGroup() != null) {
+            final String authorGroupXML = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
+                    contentSpec.getAuthorGroup().getXMLDocument(), "authorgroup", buildData.getEntityFileName(), getXMLFormatProperties());
+            addToZip(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, authorGroupXML, buildData);
         } else {
             buildAuthorGroup(buildData);
         }
@@ -1824,12 +1860,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Add the Feedback.xml if the override exists
         if (overrides.containsKey(CSConstants.FEEDBACK_OVERRIDE) && overrideFiles.containsKey(CSConstants.FEEDBACK_OVERRIDE)) {
             // Add the override Feedback.xml file to the book
-            files.put(buildData.getBookLocaleFolder() + FEEDBACK_FILE_NAME, overrideFiles.get(CSConstants.FEEDBACK_OVERRIDE));
+            addToZip(buildData.getBookLocaleFolder() + FEEDBACK_FILE_NAME, overrideFiles.get(CSConstants.FEEDBACK_OVERRIDE), buildData);
         } else if (contentSpec.getFeedback() != null) {
             final String feedbackXml = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
                     contentSpec.getFeedback().getXMLDocument(), DocBookUtilities.TOPIC_ROOT_NODE_NAME, buildData.getEntityFileName(),
                     getXMLFormatProperties());
-            // Add the revision history directly to the book
+            // Add the feedback directly to the book
             addToZip(buildData.getBookLocaleFolder() + FEEDBACK_FILE_NAME, feedbackXml, buildData);
         }
 
