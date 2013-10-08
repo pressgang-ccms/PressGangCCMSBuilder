@@ -79,7 +79,6 @@ import org.jboss.pressgang.ccms.provider.TranslatedTopicProvider;
 import org.jboss.pressgang.ccms.provider.exception.NotFoundException;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
-import org.jboss.pressgang.ccms.utils.common.ExceptionUtilities;
 import org.jboss.pressgang.ccms.utils.common.StringUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
 import org.jboss.pressgang.ccms.utils.common.ZipUtilities;
@@ -660,9 +659,6 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                 // If there were any invalid links then replace the XML with an error template and add an error message.
                 if (!invalidLinks.isEmpty()) {
-                    final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
-                            getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
-
                     final String xmlStringInCDATA = DocbookBuildUtilities.convertDocumentToCDATAFormattedString(doc,
                             getXMLFormatProperties());
                     buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
@@ -674,7 +670,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                     final List<SpecTopic> buildTopics = buildData.getBuildDatabase().getSpecTopicsForTopicID(topicId);
                     for (final SpecTopic spec : buildTopics) {
-                        DocbookBuildUtilities.setSpecTopicXMLForError(spec, topicXMLErrorTemplate, useFixedUrls);
+                        DocbookBuildUtilities.setSpecTopicXMLForError(buildData, spec, getErrorInvalidValidationTopicTemplate().getValue(),
+                                useFixedUrls);
                     }
                 }
             }
@@ -1086,12 +1083,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                 // Check that the Topic XML exists and isn't empty
                 if (topicXML == null || topicXML.trim().isEmpty()) {
-                    // Create an empty topic with the topic title from the resource file
-                    final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
-                            getErrorEmptyTopicTemplate().getValue(), buildData.getBuildOptions());
-
                     buildData.getErrorDatabase().addWarning(topic, ErrorType.NO_CONTENT, BuilderConstants.WARNING_EMPTY_TOPIC_XML);
-                    topicDoc = DocbookBuildUtilities.setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
+                    topicDoc = DocbookBuildUtilities.setTopicXMLForError(buildData, topic, getErrorEmptyTopicTemplate().getValue(),
+                            useFixedUrls);
                     xmlValid = false;
                 }
 
@@ -1110,23 +1104,21 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             DocBookUtilities.wrapDocumentInSection(topicDoc);
                             DocBookUtilities.setSectionTitle(topic.getTitle(), topicDoc);
                         } else {
-                            final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
-                                    getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
                             final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(topic.getXml());
                             buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
                                     BuilderConstants.ERROR_INVALID_XML_CONTENT + " The processed XML is <programlisting>" +
                                             xmlStringInCDATA + "</programlisting>");
-                            topicDoc = DocbookBuildUtilities.setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
+                            topicDoc = DocbookBuildUtilities.setTopicXMLForError(buildData, topic,
+                                    getErrorInvalidValidationTopicTemplate().getValue(), useFixedUrls);
                         }
                     } catch (Exception ex) {
-                        final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
-                                getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
                         final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(topic.getXml());
                         buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
                                 BuilderConstants.ERROR_BAD_XML_STRUCTURE + " " + StringUtilities.escapeForXML(
                                         ex.getMessage()) + " The processed XML is <programlisting>" + xmlStringInCDATA +
                                         "</programlisting>");
-                        topicDoc = DocbookBuildUtilities.setTopicXMLForError(topic, topicXMLErrorTemplate, useFixedUrls);
+                        topicDoc = DocbookBuildUtilities.setTopicXMLForError(buildData, topic,
+                                getErrorInvalidValidationTopicTemplate().getValue(), useFixedUrls);
                     }
                 }
 
@@ -1210,11 +1202,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
             try {
                 additionalXMLDoc = XMLUtilities.convertStringToDocument(translatedTopic.getTranslatedAdditionalXML());
             } catch (Exception ex) {
-                final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(translatedTopic,
-                        getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
                 buildData.getErrorDatabase().addError(translatedTopic, ErrorType.INVALID_CONTENT,
                         BuilderConstants.ERROR_INVALID_TOPIC_XML + " " + StringUtilities.escapeForXML(ex.getMessage()));
-                retValue = DocbookBuildUtilities.setTopicXMLForError(translatedTopic, topicXMLErrorTemplate, useFixedUrls);
+                retValue = DocbookBuildUtilities.setTopicXMLForError(buildData, translatedTopic,
+                        getErrorInvalidValidationTopicTemplate().getValue(), useFixedUrls);
             }
 
             if (additionalXMLDoc != null) {
@@ -1226,23 +1217,21 @@ public class DocbookBuilder implements ShutdownAbleApp {
                         DocbookBuildUtilities.mergeRevisionHistories(topicDoc, additionalXMLDoc);
                     }
                 } catch (BuildProcessingException ex) {
-                    final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(translatedTopic,
-                            getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
                     final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(translatedTopic.getTranslatedAdditionalXML());
                     buildData.getErrorDatabase().addError(translatedTopic, ErrorType.INVALID_CONTENT,
                             BuilderConstants.ERROR_BAD_XML_STRUCTURE + " " + StringUtilities.escapeForXML(
                                     ex.getMessage()) + " The processed XML is <programlisting>" + xmlStringInCDATA +
                                     "</programlisting>");
-                    retValue = DocbookBuildUtilities.setTopicXMLForError(translatedTopic, topicXMLErrorTemplate, useFixedUrls);
+                    retValue = DocbookBuildUtilities.setTopicXMLForError(buildData, translatedTopic,
+                            getErrorInvalidValidationTopicTemplate().getValue(), useFixedUrls);
                 }
             } else {
-                final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(translatedTopic,
-                        getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
                 final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(translatedTopic.getTranslatedAdditionalXML());
-                this.buildData.getErrorDatabase().addError(translatedTopic, ErrorType.INVALID_CONTENT,
+                buildData.getErrorDatabase().addError(translatedTopic, ErrorType.INVALID_CONTENT,
                         BuilderConstants.ERROR_INVALID_XML_CONTENT + " The processed XML is <programlisting>" +
                                 xmlStringInCDATA + "</programlisting>");
-                retValue = DocbookBuildUtilities.setTopicXMLForError(translatedTopic, topicXMLErrorTemplate, useFixedUrls);
+                retValue = DocbookBuildUtilities.setTopicXMLForError(buildData, translatedTopic,
+                        getErrorInvalidValidationTopicTemplate().getValue(), useFixedUrls);
             }
         }
 
@@ -1321,8 +1310,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(
-                            specTopic.getRevision())) {
+                            .equals(specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             buildData.getErrorDatabase().addWarning(topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -1433,16 +1421,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 }
 
                 if (!valid) {
-                    final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
-                            getErrorInvalidInjectionTopicTemplate().getValue(), buildData.getBuildOptions());
-
                     final String xmlStringInCDATA = DocbookBuildUtilities.convertDocumentToCDATAFormattedString(doc,
                             getXMLFormatProperties());
                     buildData.getErrorDatabase().addError(topic,
                             BuilderConstants.ERROR_INVALID_INJECTIONS + " The processed XML is <programlisting>" + xmlStringInCDATA +
                                     "</programlisting>");
 
-                    DocbookBuildUtilities.setSpecTopicXMLForError(specTopic, topicXMLErrorTemplate, useFixedUrls);
+                    DocbookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidInjectionTopicTemplate().getValue(),
+                            useFixedUrls);
                 } else {
                     // Add the standard boilerplate xml
                     xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, bugOptions, buildData.getBuildOptions(),
@@ -2998,7 +2984,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 final String tags = EntityUtilities.getCommaSeparatedTagList(topic);
                 final String url = topic.getPressGangURL();
 
-                topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + topic.getTitle()));
+                topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + StringEscapeUtils.escapeXml(topic.getTitle())));
                 if (tags != null && !tags.isEmpty()) {
                     topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + tags));
                 }
@@ -3405,15 +3391,22 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Validate the topic against its DTD/Schema
         final SAXXMLValidator validator = new SAXXMLValidator();
         if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue(), "Book.ent", entityData)) {
-            final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
-                    getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
+            // Store the error message
+            final String errorMsg = validator.getErrorText();
+
+            // First check to see if the title is valid XML
+            final String titleXML = "<title>" + topic.getTitle() + "</title>";
+            if (!validator.validateXML(titleXML, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue(), "title")) {
+                // The title is invalid so replace it with something that is valid
+                topic.setTitle("Invalid Topic");
+            }
 
             final String xmlStringInCDATA = DocbookBuildUtilities.convertDocumentToCDATAFormattedString(topicDoc, getXMLFormatProperties());
             buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
                     BuilderConstants.ERROR_INVALID_TOPIC_XML + " The error is <emphasis>" + StringEscapeUtils.escapeXml(
-                            validator.getErrorText()) + "</emphasis>. The " +
+                            errorMsg) + "</emphasis>. The " +
                             "processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
-            DocbookBuildUtilities.setSpecTopicXMLForError(specTopic, topicXMLErrorTemplate, useFixedUrls);
+            DocbookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidValidationTopicTemplate().getValue(), useFixedUrls);
 
             return false;
         }
@@ -3421,9 +3414,6 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Check the content of the XML for things not picked up by DTD validation
         final List<String> xmlErrors = DocbookBuildUtilities.checkTopicForInvalidContent(topic, topicDoc);
         if (xmlErrors.size() > 0) {
-            final String topicXMLErrorTemplate = DocbookBuildUtilities.buildTopicErrorTemplate(topic,
-                    getErrorInvalidValidationTopicTemplate().getValue(), buildData.getBuildOptions());
-
             final String xmlStringInCDATA = DocbookBuildUtilities.convertDocumentToCDATAFormattedString(topicDoc, getXMLFormatProperties());
 
             // Add the error and processed XML to the error message
@@ -3434,7 +3424,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             xmlStringInCDATA +
                             "</programlisting>");
 
-            DocbookBuildUtilities.setSpecTopicXMLForError(specTopic, topicXMLErrorTemplate, useFixedUrls);
+            DocbookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidValidationTopicTemplate().getValue(), useFixedUrls);
 
             return false;
         }
@@ -3517,8 +3507,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                     // Create the PropertyTagCollection to be used to update any data
                     final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
-                            .newPropertyTagInTopicCollection(
-                            topic);
+                            .newPropertyTagInTopicCollection(topic);
 
                     // Get a list of all property tag items that exist for the current topic
                     final List<PropertyTagInTopicWrapper> existingUniqueURLs = topic.getProperties(CommonConstants.FIXED_URL_PROP_TAG_ID);
@@ -3620,8 +3609,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 updateFixedURLsForTopics(updateTopics, topics);
             }
         } catch (final Exception ex) {
-            // Dump the exception to the command prompt, and restart the loop
-            log.debug(ExceptionUtilities.getStackTrace(ex));
+            log.debug("Failed to update the Fixed URLs for the topic", ex);
         }
 
         // did we blow the try count?

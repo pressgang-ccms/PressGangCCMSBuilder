@@ -21,6 +21,7 @@ import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.CSDocbookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
@@ -276,10 +277,11 @@ public class DocbookBuildUtilities {
      * @return The input error template with the pointers replaced
      *         with values from the topic.
      */
-    public static String buildTopicErrorTemplate(final BaseTopicWrapper<?> topic, final String errorTemplate,
+    protected static String buildTopicErrorTemplate(final BaseTopicWrapper<?> topic, final String errorTemplate,
             final CSDocbookBuildingOptions docbookBuildingOptions) {
         String topicXMLErrorTemplate = errorTemplate;
-        topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, topic.getTitle());
+
+        topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, "Invalid Topic");
 
         // Set the topic id in the error
         final String errorXRefID = topic.getErrorXRefId();
@@ -536,17 +538,22 @@ public class DocbookBuildUtilities {
     /**
      * Sets the XML of the topic to the specified error template.
      *
+     *
+     *
+     * @param buildData
      * @param topic        The topic to be updated as having an error.
      * @param template     The template for the Error Message.
      * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
      * @return The Document Object that is initialised using the topic and error template.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
-    public static Document setTopicXMLForError(final BaseTopicWrapper<?> topic, final String template,
+    public static Document setTopicXMLForError(final BuildData buildData, final BaseTopicWrapper<?> topic, final String template,
             final boolean useFixedUrls) throws BuildProcessingException {
+        final String errorContent = buildTopicErrorTemplate(topic, template, buildData.getBuildOptions());
+
         Document doc = null;
         try {
-            doc = XMLUtilities.convertStringToDocument(template);
+            doc = XMLUtilities.convertStringToDocument(errorContent);
         } catch (Exception ex) {
             // Exit since we shouldn't fail at converting a basic template
             log.debug("Topic Error Template is not valid XML", ex);
@@ -560,18 +567,21 @@ public class DocbookBuildUtilities {
     /**
      * Sets the XML of the topic in the content spec to the error template provided.
      *
+     *
+     * @param buildData
      * @param specTopic    The spec topic to be updated as having an error.
      * @param template     The template for the Error Message.
      * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
-    public static void setSpecTopicXMLForError(final SpecTopic specTopic, final String template,
+    public static void setSpecTopicXMLForError(BuildData buildData, final SpecTopic specTopic, final String template,
             final boolean useFixedUrls) throws BuildProcessingException {
         final BaseTopicWrapper<?> topic = specTopic.getTopic();
+        final String errorContent = buildTopicErrorTemplate(topic, template, buildData.getBuildOptions());
 
         Document doc = null;
         try {
-            doc = XMLUtilities.convertStringToDocument(template);
+            doc = XMLUtilities.convertStringToDocument(errorContent);
         } catch (Exception ex) {
             // Exit since we shouldn't fail at converting a basic template
             log.debug("Topic Error Template is not valid XML", ex);
