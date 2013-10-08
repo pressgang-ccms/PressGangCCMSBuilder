@@ -108,7 +108,7 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
 
         // Loop over each override and remove any entries that may exist and then append the new entry
         for (final Map.Entry<String, String> publicanCfgOverrideEntry : publicanCfgOverrides.entrySet()) {
-            retValue = retValue.replaceFirst(publicanCfgOverrideEntry.getKey() + ".*?(\\r)?\\n", "");
+            retValue = retValue.replaceFirst(publicanCfgOverrideEntry.getKey() + "\\s*:.*?(\\r)?\\n", "");
             retValue += publicanCfgOverrideEntry.getKey() + ": " + publicanCfgOverrideEntry.getValue() + "\n";
         }
 
