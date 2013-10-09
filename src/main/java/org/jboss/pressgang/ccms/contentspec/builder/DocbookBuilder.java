@@ -2025,18 +2025,13 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         // Find what entities have already been defined
-        final StringBuilder retValue = new StringBuilder(doc == null ? "" : contentSpec.getEntities().trim());
+        final StringBuilder retValue = new StringBuilder(100);
         final List<String> definedEntities = new ArrayList<String>();
         if (doc != null) {
             final NamedNodeMap entityNodes = doc.getDoctype().getEntities();
             for (int i = 0; i < entityNodes.getLength(); i++) {
                 final org.w3c.dom.Node entityNode = entityNodes.item(i);
                 definedEntities.add(entityNode.getNodeName());
-            }
-
-            // Make sure entities ends with a new line
-            if (!contentSpec.getEntities().matches("\\n\\s*$")) {
-                retValue.append("\n");
             }
         }
 
@@ -2115,6 +2110,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
             } catch (UnsupportedEncodingException e) {
                 throw new BuildProcessingException(e);
             }
+        }
+
+        // Add the custom entities if any exist
+        if (doc != null) {
+            retValue.append(contentSpec.getEntities().trim());
         }
 
         return retValue.toString();
