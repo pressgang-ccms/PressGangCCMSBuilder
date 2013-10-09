@@ -1310,7 +1310,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(specTopic.getRevision())) {
+                            .equals(
+                            specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             buildData.getErrorDatabase().addWarning(topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -1812,7 +1813,6 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final Map<String, byte[]> overrideFiles = buildData.getOverrideFiles();
 
         // Load the templates from the server
-        final String bookEntityTemplate = stringConstantProvider.getStringConstant(BuilderConstants.BOOK_ENT_ID).getValue();
         final String prefaceXmlTemplate = stringConstantProvider.getStringConstant(BuilderConstants.CSP_PREFACE_XML_ID).getValue();
 
         final String bookInfoTemplate;
@@ -1875,7 +1875,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         buildRevisionHistory(buildData, overrides);
 
         // Build the book .ent file
-        final String entFile = buildBookEntityFile(buildData, bookEntityTemplate);
+        final String entFile = buildBookEntityFile(buildData);
         addToZip(buildData.getBookLocaleFolder() + buildData.getEntityFileName(), entFile, buildData);
 
         // Setup the images and files folders
@@ -2009,60 +2009,115 @@ public class DocbookBuilder implements ShutdownAbleApp {
     /**
      * Builds the book .ent file that is a basic requirement to build the book.
      *
-     * @param buildData          Information and data structures for the build.
-     * @param entityFileTemplate The entity file template to add content to.
+     * @param buildData Information and data structures for the build.
      * @return The book .ent file filled with content from the Content Spec.
      */
-    protected String buildBookEntityFile(final BuildData buildData, final String entityFileTemplate) throws BuildProcessingException {
+    protected String buildBookEntityFile(final BuildData buildData) throws BuildProcessingException {
         final ContentSpec contentSpec = buildData.getContentSpec();
-        // Setup the <<contentSpec.title>>.ent file
-        String entFile = entityFileTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, buildData.getEscapedBookTitle());
-        entFile = entFile.replaceAll(BuilderConstants.PRODUCT_REGEX,
-                DocbookBuildUtilities.escapeForReplaceAll(DocbookBuildUtilities.escapeForXMLEntity(contentSpec.getProduct())));
-        entFile = entFile.replaceAll(BuilderConstants.TITLE_REGEX,
-                DocbookBuildUtilities.escapeForReplaceAll(DocbookBuildUtilities.escapeTitleForXMLEntity(buildData.getOriginalBookTitle())));
-        entFile = entFile.replaceAll(BuilderConstants.YEAR_FORMAT_REGEX, contentSpec.getCopyrightYear() == null ? Integer.toString(
-                Calendar.getInstance().get(Calendar.YEAR)) : contentSpec.getCopyrightYear());
-        entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_COPYRIGHT_REGEX,
-                DocbookBuildUtilities.escapeForReplaceAll(DocbookBuildUtilities.escapeForXMLEntity(contentSpec.getCopyrightHolder())));
-        entFile = entFile.replaceAll(BuilderConstants.BZPRODUCT_REGEX, DocbookBuildUtilities.escapeForReplaceAll(
-                DocbookBuildUtilities.escapeForXMLEntity(
-                        contentSpec.getBugzillaProduct() == null ? buildData.getOriginalBookProduct() : contentSpec.getBugzillaProduct())));
-        entFile = entFile.replaceAll(BuilderConstants.BZCOMPONENT_REGEX, DocbookBuildUtilities.escapeForReplaceAll(
-                DocbookBuildUtilities.escapeForXMLEntity(
-                        contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec
-                                .getBugzillaComponent())));
-
-        try {
-            final StringBuilder fixedBZURL = new StringBuilder();
-            if (contentSpec.getBugzillaURL() == null) {
-                fixedBZURL.append("<ulink url='");
-                fixedBZURL.append(BuilderConstants.DEFAULT_BUGZILLA_URL);
-                fixedBZURL.append("enter_bug.cgi");
-                // Add in the product specific link details
-                if (contentSpec.getBugzillaProduct() != null) {
-                    final String encodedProduct = URLEncoder.encode(contentSpec.getBugzillaProduct(), ENCODING);
-                    fixedBZURL.append("?product=").append(encodedProduct.replace("%", "&percnt;"));
-                    if (contentSpec.getBugzillaComponent() != null) {
-                        final String encodedComponent = URLEncoder.encode(contentSpec.getBugzillaComponent(), ENCODING);
-                        fixedBZURL.append("&amp;component=").append(encodedComponent.replace("%", "&percnt;"));
-                    }
-                    if (contentSpec.getBugzillaVersion() != null) {
-                        final String encodedVersion = URLEncoder.encode(contentSpec.getBugzillaVersion(), ENCODING);
-                        fixedBZURL.append("&amp;version=").append(encodedVersion.replace("&", "&percnt;"));
-                    }
-                }
-                fixedBZURL.append("'>").append(BuilderConstants.DEFAULT_BUGZILLA_URL).append("</ulink>");
-            } else {
-                fixedBZURL.append(contentSpec.getBugzillaURL().replace("&", "&percnt;"));
+        Document doc = null;
+        if (!isNullOrEmpty(contentSpec.getEntities())) {
+            try {
+                final String wrappedEntities = "<!DOCTYPE section [" + contentSpec.getEntities() + "]><section></section>";
+                doc = XMLUtilities.convertStringToDocument(wrappedEntities);
+            } catch (Exception e) {
+                log.debug(e);
             }
-
-            entFile = entFile.replaceAll(BuilderConstants.CONTENT_SPEC_BUGZILLA_URL_REGEX, fixedBZURL.toString());
-        } catch (UnsupportedEncodingException e) {
-            throw new BuildProcessingException(e);
         }
 
-        return entFile;
+        // Find what entities have already been defined
+        final StringBuilder retValue = new StringBuilder(doc == null ? "" : contentSpec.getEntities().trim());
+        final List<String> definedEntities = new ArrayList<String>();
+        if (doc != null) {
+            final NamedNodeMap entityNodes = doc.getDoctype().getEntities();
+            for (int i = 0; i < entityNodes.getLength(); i++) {
+                final org.w3c.dom.Node entityNode = entityNodes.item(i);
+                definedEntities.add(entityNode.getNodeName());
+            }
+
+            // Make sure entities ends with a new line
+            if (!contentSpec.getEntities().matches("\\n\\s*$")) {
+                retValue.append("\n");
+            }
+        }
+
+        // Add the default entities
+        // BOOKID
+        if (!definedEntities.contains("BOOKID")) {
+            retValue.append("<!ENTITY BOOKID \"").append(buildData.getEscapedBookTitle()).append("\">\n");
+        }
+
+        // PRODUCT
+        if (!definedEntities.contains("PRODUCT")) {
+            final String escapedProduct = DocbookBuildUtilities.escapeForXMLEntity(contentSpec.getProduct());
+            retValue.append("<!ENTITY PRODUCT \"").append(escapedProduct).append("\">\n");
+        }
+
+        // TITLE
+        if (!definedEntities.contains("TITLE")) {
+            final String escapedTitle = DocbookBuildUtilities.escapeTitleForXMLEntity(buildData.getOriginalBookTitle());
+            retValue.append("<!ENTITY TITLE \"").append(escapedTitle).append("\">\n");
+        }
+
+        // YEAR
+        if (!definedEntities.contains("YEAR")) {
+            final String year = contentSpec.getCopyrightYear() == null ? Integer.toString(
+                    Calendar.getInstance().get(Calendar.YEAR)) : contentSpec.getCopyrightYear();
+            retValue.append("<!ENTITY YEAR \"").append(year).append("\">\n");
+        }
+
+        // HOLDER
+        if (!definedEntities.contains("HOLDER")) {
+            final String escapedHolder = DocbookBuildUtilities.escapeForXMLEntity(contentSpec.getCopyrightHolder());
+            retValue.append("<!ENTITY HOLDER \"").append(escapedHolder).append("\">\n");
+        }
+
+        // BZPRODUCT
+        if (!definedEntities.contains("BZPRODUCT")) {
+            final String escapedBZProduct = DocbookBuildUtilities.escapeForXMLEntity(
+                    contentSpec.getBugzillaProduct() == null ? buildData.getOriginalBookProduct() : contentSpec.getBugzillaProduct());
+            retValue.append("<!ENTITY BZPRODUCT \"").append(escapedBZProduct).append("\">\n");
+        }
+
+        // BZCOMPONENT
+        if (!definedEntities.contains("BZCOMPONENT")) {
+            final String escapedBZComponent = DocbookBuildUtilities.escapeForXMLEntity(
+                    contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec.getBugzillaComponent());
+            retValue.append("<!ENTITY BZCOMPONENT \"").append(escapedBZComponent).append("\">\n");
+        }
+
+        // BZURL
+        if (!definedEntities.contains("BZURL")) {
+            try {
+                final StringBuilder fixedBZURL = new StringBuilder();
+                if (contentSpec.getBugzillaURL() == null) {
+                    fixedBZURL.append("<ulink url='");
+                    fixedBZURL.append(BuilderConstants.DEFAULT_BUGZILLA_URL);
+                    fixedBZURL.append("enter_bug.cgi");
+                    // Add in the product specific link details
+                    if (contentSpec.getBugzillaProduct() != null) {
+                        final String encodedProduct = URLEncoder.encode(contentSpec.getBugzillaProduct(), ENCODING);
+                        fixedBZURL.append("?product=").append(encodedProduct.replace("%", "&percnt;"));
+                        if (contentSpec.getBugzillaComponent() != null) {
+                            final String encodedComponent = URLEncoder.encode(contentSpec.getBugzillaComponent(), ENCODING);
+                            fixedBZURL.append("&amp;component=").append(encodedComponent.replace("%", "&percnt;"));
+                        }
+                        if (contentSpec.getBugzillaVersion() != null) {
+                            final String encodedVersion = URLEncoder.encode(contentSpec.getBugzillaVersion(), ENCODING);
+                            fixedBZURL.append("&amp;version=").append(encodedVersion.replace("&", "&percnt;"));
+                        }
+                    }
+                    fixedBZURL.append("'>").append(BuilderConstants.DEFAULT_BUGZILLA_URL).append("</ulink>");
+                } else {
+                    fixedBZURL.append(contentSpec.getBugzillaURL().replace("&", "&percnt;"));
+                }
+
+                retValue.append("<!ENTITY BZURL \"").append(fixedBZURL).append("\">\n");
+            } catch (UnsupportedEncodingException e) {
+                throw new BuildProcessingException(e);
+            }
+        }
+
+        return retValue.toString();
     }
 
     /**
@@ -3406,7 +3461,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     BuilderConstants.ERROR_INVALID_TOPIC_XML + " The error is <emphasis>" + StringEscapeUtils.escapeXml(
                             errorMsg) + "</emphasis>. The " +
                             "processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
-            DocbookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidValidationTopicTemplate().getValue(), useFixedUrls);
+            DocbookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidValidationTopicTemplate().getValue(),
+                    useFixedUrls);
 
             return false;
         }
@@ -3421,10 +3477,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     "</para><para>" + BuilderConstants.ERROR_INVALID_TOPIC_XML + " ");
             buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
                     BuilderConstants.ERROR_INVALID_TOPIC_XML + " " + errorMessage + "</para><para>The processed XML is <programlisting>" +
-                            xmlStringInCDATA +
-                            "</programlisting>");
+                            xmlStringInCDATA + "</programlisting>");
 
-            DocbookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidValidationTopicTemplate().getValue(), useFixedUrls);
+            DocbookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidValidationTopicTemplate().getValue(),
+                    useFixedUrls);
 
             return false;
         }
@@ -3507,7 +3563,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                     // Create the PropertyTagCollection to be used to update any data
                     final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
-                            .newPropertyTagInTopicCollection(topic);
+                            .newPropertyTagInTopicCollection(
+                            topic);
 
                     // Get a list of all property tag items that exist for the current topic
                     final List<PropertyTagInTopicWrapper> existingUniqueURLs = topic.getProperties(CommonConstants.FIXED_URL_PROP_TAG_ID);
