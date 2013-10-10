@@ -1706,8 +1706,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 if (level.hasSpecTopics()) {
                     // If the book is an article than just include it directly and don't create a new file
                     if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-                        createSectionXML(buildData, level, bookBase, bookBase.getDocumentElement(), buildData.getBookTopicsFolder(),
+                        // Create the section and its title
+                        final Element sectionNode = bookBase.createElement("section");
+                        setUpRootElement(buildData, level, bookBase, sectionNode, useFixedUrls);
+
+                        createSectionXML(buildData, level, bookBase, sectionNode, buildData.getBookTopicsFolder(),
                                 useFixedUrls, flattenStructure);
+
+                        bookBase.getDocumentElement().appendChild(sectionNode);
                     } else {
                         final Element xiInclude = createRootElementXML(buildData, bookBase, level, useFixedUrls, flattenStructure);
                         if (xiInclude != null) {
@@ -2158,15 +2164,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Create the xiInclude to be added to the book.xml file
         final Element xiInclude = XMLUtilities.createXIInclude(doc, chapterXMLName);
 
-        // Create the chapter.xml
-        final Element titleNode = chapter.createElement("title");
-        if (buildData.isTranslationBuild() && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty()) {
-            titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTranslatedTitle()));
-        } else {
-            titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTitle()));
-        }
-        chapter.getDocumentElement().appendChild(titleNode);
-        chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
+        // Setup the title and id
+        setUpRootElement(buildData, level, chapter, doc.getDocumentElement(), useFixedUrls);
 
         // Create and add the chapter/level contents
         createSectionXML(buildData, level, chapter, chapter.getDocumentElement(), buildData.getBookTopicsFolder() + chapterName + "/",
@@ -2217,15 +2216,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final String chapterName = level.getUniqueLinkId(useFixedUrls);
         final String chapterXMLName = chapterName + ".xml";
 
-        // Create the chapter.xml
-        final Element titleNode = chapter.createElement("title");
-        if (buildData.isTranslationBuild() && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty()) {
-            titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTranslatedTitle()));
-        } else {
-            titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTitle()));
-        }
-        chapter.getDocumentElement().appendChild(titleNode);
-        chapter.getDocumentElement().setAttribute("id", level.getUniqueLinkId(useFixedUrls));
+        // Setup the title and id
+        setUpRootElement(buildData, level, chapter, doc.getDocumentElement(), useFixedUrls);
+
+        // Create and add the chapter/level contents
         createSectionXML(buildData, level, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + "/", useFixedUrls,
                 flattenStructure);
 
@@ -2238,6 +2232,26 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final Element xiInclude = XMLUtilities.createXIInclude(doc, chapterXMLName);
 
         return xiInclude;
+    }
+
+    /**
+     * Sets up an elements title and id based on the passed level.
+     *
+     * @param buildData           Information and data structures for the build.
+     * @param level               The level to build the root element is being built for.
+     * @param doc                 The document object the content is being added to.
+     * @param ele
+     * @param useFixedUrls        If Fixed URL Properties should be used for topic ID attributes.
+     */
+    protected void setUpRootElement(final BuildData buildData, final Level level, final Document doc, Element ele, final boolean useFixedUrls) {
+        final Element titleNode = doc.createElement("title");
+        if (buildData.isTranslationBuild() && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty()) {
+            titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTranslatedTitle()));
+        } else {
+            titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTitle()));
+        }
+        ele.appendChild(titleNode);
+        ele.setAttribute("id", level.getUniqueLinkId(useFixedUrls));
     }
 
     /**
@@ -2286,15 +2300,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                 // Create the section and its title
                 final Element sectionNode = chapter.createElement("section");
-                final Element sectionTitleNode = chapter.createElement("title");
-                if (buildData.isTranslationBuild() && childLevel.getTranslatedTitle() != null && !childLevel.getTranslatedTitle().isEmpty
-                        ()) {
-                    sectionTitleNode.setTextContent(DocBookUtilities.escapeTitleString(childLevel.getTranslatedTitle()));
-                } else {
-                    sectionTitleNode.setTextContent(DocBookUtilities.escapeTitleString(childLevel.getTitle()));
-                }
-                sectionNode.appendChild(sectionTitleNode);
-                sectionNode.setAttribute("id", childLevel.getUniqueLinkId(useFixedUrls));
+                setUpRootElement(buildData, childLevel, chapter, sectionNode, useFixedUrls);
 
                 // Ignore sections that have no spec topics
                 if (!childLevel.hasSpecTopics()) {
