@@ -2165,7 +2165,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final Element xiInclude = XMLUtilities.createXIInclude(doc, chapterXMLName);
 
         // Setup the title and id
-        setUpRootElement(buildData, level, chapter, doc.getDocumentElement(), useFixedUrls);
+        setUpRootElement(buildData, level, chapter, chapter.getDocumentElement(), useFixedUrls);
 
         // Create and add the chapter/level contents
         createSectionXML(buildData, level, chapter, chapter.getDocumentElement(), buildData.getBookTopicsFolder() + chapterName + "/",
@@ -2217,7 +2217,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final String chapterXMLName = chapterName + ".xml";
 
         // Setup the title and id
-        setUpRootElement(buildData, level, chapter, doc.getDocumentElement(), useFixedUrls);
+        setUpRootElement(buildData, level, chapter, chapter.getDocumentElement(), useFixedUrls);
 
         // Create and add the chapter/level contents
         createSectionXML(buildData, level, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + "/", useFixedUrls,
