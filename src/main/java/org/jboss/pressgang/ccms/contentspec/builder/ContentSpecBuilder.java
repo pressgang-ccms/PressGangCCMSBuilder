@@ -7,8 +7,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.CSDocbookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
+import org.jboss.pressgang.ccms.docbook.compiling.DocbookBuildingOptions;
 import org.jboss.pressgang.ccms.provider.BlobConstantProvider;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
 import org.jboss.pressgang.ccms.utils.common.ZipUtilities;
@@ -65,7 +65,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException Any unexpected errors that occur during building.
      * @throws BuilderCreationException Any error that occurs while trying to setup/create the builder
      */
-    public byte[] buildBook(final ContentSpec contentSpec, final String requester, final CSDocbookBuildingOptions builderOptions,
+    public byte[] buildBook(final ContentSpec contentSpec, final String requester, final DocbookBuildingOptions builderOptions,
             final BuildType buildType) throws BuilderCreationException, BuildProcessingException {
         return buildBook(contentSpec, requester, builderOptions, new HashMap<String, byte[]>(), buildType);
     }
@@ -82,7 +82,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException Any unexpected errors that occur during building.
      * @throws BuilderCreationException Any error that occurs while trying to setup/create the builder
      */
-    public byte[] buildBook(final ContentSpec contentSpec, final String requester, final CSDocbookBuildingOptions builderOptions,
+    public byte[] buildBook(final ContentSpec contentSpec, final String requester, final DocbookBuildingOptions builderOptions,
             final Map<String, byte[]> overrideFiles, final BuildType buildType) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
@@ -124,7 +124,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
      * @throws BuilderCreationException Any error that occurs while trying to setup/create the builder
      */
     public byte[] buildTranslatedBook(final ContentSpec contentSpec, final String requester,
-            final CSDocbookBuildingOptions builderOptions, final ZanataDetails zanataDetails,
+            final DocbookBuildingOptions builderOptions, final ZanataDetails zanataDetails,
             final BuildType buildType) throws BuilderCreationException, BuildProcessingException {
         return buildTranslatedBook(contentSpec, requester, builderOptions, new HashMap<String, byte[]>(), zanataDetails, buildType);
     }
@@ -144,7 +144,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
      * @throws BuilderCreationException Any error that occurs while trying to setup/create the builder
      */
     public byte[] buildTranslatedBook(final ContentSpec contentSpec, final String requester,
-            final CSDocbookBuildingOptions builderOptions, final Map<String, byte[]> overrideFiles, final ZanataDetails zanataDetails,
+            final DocbookBuildingOptions builderOptions, final Map<String, byte[]> overrideFiles, final ZanataDetails zanataDetails,
             final BuildType buildType) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");

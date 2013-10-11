@@ -9,6 +9,7 @@ import java.util.Map;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.entities.InjectionOptions;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
+import org.jboss.pressgang.ccms.docbook.compiling.DocbookBuildingOptions;
 import org.jboss.pressgang.ccms.docbook.structures.TopicErrorDatabase;
 import org.jboss.pressgang.ccms.docbook.structures.TopicImageData;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
@@ -60,7 +61,7 @@ public class BuildData {
     /**
      * The Docbook/Formatting Building Options to be used when building.
      */
-    private final CSDocbookBuildingOptions buildOptions;
+    private final DocbookBuildingOptions buildOptions;
     /**
      * A mapping of override key's to their files.
      */
@@ -88,12 +89,12 @@ public class BuildData {
     private final ContentSpec contentSpec;
 
     public BuildData(final String requester, final String buildName, final ContentSpec contentSpec, final String locale,
-            final CSDocbookBuildingOptions buildOptions) {
+            final DocbookBuildingOptions buildOptions) {
         this(requester, buildName, contentSpec, locale, buildOptions, new ZanataDetails());
     }
 
     public BuildData(final String requester, final String buildName, final ContentSpec contentSpec, final String locale,
-            final CSDocbookBuildingOptions buildOptions, final ZanataDetails zanataDetails) {
+            final DocbookBuildingOptions buildOptions, final ZanataDetails zanataDetails) {
         this.contentSpec = contentSpec;
         this.requester = requester;
         this.buildName = buildName;
@@ -158,7 +159,7 @@ public class BuildData {
         return locale;
     }
 
-    public CSDocbookBuildingOptions getBuildOptions() {
+    public DocbookBuildingOptions getBuildOptions() {
         return buildOptions;
     }
 
@@ -217,7 +218,7 @@ public class BuildData {
         return contentSpec;
     }
 
-    protected void applyBuildOptionsFromSpec(final ContentSpec contentSpec, final CSDocbookBuildingOptions buildOptions) {
+    protected void applyBuildOptionsFromSpec(final ContentSpec contentSpec, final DocbookBuildingOptions buildOptions) {
         /*
          * Apply the build options from the content spec only if the build options are true. We do this so that if the options
          * are turned off earlier then we don't re-enable them.
@@ -244,7 +245,7 @@ public class BuildData {
         }
     }
 
-    protected void applyInjectionOptionsFromSpec(final ContentSpec contentSpec, final CSDocbookBuildingOptions buildOptions) {
+    protected void applyInjectionOptionsFromSpec(final ContentSpec contentSpec, final DocbookBuildingOptions buildOptions) {
         // Get the injection mode
         InjectionOptions.UserType injectionType = InjectionOptions.UserType.NONE;
         final Boolean injection = buildOptions.getInjection();

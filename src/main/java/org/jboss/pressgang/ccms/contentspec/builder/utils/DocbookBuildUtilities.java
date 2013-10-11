@@ -23,10 +23,10 @@ import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.CSDocbookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
 import org.jboss.pressgang.ccms.contentspec.sort.RevisionNodeSort;
 import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
+import org.jboss.pressgang.ccms.docbook.compiling.DocbookBuildingOptions;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.StringUtilities;
@@ -278,7 +278,7 @@ public class DocbookBuildUtilities {
      *         with values from the topic.
      */
     protected static String buildTopicErrorTemplate(final BaseTopicWrapper<?> topic, final String errorTemplate,
-            final CSDocbookBuildingOptions docbookBuildingOptions) {
+            final DocbookBuildingOptions docbookBuildingOptions) {
         String topicXMLErrorTemplate = errorTemplate;
 
         topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, "Invalid Topic");
@@ -414,11 +414,11 @@ public class DocbookBuildUtilities {
      */
     public static String cleanUserPublicanCfg(final String userPublicanCfg) {
         // Remove any xml_lang statements
-        String retValue = userPublicanCfg.replaceAll("xml_lang\\:\\s*.*?($|\\r\\n|\\n)", "");
+        String retValue = userPublicanCfg.replaceAll("xml_lang:\\s*.*?($|\\r\\n|\\n)", "");
         // Remove any type statements
-        retValue = retValue.replaceAll("type\\:\\s*.*($|\\r\\n|\\n)" + "", "");
+        retValue = retValue.replaceAll("type:\\s*.*($|\\r\\n|\\n)" + "", "");
         // Remove any brand statements
-        retValue = retValue.replaceAll("brand\\:\\s*.*($|\\r\\n|\\n)" + "", "");
+        retValue = retValue.replaceAll("brand:\\s*.*($|\\r\\n|\\n)" + "", "");
 
         if (!retValue.endsWith("\n")) {
             retValue += "\n";

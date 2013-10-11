@@ -42,7 +42,6 @@ import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.CSDocbookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.DocbookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.ReportUtilities;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.SAXXMLValidator;
@@ -58,6 +57,7 @@ import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.TranslationUtilities;
+import org.jboss.pressgang.ccms.docbook.compiling.DocbookBuildingOptions;
 import org.jboss.pressgang.ccms.docbook.processing.DocbookXMLPreProcessor;
 import org.jboss.pressgang.ccms.docbook.structures.TocTopicDatabase;
 import org.jboss.pressgang.ccms.docbook.structures.TopicErrorData;
@@ -381,7 +381,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      *                                  converted to a DOM Document.
      */
     public Map<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
-            final CSDocbookBuildingOptions buildingOptions) throws BuilderCreationException, BuildProcessingException {
+            final DocbookBuildingOptions buildingOptions) throws BuilderCreationException, BuildProcessingException {
         return buildBook(contentSpec, requester, buildingOptions, new ZanataDetails());
     }
 
@@ -398,7 +398,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      *                                  converted to a DOM Document.
      */
     public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
-            final CSDocbookBuildingOptions buildingOptions,
+            final DocbookBuildingOptions buildingOptions,
             final Map<String, byte[]> overrideFiles) throws BuilderCreationException, BuildProcessingException {
         return buildBook(contentSpec, requester, buildingOptions, overrideFiles, new ZanataDetails());
     }
@@ -417,7 +417,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      */
     @SuppressWarnings("unchecked")
     public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
-            final CSDocbookBuildingOptions buildingOptions,
+            final DocbookBuildingOptions buildingOptions,
             final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
         return buildBook(contentSpec, requester, buildingOptions, new HashMap<String, byte[]>(), zanataDetails);
     }
@@ -437,7 +437,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      */
     @SuppressWarnings("unchecked")
     public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
-            final CSDocbookBuildingOptions buildingOptions, final Map<String, byte[]> overrideFiles,
+            final DocbookBuildingOptions buildingOptions, final Map<String, byte[]> overrideFiles,
             final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
@@ -1268,11 +1268,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
             if (doc != null) {
                 // Process the conditional statements
-                if (buildData.getContentSpec().getPublicanCfg() == null || !buildData.getContentSpec().getPublicanCfg().contains(
-                        "condition:")) {
-                    final String condition = specTopic.getConditionStatement(true);
-                    DocBookUtilities.processConditions(condition, doc, BuilderConstants.DEFAULT_CONDITION);
-                }
+                processConditions(buildData, specTopic, doc);
 
                 /*
                  * If the topic is a translated topic then check to see if the translated topic hasn't been pushed for
@@ -1329,6 +1325,18 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 DocbookBuildUtilities.collectIdAttributes(specTopic, doc, usedIdAttributes);
             }
         }
+    }
+
+    /**
+     * Checks if the conditional pass should be performed.
+     *
+     * @param buildData Information and data structures for the build.
+     * @param specTopic The spec topic the conditions should be processed for,
+     * @param doc       The DOM Document to process the conditions against.
+     */
+    protected void processConditions(final BuildData buildData, final SpecTopic specTopic, final Document doc) {
+        final String condition = specTopic.getConditionStatement(true);
+        DocBookUtilities.processConditions(condition, doc, BuilderConstants.DEFAULT_CONDITION);
     }
 
     /**
