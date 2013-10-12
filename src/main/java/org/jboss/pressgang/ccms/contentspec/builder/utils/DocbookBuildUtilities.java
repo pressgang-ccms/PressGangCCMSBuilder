@@ -742,7 +742,7 @@ public class DocbookBuildUtilities {
             // Check the dates are in chronological order
             if (date != null) {
                 try {
-                    final Date revisionDate = DateUtils.parseDate(cleanDate(date.getTextContent()), Locale.ENGLISH, DATE_FORMATS);
+                    final Date revisionDate = DateUtils.parseDateStrictly(cleanDate(date.getTextContent()), Locale.ENGLISH, DATE_FORMATS);
                     if (previousDate != null && revisionDate.after(previousDate)) {
                         return "The revisions in the Revision History are not in descending chronological order, " +
                                 "starting from \"" + date.getTextContent() + "\".";
@@ -750,7 +750,14 @@ public class DocbookBuildUtilities {
 
                     previousDate = revisionDate;
                 } catch (Exception e) {
-                    return "Invalid revision, the date \"" + date.getTextContent() + "\" is not in a valid format.";
+                    // Check that it is an invalid format or just an incorrect date (ie the day doesn't match)
+                    try {
+                        DateUtils.parseDate(cleanDate(date.getTextContent()), Locale.ENGLISH, DATE_FORMATS);
+                        return "Invalid revision, the name of the day specified in \"" + date.getTextContent() + "\" doesn't match the " +
+                                "date.";
+                    } catch (Exception ex) {
+                        return "Invalid revision, the date \"" + date.getTextContent() + "\" is not in a valid format.";
+                    }
                 }
             } else {
                 return "Invalid revision, missing &lt;date&gt; element.";
