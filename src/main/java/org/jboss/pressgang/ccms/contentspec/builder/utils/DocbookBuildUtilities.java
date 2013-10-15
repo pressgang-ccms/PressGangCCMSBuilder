@@ -784,8 +784,8 @@ public class DocbookBuildUtilities {
         }
 
         return dateString.replace("Tues", "Tue")
-                .replace("Thur", "Thu")
-                .replace("Thurs", "Thu");
+                .replace("Thurs", "Thu")
+                .replace("Thur", "Thu");
     }
 
     public static void mergeRevisionHistories(final Document mainDoc, final Document mergeDoc) throws BuildProcessingException {
