@@ -3680,7 +3680,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 updateFixedURLsForTopics(updateTopics, topics);
             }
         } catch (final Exception ex) {
-            log.debug("Failed to update the Fixed URLs for the topic", ex);
+            log.error("\tFailed to update the Fixed URLs for the topic");
+            log.debug(ex);
         }
 
         // did we blow the try count?
