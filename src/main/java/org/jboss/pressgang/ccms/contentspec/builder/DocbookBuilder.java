@@ -3447,6 +3447,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
     @SuppressWarnings("unchecked")
     private boolean validateTopicXML(final BuildData buildData, final SpecTopic specTopic, final Document topicDoc,
             final boolean useFixedUrls) throws BuildProcessingException {
+        final SAXXMLValidator validator = new SAXXMLValidator();
         final BaseTopicWrapper<?> topic = specTopic.getTopic();
 
         byte[] entityData = new byte[0];
@@ -3457,18 +3458,18 @@ public class DocbookBuilder implements ShutdownAbleApp {
             throw new BuildProcessingException(e);
         }
 
+        // First check to see if the title is valid XML
+        final String titleXML = "<title>" + topic.getTitle() + "</title>";
+        if (!validator.validateXML(titleXML, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue(), "title")) {
+            // The title is invalid so replace it with something that is valid
+            topic.setTitle("Invalid Topic");
+            DocBookUtilities.setSectionTitle(topic.getTitle(), topicDoc);
+        }
+
         // Validate the topic against its DTD/Schema
-        final SAXXMLValidator validator = new SAXXMLValidator();
         if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue(), "Book.ent", entityData)) {
             // Store the error message
             final String errorMsg = validator.getErrorText();
-
-            // First check to see if the title is valid XML
-            final String titleXML = "<title>" + topic.getTitle() + "</title>";
-            if (!validator.validateXML(titleXML, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue(), "title")) {
-                // The title is invalid so replace it with something that is valid
-                topic.setTitle("Invalid Topic");
-            }
 
             final String xmlStringInCDATA = DocbookBuildUtilities.convertDocumentToCDATAFormattedString(topicDoc, getXMLFormatProperties());
             buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
