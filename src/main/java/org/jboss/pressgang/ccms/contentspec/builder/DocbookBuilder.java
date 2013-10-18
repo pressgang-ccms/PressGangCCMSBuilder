@@ -1850,9 +1850,15 @@ public class DocbookBuilder implements ShutdownAbleApp {
             addToZip(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, overrideFiles.get(CSConstants.AUTHOR_GROUP_OVERRIDE),
                     buildData);
         } else if (contentSpec.getAuthorGroup() != null) {
+            final TopicErrorData errorData = buildData.getErrorDatabase().getErrorData(contentSpec.getAuthorGroup().getTopic());
             final String authorGroupXML = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
                     contentSpec.getAuthorGroup().getXMLDocument(), "authorgroup", buildData.getEntityFileName(), getXMLFormatProperties());
-            addToZip(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, authorGroupXML, buildData);
+            if (errorData != null && errorData.hasFatalErrors()) {
+                buildAuthorGroup(buildData);
+            } else {
+
+                addToZip(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, authorGroupXML, buildData);
+            }
         } else {
             buildAuthorGroup(buildData);
         }
