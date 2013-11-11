@@ -42,9 +42,9 @@ import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionError;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.DocbookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.ReportUtilities;
-import org.jboss.pressgang.ccms.utils.common.SAXXMLValidator;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
 import org.jboss.pressgang.ccms.contentspec.entities.AuthorInformation;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
@@ -79,6 +79,7 @@ import org.jboss.pressgang.ccms.provider.TranslatedTopicProvider;
 import org.jboss.pressgang.ccms.provider.exception.NotFoundException;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
+import org.jboss.pressgang.ccms.utils.common.SAXXMLValidator;
 import org.jboss.pressgang.ccms.utils.common.StringUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
 import org.jboss.pressgang.ccms.utils.common.ZipUtilities;
@@ -1439,6 +1440,22 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     DocbookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidInjectionTopicTemplate().getValue(),
                             useFixedUrls);
                 } else {
+                    // Check for any possible invalid injection references
+                    final List<InjectionError> injectionErrors = DocbookBuildUtilities.checkForInvalidInjections(doc);
+                    if (!injectionErrors.isEmpty()) {
+                        for (final InjectionError injectionError : injectionErrors) {
+                            final List<String> injectionErrorMsgs = new ArrayList<String>();
+                            for (final String msg : injectionError.getMessages()) {
+                                injectionErrorMsgs.add(DocBookUtilities.buildListItem(msg));
+                            }
+
+                            final String errorMsg = "\"" + injectionError.getInjection().trim() + "\" " + BuilderConstants
+                                    .WARNING_POSSIBLE_INVALID_INJECTIONS + DocBookUtilities.wrapListItems(
+                                    injectionErrorMsgs);
+                            buildData.getErrorDatabase().addWarning(topic, ErrorType.POSSIBLE_INVALID_INJECTION, errorMsg);
+                        }
+                    }
+
                     // Add the standard boilerplate xml
                     xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, bugOptions, buildData.getBuildOptions(),
                             buildData.getBuildDate(), buildData.getZanataDetails());
@@ -1718,8 +1735,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                         final Element sectionNode = bookBase.createElement("section");
                         setUpRootElement(buildData, level, bookBase, sectionNode, useFixedUrls);
 
-                        createSectionXML(buildData, level, bookBase, sectionNode, buildData.getBookTopicsFolder(),
-                                useFixedUrls, flattenStructure);
+                        createSectionXML(buildData, level, bookBase, sectionNode, buildData.getBookTopicsFolder(), useFixedUrls,
+                                flattenStructure);
 
                         bookBase.getDocumentElement().appendChild(sectionNode);
                     } else {
@@ -2251,13 +2268,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
     /**
      * Sets up an elements title and id based on the passed level.
      *
-     * @param buildData           Information and data structures for the build.
-     * @param level               The level to build the root element is being built for.
-     * @param doc                 The document object the content is being added to.
+     * @param buildData    Information and data structures for the build.
+     * @param level        The level to build the root element is being built for.
+     * @param doc          The document object the content is being added to.
      * @param ele
-     * @param useFixedUrls        If Fixed URL Properties should be used for topic ID attributes.
+     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
      */
-    protected void setUpRootElement(final BuildData buildData, final Level level, final Document doc, Element ele, final boolean useFixedUrls) {
+    protected void setUpRootElement(final BuildData buildData, final Level level, final Document doc, Element ele,
+            final boolean useFixedUrls) {
         final Element titleNode = doc.createElement("title");
         if (buildData.isTranslationBuild() && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty()) {
             titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTranslatedTitle()));
@@ -3153,6 +3171,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
         glossary.append(
                 DocBookUtilities.wrapInGlossEntry(DocBookUtilities.wrapInGlossTerm("\"" + BuilderConstants.ERROR_INVALID_INJECTIONS + "\""),
                         DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.ERROR_INVALID_INJECTIONS_DEFINITION)));
+
+        // Possible Invalid Injections Warning
+        glossary.append(DocBookUtilities.wrapInGlossEntry(
+                DocBookUtilities.wrapInGlossTerm("\"... " + BuilderConstants.WARNING_POSSIBLE_INVALID_INJECTIONS + "\""),
+                DocBookUtilities.wrapInItemizedGlossDef(null, BuilderConstants.WARNING_POSSIBLE_INVALID_INJECTIONS_DEFINITION)));
 
         // Add the glossary terms and definitions
         if (buildData.isTranslationBuild()) {
