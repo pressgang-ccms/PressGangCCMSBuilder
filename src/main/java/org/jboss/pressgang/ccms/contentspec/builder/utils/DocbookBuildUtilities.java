@@ -63,7 +63,7 @@ public class DocbookBuildUtilities {
             "yyyyMMdd'T'HHmmss.SSSZ"};
 
     private static final Pattern INJECT_RE = Pattern.compile("^\\s*(?<TYPE>Inject\\w*)(?<COLON>:?)" +
-            "\\s*(?<IDS>[\\w\\d\\s,\\.]*)\\s*$", java.util.regex.Pattern.CASE_INSENSITIVE);
+            "\\s*(?<IDS>\\d+[\\w\\d\\s,\\.]*)\\s*$", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final Pattern INJECT_ID_RE = Pattern.compile("^[\\d ,]+$");
     private static final List<String> VALID_INJECTION_TYPES = Arrays.asList("Inject", "InjectList",
             "InjectListItems", "InjectListAlphaSort", "InjectSequence");
@@ -891,7 +891,7 @@ public class DocbookBuildUtilities {
                 // Check the type
                 if (!VALID_INJECTION_TYPES.contains(type)) {
                     error.addMessage("\"" + type + "\" is not a valid injection type. The valid types are: " + CollectionUtilities
-                            .toSeperatedString(VALID_INJECTION_TYPES));
+                            .toSeperatedString(VALID_INJECTION_TYPES, ", "));
                 }
 
                 // Check that a colon has been specified
