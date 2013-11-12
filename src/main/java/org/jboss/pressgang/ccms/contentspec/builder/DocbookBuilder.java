@@ -2044,10 +2044,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 contentSpec.getPubsNumber().toString());
         bookInfo = bookInfo.replaceAll(BuilderConstants.PUBSNUMBER_REGEX, "<pubsnumber>" + pubsNumber + "</pubsnumber>");
         // Set the book abstract
-        bookInfo = bookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX,
-                contentSpec.getAbstract() == null ? BuilderConstants.DEFAULT_ABSTRACT : ("<abstract>\n\t\t<para>\n\t\t\t" +
-                        DocbookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeTitleString(contentSpec.getAbstract())) +
-                        "\n\t\t</para>\n\t</abstract>\n"));
+        bookInfo = bookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX, getBookAbstract(contentSpec));
         // Set the book to have a Legal Notice
         bookInfo = bookInfo.replaceAll(BuilderConstants.LEGAL_NOTICE_REGEX, BuilderConstants.LEGAL_NOTICE_XML);
 
@@ -2058,6 +2055,25 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         return bookInfo;
+    }
+
+    /**
+     * Gets the book abstract that should be inserted into the Book_Info.xml file.
+     *
+     * @param contentSpec The content spec to get the abstract from.
+     * @return The XML content that represents the abstract.
+     */
+    private String getBookAbstract(final ContentSpec contentSpec) {
+        final String retValue;
+        if (contentSpec.getAbstract() == null) {
+            retValue = BuilderConstants.DEFAULT_ABSTRACT;
+        } else if (contentSpec.getAbstract().matches("^<(formal|sim)?para>(.|\\s)*")) {
+            retValue = "<abstract>\n\t\t" + contentSpec.getAbstract() + "\n\t</abstract>\n";
+        } else {
+            retValue = "<abstract>\n\t\t<para>\n\t\t\t" + contentSpec.getAbstract() + "\n\t\t</para>\n\t</abstract>\n";
+        }
+
+        return DocbookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeTitleString(retValue));
     }
 
     /**
