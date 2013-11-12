@@ -1047,7 +1047,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         if (topics != null) {
             log.info("\tProcessing " + topics.size() + " Topics");
 
-            final int showPercent = 5;
+            final int showPercent = 10;
             final float total = topics.size();
             float current = 0;
             int lastPercent = 0;
@@ -1375,7 +1375,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         log.info("\tProcessing " + specTopics.size() + " Spec Topics");
 
-        final int showPercent = 5;
+        final int showPercent = 10;
         final float total = specTopics.size();
         float current = 0;
         int lastPercent = 0;
