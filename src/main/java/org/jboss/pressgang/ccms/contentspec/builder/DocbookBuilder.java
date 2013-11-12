@@ -1832,6 +1832,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final Element revisionHistoryXMLNode = XMLUtilities.createXIInclude(bookBase, "Revision_History.xml");
         bookBase.getDocumentElement().appendChild(revisionHistoryXMLNode);
 
+        // Add the index node if required
+        if (contentSpec.getIncludeIndex()) {
+            final Element indexNode = bookBase.createElement("index");
+            bookBase.getDocumentElement().appendChild(indexNode);
+        }
+
         // Change the DOM Document into a string so it can be added to the ZIP
         final String rootElementName = contentSpec.getBookType().toString().toLowerCase().replace("-draft", "");
         final String book = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(bookBase, rootElementName,
