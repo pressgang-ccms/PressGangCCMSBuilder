@@ -748,6 +748,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 topic = topicProvider.getTopic(specTopic.getDBId(), specTopic.getRevision());
                 revisionTopics.add(topic);
                 allTopics.add(topic);
+            } else if (buildData.getBuildOptions().getMaxRevision() != null && !buildData.getBuildOptions().getUseLatestVersions()) {
+                topic = topicProvider.getTopic(specTopic.getDBId(), buildData.getBuildOptions().getMaxRevision());
+                revisionTopics.add(topic);
+                allTopics.add(topic);
             } else {
                 topic = topicProvider.getTopic(specTopic.getDBId());
                 latestTopics.add(topic);
@@ -833,7 +837,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
      */
     protected void getTranslatedTopicForSpecTopic(final BuildData buildData, final SpecTopic specTopic,
             final Map<String, BaseTopicWrapper<?>> translatedTopics) throws BuildProcessingException {
-        final TopicWrapper topic = topicProvider.getTopic(specTopic.getDBId(), specTopic.getRevision());
+        final TopicWrapper topic;
+        if (specTopic.getRevision() != null) {
+            topic = topicProvider.getTopic(specTopic.getDBId(), specTopic.getRevision());
+        } else if (buildData.getBuildOptions().getMaxRevision() != null) {
+            topic = topicProvider.getTopic(specTopic.getDBId(), buildData.getBuildOptions().getMaxRevision());
+        } else {
+            topic = topicProvider.getTopic(specTopic.getDBId());
+        }
 
         // Check if the spec topic has a matching translated topic node, if not then create a dummy topic
         if (specTopic.getTranslationUniqueId() != null) {
