@@ -58,6 +58,9 @@ public class DocbookBuildUtilities {
             "EEE, MMM dd yyyy", "EEE MMM dd yyyy Z", "EEE dd MMM yyyy", "EEE,dd MMM yyyy", "EEE dd MMM yyyy Z", "yyyyMMdd",
             "yyyyMMdd'T'HHmmss.SSSZ"};
 
+    private static final Pattern THURSDAY_DATE_RE = Pattern.compile("Thurs?(?!s?day)", java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final Pattern TUESDAY_DATE_RE = Pattern.compile("Tues(?!day)", java.util.regex.Pattern.CASE_INSENSITIVE);
+
     /**
      * Adds the levels in the provided Level object to the content spec database.
      *
@@ -783,9 +786,11 @@ public class DocbookBuildUtilities {
             return dateString;
         }
 
-        return dateString.replace("Tues", "Tue")
-                .replace("Thurs", "Thu")
-                .replace("Thur", "Thu");
+        String retValue = dateString;
+        retValue = THURSDAY_DATE_RE.matcher(retValue).replaceAll("Thu");
+        retValue = TUESDAY_DATE_RE.matcher(retValue).replaceAll("Tue");
+
+        return retValue;
     }
 
     public static void mergeRevisionHistories(final Document mainDoc, final Document mergeDoc) throws BuildProcessingException {
