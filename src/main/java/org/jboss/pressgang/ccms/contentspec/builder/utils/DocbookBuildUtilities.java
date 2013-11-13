@@ -323,6 +323,8 @@ public class DocbookBuildUtilities {
             topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll("(?<=<(/)?)section(?=>)", "legalnotice");
         } else if (topic.hasTag(CSConstants.AUTHOR_GROUP_TAG_ID)) {
             topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll("(?<=<(/)?)section(?=>)", "authorgroup");
+        } else if (topic.hasTag(CSConstants.ABSTRACT_TAG_ID)) {
+            topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll("(?<=<(/)?)section(?=>)", "abstract");
         }
 
         return topicXMLErrorTemplate;
@@ -696,6 +698,10 @@ public class DocbookBuildUtilities {
         } else if (topic.hasTag(CSConstants.AUTHOR_GROUP_TAG_ID)) {
             if (!doc.getDocumentElement().getNodeName().equals("authorgroup")) {
                 xmlErrors.append("Author Group topics must be a &lt;authorgroup&gt;.\n");
+            }
+        } else if (topic.hasTag(CSConstants.ABSTRACT_TAG_ID)) {
+            if (!doc.getDocumentElement().getNodeName().equals("abstract")) {
+                xmlErrors.append("Abstract topics must be a &lt;abstract&gt;.\n");
             }
         } else {
             if (!doc.getDocumentElement().getNodeName().equals(DocBookUtilities.TOPIC_ROOT_NODE_NAME)) {

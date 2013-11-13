@@ -1076,12 +1076,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 }
 
                 // Get the Topic ID
-                final Integer topicId = topic.getTopicId();
                 final Integer topicRevision = topic.getTopicRevision();
 
                 boolean revHistoryTopic = topic.hasTag(CSConstants.REVISION_HISTORY_TAG_ID);
                 boolean legalNoticeTopic = topic.hasTag(CSConstants.LEGAL_NOTICE_TAG_ID);
                 boolean authorGroupTopic = topic.hasTag(CSConstants.AUTHOR_GROUP_TAG_ID);
+                boolean abstractTopic = topic.hasTag(CSConstants.ABSTRACT_TAG_ID);
 
                 Document topicDoc = null;
                 final String topicXML = topic.getXml();
@@ -1154,6 +1154,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     DocBookUtilities.wrapDocumentInAuthorGroup(topicDoc);
                 } else if (legalNoticeTopic) {
                     DocBookUtilities.wrapDocumentInLegalNotice(topicDoc);
+                } else if (abstractTopic) {
+                    DocBookUtilities.wrapDocument(topicDoc, "abstract");
                 } else {
                     // Ensure the topic is wrapped in a section and the title matches the topic
                     DocBookUtilities.wrapDocumentInSection(topicDoc);
@@ -2065,8 +2067,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
      */
     private String getBookAbstract(final ContentSpec contentSpec) {
         final String retValue;
-        if (contentSpec.getAbstract() == null) {
+        if (contentSpec.getAbstract() == null && contentSpec.getAbstractTopic() == null) {
             retValue = BuilderConstants.DEFAULT_ABSTRACT;
+        } else if (contentSpec.getAbstract() == null) {
+            retValue = DocbookBuildUtilities.convertDocumentToFormattedString(contentSpec.getAbstractTopic().getXMLDocument(),
+                    getXMLFormatProperties());
         } else if (contentSpec.getAbstract().matches("^<(formal|sim)?para>(.|\\s)*")) {
             retValue = "<abstract>\n\t\t" + contentSpec.getAbstract() + "\n\t</abstract>\n";
         } else {
