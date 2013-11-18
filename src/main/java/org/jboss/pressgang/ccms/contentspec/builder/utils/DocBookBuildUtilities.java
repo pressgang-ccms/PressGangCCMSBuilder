@@ -27,15 +27,12 @@ import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingExc
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionError;
-import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
 import org.jboss.pressgang.ccms.contentspec.sort.RevisionNodeSort;
 import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
-import org.jboss.pressgang.ccms.docbook.compiling.DocbookBuildingOptions;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.StringUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
-import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
 import org.jboss.pressgang.ccms.utils.structures.Pair;
 import org.jboss.pressgang.ccms.wrapper.TopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.TranslatedCSNodeWrapper;
@@ -54,8 +51,8 @@ import org.w3c.dom.NodeList;
  *
  * @author lnewson
  */
-public class DocbookBuildUtilities {
-    private static final Logger log = LoggerFactory.getLogger(DocbookBuildUtilities.class);
+public class DocBookBuildUtilities {
+    private static final Logger log = LoggerFactory.getLogger(DocBookBuildUtilities.class);
     private static final String STARTS_WITH_NUMBER_RE = "^(?<Numbers>\\d+)(?<EverythingElse>.*)$";
     private static final String STARTS_WITH_INVALID_SEQUENCE_RE = "^(?<InvalidSeq>[^\\w\\d]+)(?<EverythingElse>.*)$";
     private static final String[] DATE_FORMATS = new String[]{"MM-dd-yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "yyyy/MM/dd", "EEE MMM dd yyyy",
@@ -65,11 +62,11 @@ public class DocbookBuildUtilities {
     private static final Pattern THURSDAY_DATE_RE = Pattern.compile("Thurs?(?!s?day)", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final Pattern TUESDAY_DATE_RE = Pattern.compile("Tues(?!day)", java.util.regex.Pattern.CASE_INSENSITIVE);
 
-    private static final Pattern INJECT_RE = Pattern.compile("^\\s*(?<TYPE>Inject\\w*)(?<COLON>:?)" +
-            "\\s*(?<IDS>\\d+[\\w\\d\\s,\\.]*)\\s*$", java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final Pattern INJECT_RE = Pattern.compile(
+            "^\\s*(?<TYPE>Inject\\w*)(?<COLON>:?)" + "\\s*(?<IDS>\\d+[\\w\\d\\s,\\.]*)\\s*$", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final Pattern INJECT_ID_RE = Pattern.compile("^[\\d ,]+$");
-    private static final List<String> VALID_INJECTION_TYPES = Arrays.asList("Inject", "InjectList",
-            "InjectListItems", "InjectListAlphaSort", "InjectSequence");
+    private static final List<String> VALID_INJECTION_TYPES = Arrays.asList("Inject", "InjectList", "InjectListItems",
+            "InjectListAlphaSort", "InjectSequence");
 
     /**
      * Adds the levels in the provided Level object to the content spec database.
@@ -79,7 +76,7 @@ public class DocbookBuildUtilities {
      */
     public static void addLevelsToDatabase(final BuildDatabase buildDatabase, final Level level) {
         // Add the level to the database
-        buildDatabase.add(level, DocbookBuildUtilities.createURLTitle(level.getTitle()));
+        buildDatabase.add(level, DocBookBuildUtilities.createURLTitle(level.getTitle()));
 
         // Add the child levels to the database
         for (final Level childLevel : level.getChildLevels()) {
@@ -126,7 +123,7 @@ public class DocbookBuildUtilities {
                     fixedIdAttributeValue += "-" + specTopic.getDuplicateId();
                 }
 
-                if (!DocbookBuildUtilities.isUniqueAttributeId(fixedIdAttributeValue, specTopic.getDBId(), usedIdAttributes)) {
+                if (!DocBookBuildUtilities.isUniqueAttributeId(fixedIdAttributeValue, specTopic.getDBId(), usedIdAttributes)) {
                     fixedIdAttributeValue += "-" + specTopic.getStep();
                 }
 
@@ -285,13 +282,14 @@ public class DocbookBuildUtilities {
      * <!-- Inject TopicID -->
      * <!-- Inject ErrorXREF -->}
      *
+     *
+     * @param buildData     Information and data structures for the build.
      * @param topic         The topic to generate the error template for.
      * @param errorTemplate The pre processed error template.
      * @return The input error template with the pointers replaced
      *         with values from the topic.
      */
-    protected static String buildTopicErrorTemplate(final BaseTopicWrapper<?> topic, final String errorTemplate,
-            final DocbookBuildingOptions docbookBuildingOptions) {
+    protected static String buildTopicErrorTemplate(final BuildData buildData, final BaseTopicWrapper<?> topic, final String errorTemplate) {
         String topicXMLErrorTemplate = errorTemplate;
 
         topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, "Invalid Topic");
@@ -308,7 +306,7 @@ public class DocbookBuildUtilities {
         }
 
         // Add the link to the errors page. If the errors page is suppressed then remove the injection point.
-        if (!docbookBuildingOptions.getSuppressErrorsPage()) {
+        if (!buildData.getBuildOptions().getSuppressErrorsPage()) {
             topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.ERROR_XREF_REGEX,
                     "<para>Please review the compiler error " + "for <xref linkend=\"" + errorXRefID + "\"/> for more detailed " +
                             "information.</para>");
@@ -317,13 +315,13 @@ public class DocbookBuildUtilities {
         }
 
         // Replace the root section element if the topic is a revision history or a legal notice
-        if (topic.hasTag(CSConstants.REVISION_HISTORY_TAG_ID)) {
+        if (topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId())) {
             topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll("(?<=<(/)?)section(?=>)", "appendix");
-        } else if (topic.hasTag(CSConstants.LEGAL_NOTICE_TAG_ID)) {
+        } else if (topic.hasTag(buildData.getServerEntities().getLegalNoticeTagId())) {
             topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll("(?<=<(/)?)section(?=>)", "legalnotice");
-        } else if (topic.hasTag(CSConstants.AUTHOR_GROUP_TAG_ID)) {
+        } else if (topic.hasTag(buildData.getServerEntities().getAuthorGroupTagId())) {
             topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll("(?<=<(/)?)section(?=>)", "authorgroup");
-        } else if (topic.hasTag(CSConstants.ABSTRACT_TAG_ID)) {
+        } else if (topic.hasTag(buildData.getServerEntities().getAbstractTagId())) {
             topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll("(?<=<(/)?)section(?=>)", "abstract");
         }
 
@@ -533,13 +531,13 @@ public class DocbookBuildUtilities {
     /**
      * Sets the topic xref id to the topic database id.
      *
-     * @param topic        The topic to be used to set the id attribute.
-     * @param doc          The document object for the topics XML.
-     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
+     * @param buildData Information and data structures for the build.
+     * @param topic     The topic to be used to set the id attribute.
+     * @param doc       The document object for the topics XML.
      */
-    public static void processTopicID(final BaseTopicWrapper<?> topic, final Document doc, final boolean useFixedUrls) {
-        if (useFixedUrls) {
-            final String errorXRefID = topic.getXRefPropertyOrId(CommonConstants.FIXED_URL_PROP_TAG_ID);
+    public static void processTopicID(final BuildData buildData, final BaseTopicWrapper<?> topic, final Document doc) {
+        if (buildData.isUseFixedUrls()) {
+            final String errorXRefID = topic.getXRefPropertyOrId(buildData.getServerEntities().getFixedUrlPropertyTagId());
             doc.getDocumentElement().setAttribute("id", errorXRefID);
         } else {
             final String errorXRefID = topic.getXRefId();
@@ -553,18 +551,15 @@ public class DocbookBuildUtilities {
     /**
      * Sets the XML of the topic to the specified error template.
      *
-     *
-     *
-     * @param buildData
-     * @param topic        The topic to be updated as having an error.
-     * @param template     The template for the Error Message.
-     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
+     * @param buildData Information and data structures for the build.
+     * @param topic     The topic to be updated as having an error.
+     * @param template  The template for the Error Message.
      * @return The Document Object that is initialised using the topic and error template.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
-    public static Document setTopicXMLForError(final BuildData buildData, final BaseTopicWrapper<?> topic, final String template,
-            final boolean useFixedUrls) throws BuildProcessingException {
-        final String errorContent = buildTopicErrorTemplate(topic, template, buildData.getBuildOptions());
+    public static Document setTopicXMLForError(final BuildData buildData, final BaseTopicWrapper<?> topic,
+            final String template) throws BuildProcessingException {
+        final String errorContent = buildTopicErrorTemplate(buildData, topic, template);
 
         Document doc = null;
         try {
@@ -575,24 +570,22 @@ public class DocbookBuildUtilities {
             throw new BuildProcessingException("Failed to convert the Topic Error template into a DOM document");
         }
         DocBookUtilities.setSectionTitle(topic.getTitle(), doc);
-        processTopicID(topic, doc, useFixedUrls);
+        processTopicID(buildData, topic, doc);
         return doc;
     }
 
     /**
      * Sets the XML of the topic in the content spec to the error template provided.
      *
-     *
-     * @param buildData
-     * @param specTopic    The spec topic to be updated as having an error.
-     * @param template     The template for the Error Message.
-     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
+     * @param buildData Information and data structures for the build.
+     * @param specTopic The spec topic to be updated as having an error.
+     * @param template  The template for the Error Message.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
-    public static void setSpecTopicXMLForError(BuildData buildData, final SpecTopic specTopic, final String template,
-            final boolean useFixedUrls) throws BuildProcessingException {
+    public static void setSpecTopicXMLForError(final BuildData buildData, final SpecTopic specTopic,
+            final String template) throws BuildProcessingException {
         final BaseTopicWrapper<?> topic = specTopic.getTopic();
-        final String errorContent = buildTopicErrorTemplate(topic, template, buildData.getBuildOptions());
+        final String errorContent = buildTopicErrorTemplate(buildData, topic, template);
 
         Document doc = null;
         try {
@@ -604,7 +597,7 @@ public class DocbookBuildUtilities {
         }
         specTopic.setXMLDocument(doc);
         DocBookUtilities.setSectionTitle(topic.getTitle(), doc);
-        processTopicID(topic, doc, useFixedUrls);
+        processTopicID(buildData, topic, doc);
     }
 
     /**
@@ -659,47 +652,50 @@ public class DocbookBuildUtilities {
         return valid;
     }
 
-    public static List<String> checkTopicForInvalidContent(final BaseTopicWrapper<?> topic, final Document topicDoc) {
+    public static List<String> checkTopicForInvalidContent(final BaseTopicWrapper<?> topic, final Document topicDoc,
+            final BuildData buildData) {
         final List<String> xmlErrors = new ArrayList<String>();
         // Check to ensure that if the topic has programlisting elements, that the language is a valid Publican value
-        if (!DocbookBuildUtilities.validateProgramListingLanguages(topicDoc)) {
+        if (!DocBookBuildUtilities.validateProgramListingLanguages(topicDoc)) {
             xmlErrors.add("The Program Listing language is not a valid Publican language.");
         }
         // Check to ensure that if the topic has a table, that the table isn't missing any entries
-        if (!DocbookBuildUtilities.validateTopicTables(topicDoc)) {
+        if (!DocBookBuildUtilities.validateTopicTables(topicDoc)) {
             xmlErrors.add("Table column declaration doesn't match the number of entry elements.");
         }
         // Check that the root element matches the topic type
-        final String rootElementErrors = checkTopicRootElement(topic, topicDoc);
+        final String rootElementErrors = checkTopicRootElement(buildData, topic, topicDoc);
         if (rootElementErrors != null) {
             xmlErrors.add(rootElementErrors);
         }
         // Check that the content matches the topic type
-        xmlErrors.addAll(checkTopicContentBasedOnType(topic, topicDoc));
+        xmlErrors.addAll(checkTopicContentBasedOnType(buildData, topic, topicDoc));
 
         return xmlErrors;
     }
 
     /**
+     *
+     * @param buildData Information and data structures for the build.
      * @param topic
      * @param doc
      * @return
      */
-    protected static String checkTopicRootElement(final BaseTopicWrapper<?> topic, final Document doc) {
+    protected static String checkTopicRootElement(final BuildData buildData, final BaseTopicWrapper<?> topic, final Document doc) {
         final StringBuilder xmlErrors = new StringBuilder();
-        if (topic.hasTag(CSConstants.REVISION_HISTORY_TAG_ID)) {
+        if (topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId())) {
             if (!doc.getDocumentElement().getNodeName().equals("appendix")) {
                 xmlErrors.append("Revision History topics must be an &lt;appendix&gt;.\n");
             }
-        } else if (topic.hasTag(CSConstants.LEGAL_NOTICE_TAG_ID)) {
+        } else if (topic.hasTag(buildData.getServerEntities().getLegalNoticeTagId())) {
             if (!doc.getDocumentElement().getNodeName().equals("legalnotice")) {
                 xmlErrors.append("Legal Notice topics must be a &lt;legalnotice&gt;.\n");
             }
-        } else if (topic.hasTag(CSConstants.AUTHOR_GROUP_TAG_ID)) {
+        } else if (topic.hasTag(buildData.getServerEntities().getAuthorGroupTagId())) {
             if (!doc.getDocumentElement().getNodeName().equals("authorgroup")) {
                 xmlErrors.append("Author Group topics must be a &lt;authorgroup&gt;.\n");
             }
-        } else if (topic.hasTag(CSConstants.ABSTRACT_TAG_ID)) {
+        } else if (topic.hasTag(buildData.getServerEntities().getAbstractTagId())) {
             if (!doc.getDocumentElement().getNodeName().equals("abstract")) {
                 xmlErrors.append("Abstract topics must be a &lt;abstract&gt;.\n");
             }
@@ -715,13 +711,16 @@ public class DocbookBuildUtilities {
     /**
      * Check a topic and return an error messages if the content doesn't match the topic type.
      *
+     *
+     * @param buildData Information and data structures for the build.
      * @param topic
      * @param doc
      * @return
      */
-    protected static List<String> checkTopicContentBasedOnType(final BaseTopicWrapper<?> topic, final Document doc) {
+    protected static List<String> checkTopicContentBasedOnType(final BuildData buildData, final BaseTopicWrapper<?> topic,
+            final Document doc) {
         final List<String> xmlErrors = new ArrayList<String>();
-        if (topic.hasTag(CSConstants.REVISION_HISTORY_TAG_ID)) {
+        if (topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId())) {
             // Check to make sure that a revhistory entry exists
             final String revHistoryErrors = validateRevisionHistory(doc);
             if (revHistoryErrors != null) {
@@ -876,10 +875,10 @@ public class DocbookBuildUtilities {
     /**
      * Checks for instances of PressGang Injections that are invalid. This will check for the following problems:
      * <ul>
-     *     <li>Incorrect Captialisation</li>
-     *     <li>Invalid Injection types (eg. InjectListItem)</li>
-     *     <li>Missing colons</li>
-     *     <li>Incorrect ID list (eg referencing Topic 10 as 10.xml)</li>
+     * <li>Incorrect Captialisation</li>
+     * <li>Invalid Injection types (eg. InjectListItem)</li>
+     * <li>Missing colons</li>
+     * <li>Incorrect ID list (eg referencing Topic 10 as 10.xml)</li>
      * </ul>
      *
      * @param doc The DOM document to be checked for invalid PressGang injections.
@@ -901,8 +900,9 @@ public class DocbookBuildUtilities {
 
                 // Check the type
                 if (!VALID_INJECTION_TYPES.contains(type)) {
-                    error.addMessage("\"" + type + "\" is not a valid injection type. The valid types are: " + CollectionUtilities
-                            .toSeperatedString(VALID_INJECTION_TYPES, ", "));
+                    error.addMessage(
+                            "\"" + type + "\" is not a valid injection type. The valid types are: " + CollectionUtilities.toSeperatedString(
+                                    VALID_INJECTION_TYPES, ", "));
                 }
 
                 // Check that a colon has been specified
@@ -913,11 +913,13 @@ public class DocbookBuildUtilities {
                 // Check that the id(s) are valid
                 if (isNullOrEmpty(ids) || !INJECT_ID_RE.matcher(ids).matches()) {
                     if (type.equalsIgnoreCase("inject")) {
-                        error.addMessage("The Topic ID in the injection is invalid. Please ensure that only the Topic ID is used. eg " +
-                                "\"Inject: 1\"");
+                        error.addMessage(
+                                "The Topic ID in the injection is invalid. Please ensure that only the Topic ID is used. eg " +
+                                        "\"Inject: 1\"");
                     } else {
-                        error.addMessage("The Topic ID(s) in the injection are invalid. Please ensure that only the Topic ID is used and " +
-                                "is in a comma separated list. eg \"InjectList: 1, 2, 3\"");
+                        error.addMessage(
+                                "The Topic ID(s) in the injection are invalid. Please ensure that only the Topic ID is used and " + "is " +
+                                        "in a comma separated list. eg \"InjectList: 1, 2, 3\"");
                     }
                 }
             }

@@ -43,7 +43,7 @@ import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingExc
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionError;
-import org.jboss.pressgang.ccms.contentspec.builder.utils.DocbookBuildUtilities;
+import org.jboss.pressgang.ccms.contentspec.builder.utils.DocBookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.ReportUtilities;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
 import org.jboss.pressgang.ccms.contentspec.entities.AuthorInformation;
@@ -57,7 +57,7 @@ import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.TranslationUtilities;
-import org.jboss.pressgang.ccms.docbook.compiling.DocbookBuildingOptions;
+import org.jboss.pressgang.ccms.docbook.compiling.DocBookBuildingOptions;
 import org.jboss.pressgang.ccms.docbook.processing.DocbookXMLPreProcessor;
 import org.jboss.pressgang.ccms.docbook.structures.TocTopicDatabase;
 import org.jboss.pressgang.ccms.docbook.structures.TopicErrorData;
@@ -70,6 +70,7 @@ import org.jboss.pressgang.ccms.provider.DataProviderFactory;
 import org.jboss.pressgang.ccms.provider.FileProvider;
 import org.jboss.pressgang.ccms.provider.ImageProvider;
 import org.jboss.pressgang.ccms.provider.PropertyTagProvider;
+import org.jboss.pressgang.ccms.provider.ServerSettingsProvider;
 import org.jboss.pressgang.ccms.provider.StringConstantProvider;
 import org.jboss.pressgang.ccms.provider.TagProvider;
 import org.jboss.pressgang.ccms.provider.TopicProvider;
@@ -92,6 +93,7 @@ import org.jboss.pressgang.ccms.wrapper.ImageWrapper;
 import org.jboss.pressgang.ccms.wrapper.LanguageFileWrapper;
 import org.jboss.pressgang.ccms.wrapper.LanguageImageWrapper;
 import org.jboss.pressgang.ccms.wrapper.PropertyTagInTopicWrapper;
+import org.jboss.pressgang.ccms.wrapper.ServerEntitiesWrapper;
 import org.jboss.pressgang.ccms.wrapper.StringConstantWrapper;
 import org.jboss.pressgang.ccms.wrapper.TagWrapper;
 import org.jboss.pressgang.ccms.wrapper.TopicWrapper;
@@ -170,12 +172,9 @@ import org.w3c.dom.NodeList;
  * </li>
  * </ol>
  */
-public class DocbookBuilder implements ShutdownAbleApp {
-    protected static final Logger log = Logger.getLogger(DocbookBuilder.class);
+public class DocBookBuilder implements ShutdownAbleApp {
+    protected static final Logger log = Logger.getLogger(DocBookBuilder.class);
     protected static final boolean INCLUDE_CHECKSUMS = false;
-    protected static final List<Integer> validKeywordCategoryIds = CollectionUtilities.toArrayList(CSConstants.TECHNOLOGY_CATEGORY_ID,
-            CSConstants.RELEASE_CATEGORY_ID, CSConstants.SEO_METADATA_CATEGORY_ID, CSConstants.COMMON_NAME_CATEGORY_ID,
-            CSConstants.CONCERN_CATEGORY_ID, CSConstants.CONTENT_TYPE_CATEGORY_ID, CSConstants.PROGRAMMING_LANGUAGE_CATEGORY_ID);
     protected static final Integer MAX_URL_LENGTH = 4000;
     protected static final String ENCODING = "UTF-8";
     protected static final String REVISION_HISTORY_FILE_NAME = "Revision_History.xml";
@@ -230,18 +229,13 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * The StringConstant that holds the error template for a topic that failed validation.
      */
     private final StringConstantWrapper errorInvalidValidationTopicTemplate;
-    /**
-     * The default locale to build a book as if it isn't specified.
-     */
-    private final String defaultLocale;
 
     /**
      * All data associated with the build.
      */
     private BuildData buildData;
 
-    public DocbookBuilder(final DataProviderFactory providerFactory, final BlobConstantWrapper rocbookDtd,
-            final String defaultLocale) throws BuilderCreationException {
+    public DocBookBuilder(final DataProviderFactory providerFactory) throws BuilderCreationException {
         this.providerFactory = providerFactory;
 
         contentSpecProvider = providerFactory.getProvider(ContentSpecProvider.class);
@@ -254,16 +248,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
         tagProvider = providerFactory.getProvider(TagProvider.class);
         imageProvider = providerFactory.getProvider(ImageProvider.class);
 
-        rocbookdtd = rocbookDtd;
-        errorEmptyTopicTemplate = stringConstantProvider.getStringConstant(BuilderConstants.CSP_EMPTY_TOPIC_ERROR_XML_ID);
-        errorInvalidInjectionTopicTemplate = stringConstantProvider.getStringConstant(
-                BuilderConstants.CSP_INVALID_INJECTION_TOPIC_ERROR_XML_ID);
-        errorInvalidValidationTopicTemplate = stringConstantProvider.getStringConstant(
-                BuilderConstants.CSP_INVALID_VALIDATION_TOPIC_ERROR_XML_ID);
+        final ServerEntitiesWrapper serverEntities = providerFactory.getProvider(
+                ServerSettingsProvider.class).getServerSettings().getEntities();
+        rocbookdtd = blobConstantProvider.getBlobConstant(serverEntities.getRocBookDTDBlobConstantId());
+        errorEmptyTopicTemplate = stringConstantProvider.getStringConstant(serverEntities.getEmptyTopicStringConstantId());
+        errorInvalidInjectionTopicTemplate = stringConstantProvider.getStringConstant(serverEntities.getInvalidInjectionStringConstantId());
+        errorInvalidValidationTopicTemplate = stringConstantProvider.getStringConstant(serverEntities.getInvalidTopicStringConstantId());
         final StringConstantWrapper xmlElementsProperties = stringConstantProvider.getStringConstant(
-                CommonConstants.XML_ELEMENTS_STRING_CONSTANT_ID);
-
-        this.defaultLocale = defaultLocale;
+                serverEntities.getXmlFormattingStringConstantId());
 
         /*
          * Get the XML formatting details. These are used to pretty-print the XML when it is converted into a String.
@@ -295,10 +287,6 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
     protected StringConstantWrapper getErrorInvalidValidationTopicTemplate() {
         return errorInvalidValidationTopicTemplate;
-    }
-
-    protected String getDefaultBuildLocale() {
-        return defaultLocale;
     }
 
     protected ResourceBundle getConstants() {
@@ -382,7 +370,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      *                                  converted to a DOM Document.
      */
     public Map<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
-            final DocbookBuildingOptions buildingOptions) throws BuilderCreationException, BuildProcessingException {
+            final DocBookBuildingOptions buildingOptions) throws BuilderCreationException, BuildProcessingException {
         return buildBook(contentSpec, requester, buildingOptions, new ZanataDetails());
     }
 
@@ -399,7 +387,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      *                                  converted to a DOM Document.
      */
     public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
-            final DocbookBuildingOptions buildingOptions,
+            final DocBookBuildingOptions buildingOptions,
             final Map<String, byte[]> overrideFiles) throws BuilderCreationException, BuildProcessingException {
         return buildBook(contentSpec, requester, buildingOptions, overrideFiles, new ZanataDetails());
     }
@@ -418,7 +406,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      */
     @SuppressWarnings("unchecked")
     public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
-            final DocbookBuildingOptions buildingOptions,
+            final DocBookBuildingOptions buildingOptions,
             final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
         return buildBook(contentSpec, requester, buildingOptions, new HashMap<String, byte[]>(), zanataDetails);
     }
@@ -438,7 +426,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
      */
     @SuppressWarnings("unchecked")
     public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
-            final DocbookBuildingOptions buildingOptions, final Map<String, byte[]> overrideFiles,
+            final DocBookBuildingOptions buildingOptions, final Map<String, byte[]> overrideFiles,
             final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
@@ -447,21 +435,21 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Reset the builder
         resetBuilder();
 
-        // Get the Build Locale
-        final String buildLocale = buildingOptions.getLocale() == null ? getDefaultBuildLocale() : buildingOptions.getLocale();
-        if (buildLocale.equals(getDefaultBuildLocale()) || !LOCALE_MAP.containsKey(buildLocale)) {
-            constantsResourceBundle = ResourceBundle.getBundle("Constants", new UTF8ResourceBundleControl());
-        } else {
-            constantsResourceBundle = ResourceBundle.getBundle("Constants", LOCALE_MAP.get(buildLocale), new UTF8ResourceBundleControl());
-        }
-
         // If there is no requester specified than set it as unknown
         final String fixedRequester = requester == null ? "Unknown" : requester;
 
         // Create the build data
-        final BuildData buildData = new BuildData(fixedRequester, BuilderConstants.BUILD_NAME, contentSpec, buildLocale, buildingOptions,
-                zanataDetails);
+        final BuildData buildData = new BuildData(fixedRequester, BuilderConstants.BUILD_NAME, contentSpec, buildingOptions,
+                zanataDetails, providerFactory);
         setBuildData(buildData);
+
+        // Get the Build Locale
+        final String defaultBuildLocale = buildData.getServerSettings().getDefaultLocale();
+        if (buildData.getBuildLocale().equals(defaultBuildLocale) || !LOCALE_MAP.containsKey(buildData.getBuildLocale())) {
+            constantsResourceBundle = ResourceBundle.getBundle("Constants", new UTF8ResourceBundleControl());
+        } else {
+            constantsResourceBundle = ResourceBundle.getBundle("Constants", LOCALE_MAP.get(buildData.getBuildLocale()), new UTF8ResourceBundleControl());
+        }
 
         // Set the override files if any were passed
         if (overrideFiles != null) {
@@ -469,7 +457,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         // Determine if this is a translation build
-        if (contentSpec.getLocale() == null || contentSpec.getLocale().equals(getDefaultBuildLocale())) {
+        if (contentSpec.getLocale() == null || contentSpec.getLocale().equals(defaultBuildLocale)) {
             buildData.setTranslationBuild(false);
         } else {
             buildData.setTranslationBuild(true);
@@ -492,7 +480,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             return null;
         }
 
-        final boolean useFixedUrls = doPopulateDatabasePass(buildData);
+        doPopulateDatabasePass(buildData);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -513,12 +501,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
          * We need to create a list of all id's in the book to check if links are valid. So generate the id attribute that are
          * used by topics, section and chapters. Then add any id's that were found in the topics.
          */
-        final Set<String> bookIdAttributes = buildData.getBuildDatabase().getIdAttributes(useFixedUrls);
+        final Set<String> bookIdAttributes = buildData.getBuildDatabase().getIdAttributes(buildData);
         for (final Entry<SpecTopic, Set<String>> entry : usedIdAttributes.entrySet()) {
             bookIdAttributes.addAll(entry.getValue());
         }
 
-        doLinkPass(buildData, useFixedUrls, bookIdAttributes);
+        doLinkPass(buildData, bookIdAttributes);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -527,7 +515,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         // second topic pass to set the ids and process injections
-        doSpecTopicSecondPass(buildData, usedIdAttributes, useFixedUrls);
+        doSpecTopicSecondPass(buildData, usedIdAttributes);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -535,7 +523,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             return null;
         }
 
-        doLinkSecondPass(buildData, useFixedUrls, usedIdAttributes);
+        doLinkSecondPass(buildData, usedIdAttributes);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -552,7 +540,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             return null;
         }
 
-        return doBuildZipPass(buildData, useFixedUrls);
+        return doBuildZipPass(buildData);
     }
 
     /**
@@ -623,12 +611,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
      *
      * @param buildData        Information and data structures for the build.
      * @param bookIdAttributes A set of all the id's that exist in the book.
-     * @param useFixedUrls     Whether or not the fixed urls should be used for topic ID's.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
     @SuppressWarnings("unchecked")
-    protected void validateTopicLinks(final BuildData buildData, final Set<String> bookIdAttributes,
-            final boolean useFixedUrls) throws BuildProcessingException {
+    protected void validateTopicLinks(final BuildData buildData, final Set<String> bookIdAttributes) throws BuildProcessingException {
         final List<SpecTopic> topics = buildData.getBuildDatabase().getAllSpecTopics();
         final Set<Integer> processedTopics = new HashSet<Integer>();
         for (final SpecTopic specTopic : topics) {
@@ -644,7 +630,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                 // Get the XRef links in the topic document
                 final Set<String> linkIds = new HashSet<String>();
-                DocbookBuildUtilities.getTopicLinkIds(doc, linkIds);
+                DocBookBuildUtilities.getTopicLinkIds(doc, linkIds);
 
                 final List<String> invalidLinks = new ArrayList<String>();
 
@@ -660,7 +646,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                 // If there were any invalid links then replace the XML with an error template and add an error message.
                 if (!invalidLinks.isEmpty()) {
-                    final String xmlStringInCDATA = DocbookBuildUtilities.convertDocumentToCDATAFormattedString(doc,
+                    final String xmlStringInCDATA = DocBookBuildUtilities.convertDocumentToCDATAFormattedString(doc,
                             getXMLFormatProperties());
                     buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
                             "The following link(s) " + CollectionUtilities.toSeperatedString(invalidLinks,
@@ -671,8 +657,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                     final List<SpecTopic> buildTopics = buildData.getBuildDatabase().getSpecTopicsForTopicID(topicId);
                     for (final SpecTopic spec : buildTopics) {
-                        DocbookBuildUtilities.setSpecTopicXMLForError(buildData, spec, getErrorInvalidValidationTopicTemplate().getValue(),
-                                useFixedUrls);
+                        DocBookBuildUtilities.setSpecTopicXMLForError(buildData, spec, getErrorInvalidValidationTopicTemplate().getValue());
                     }
                 }
             }
@@ -688,42 +673,36 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
     @SuppressWarnings("unchecked")
-    private boolean doPopulateDatabasePass(final BuildData buildData) throws BuildProcessingException {
+    private void doPopulateDatabasePass(final BuildData buildData) throws BuildProcessingException {
         log.info("Doing " + buildData.getBuildLocale() + " Populate Database Pass");
 
         final ContentSpec contentSpec = buildData.getContentSpec();
         final Map<String, BaseTopicWrapper<?>> topics = new HashMap<String, BaseTopicWrapper<?>>();
         final boolean fixedUrlsSuccess;
-        if (buildData.getBuildLocale() == null || buildData.getBuildLocale().equals(getDefaultBuildLocale())) {
+        if (buildData.getBuildLocale() == null || buildData.getBuildLocale().equals(buildData.getServerSettings().getDefaultLocale())) {
             fixedUrlsSuccess = populateDatabaseTopics(buildData, topics);
         } else {
             //Translations should reference an existing historical topic with the fixed urls set, so we assume this to be the case
             fixedUrlsSuccess = true;
             populateTranslatedTopicDatabase(buildData, topics);
         }
+        buildData.setUseFixedUrls(fixedUrlsSuccess);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
-            return false;
+            return;
         }
 
         // Add all the levels to the database
-        DocbookBuildUtilities.addLevelsToDatabase(buildData.getBuildDatabase(), contentSpec.getBaseLevel());
+        DocBookBuildUtilities.addLevelsToDatabase(buildData.getBuildDatabase(), contentSpec.getBaseLevel());
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
-            return false;
+            return;
         }
 
         // Process the topics to make sure they are valid
-        doTopicPass(buildData, topics, fixedUrlsSuccess);
-
-        // Check if the app should be shutdown
-        if (isShuttingDown.get()) {
-            return false;
-        }
-
-        return fixedUrlsSuccess;
+        doTopicPass(buildData, topics);
     }
 
     /**
@@ -759,7 +738,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             }
 
             // Add the topic to the topics collection
-            final String key = DocbookBuildUtilities.getTopicBuildKey(topic);
+            final String key = DocBookBuildUtilities.getTopicBuildKey(topic);
             topics.put(key, topic);
             buildData.getBuildDatabase().add(specTopic, key);
         }
@@ -768,7 +747,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // If we are doing a build on a server then we shouldn't set the fixed urls
         if (buildData.getBuildOptions().isServerBuild()) {
             // Ensure that our revision topics FixedURLs are still valid
-            setFixedURLsForRevisionsPass(allTopics, processedFileNames);
+            setFixedURLsForRevisionsPass(buildData, allTopics, processedFileNames);
             fixedUrlsSuccess = true;
         } else {
             if (latestTopics != null) {
@@ -777,13 +756,13 @@ public class DocbookBuilder implements ShutdownAbleApp {
                  * xref injection points and file names in the zip file will be taken from the fixed url property tag,
                  * defaulting back to the TopicID## format if for some reason that property tag does not exist.
                  */
-                fixedUrlsSuccess = setFixedURLsPass(latestTopics, processedFileNames);
+                fixedUrlsSuccess = setFixedURLsPass(buildData, latestTopics, processedFileNames);
             } else {
                 fixedUrlsSuccess = true;
             }
 
             // Ensure that our revision topics FixedURLs are still valid
-            setFixedURLsForRevisionsPass(revisionTopics, processedFileNames);
+            setFixedURLsForRevisionsPass(buildData, revisionTopics, processedFileNames);
         }
 
         return fixedUrlsSuccess;
@@ -825,7 +804,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         for (final Entry<String, BaseTopicWrapper<?>> topicEntry : translatedTopics.entrySet()) {
             translatedTopicList.add((TranslatedTopicWrapper) topicEntry.getValue());
         }
-        setFixedURLsForRevisionsPass(translatedTopicList, processedFileNames);
+        setFixedURLsForRevisionsPass(buildData, translatedTopicList, processedFileNames);
     }
 
     /**
@@ -874,7 +853,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 translatedTopic.setTranslatedCSNode(translatedCSNode);
 
                 // Create the key and add the topic to the build database
-                String key = DocbookBuildUtilities.getTranslatedTopicBuildKey(translatedTopic, translatedCSNode);
+                String key = DocBookBuildUtilities.getTranslatedTopicBuildKey(translatedTopic, translatedCSNode);
                 translatedTopics.put(key, translatedTopic);
                 buildData.getBuildDatabase().add(specTopic, key);
             } else {
@@ -887,7 +866,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
     protected void getLatestTranslatedTopicForSpecTopic(final BuildData buildData, final SpecTopic specTopic, final TopicWrapper topic,
             final Map<String, BaseTopicWrapper<?>> translatedTopics) {
-        String key = DocbookBuildUtilities.getTopicBuildKey(topic);
+        String key = DocBookBuildUtilities.getTopicBuildKey(topic);
 
         // If the topic has already been processed then add the spec topic and return
         if (translatedTopics.containsKey(key)) {
@@ -1045,13 +1024,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * Do the first topic pass on the database and check if the base XML is valid and set the Document Object's for each spec
      * topic. Also collect the ID Attributes that are used within the topics.
      *
-     * @param buildData    Information and data structures for the build.
-     * @param topics       The list of topics to be checked and added to the database.
-     * @param useFixedUrls Whether the Fixed URL Properties should be used for the topic ID attributes.
+     * @param buildData Information and data structures for the build.
+     * @param topics    The list of topics to be checked and added to the database.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
-    private void doTopicPass(final BuildData buildData, final Map<String, BaseTopicWrapper<?>> topics,
-            final boolean useFixedUrls) throws BuildProcessingException {
+    private void doTopicPass(final BuildData buildData, final Map<String, BaseTopicWrapper<?>> topics) throws BuildProcessingException {
         log.info("Doing " + buildData.getBuildLocale() + " First topic pass");
 
         // Check that we have some topics to process
@@ -1078,10 +1055,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 // Get the Topic ID
                 final Integer topicRevision = topic.getTopicRevision();
 
-                boolean revHistoryTopic = topic.hasTag(CSConstants.REVISION_HISTORY_TAG_ID);
-                boolean legalNoticeTopic = topic.hasTag(CSConstants.LEGAL_NOTICE_TAG_ID);
-                boolean authorGroupTopic = topic.hasTag(CSConstants.AUTHOR_GROUP_TAG_ID);
-                boolean abstractTopic = topic.hasTag(CSConstants.ABSTRACT_TAG_ID);
+                boolean revHistoryTopic = topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId());
+                boolean legalNoticeTopic = topic.hasTag(buildData.getServerEntities().getLegalNoticeTagId());
+                boolean authorGroupTopic = topic.hasTag(buildData.getServerEntities().getAuthorGroupTagId());
+                boolean abstractTopic = topic.hasTag(buildData.getServerEntities().getAbstractTagId());
 
                 Document topicDoc = null;
                 final String topicXML = topic.getXml();
@@ -1096,8 +1073,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 // Check that the Topic XML exists and isn't empty
                 if (topicXML == null || topicXML.trim().isEmpty()) {
                     buildData.getErrorDatabase().addWarning(topic, ErrorType.NO_CONTENT, BuilderConstants.WARNING_EMPTY_TOPIC_XML);
-                    topicDoc = DocbookBuildUtilities.setTopicXMLForError(buildData, topic, getErrorEmptyTopicTemplate().getValue(),
-                            useFixedUrls);
+                    topicDoc = DocBookBuildUtilities.setTopicXMLForError(buildData, topic, getErrorEmptyTopicTemplate().getValue());
                     xmlValid = false;
                 }
 
@@ -1120,8 +1096,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
                                     BuilderConstants.ERROR_INVALID_XML_CONTENT + " The processed XML is <programlisting>" +
                                             xmlStringInCDATA + "</programlisting>");
-                            topicDoc = DocbookBuildUtilities.setTopicXMLForError(buildData, topic,
-                                    getErrorInvalidValidationTopicTemplate().getValue(), useFixedUrls);
+                            topicDoc = DocBookBuildUtilities.setTopicXMLForError(buildData, topic,
+                                    getErrorInvalidValidationTopicTemplate().getValue());
                         }
                     } catch (Exception ex) {
                         final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(topic.getXml());
@@ -1129,8 +1105,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                                 BuilderConstants.ERROR_BAD_XML_STRUCTURE + " " + StringUtilities.escapeForXML(
                                         ex.getMessage()) + " The processed XML is <programlisting>" + xmlStringInCDATA +
                                         "</programlisting>");
-                        topicDoc = DocbookBuildUtilities.setTopicXMLForError(buildData, topic,
-                                getErrorInvalidValidationTopicTemplate().getValue(), useFixedUrls);
+                        topicDoc = DocBookBuildUtilities.setTopicXMLForError(buildData, topic,
+                                getErrorInvalidValidationTopicTemplate().getValue());
                     }
                 }
 
@@ -1139,7 +1115,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     // If it is a translated build then check if we have anything more to merge together
                     if (buildData.isTranslationBuild()) {
                         topicDoc = mergeAdditionalTranslatedXML(buildData, topicDoc, (TranslatedTopicWrapper) topic,
-                                TopicType.REVISION_HISTORY, useFixedUrls);
+                                TopicType.REVISION_HISTORY);
                     }
 
                     DocBookUtilities.wrapDocumentInAppendix(topicDoc);
@@ -1147,8 +1123,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 } else if (authorGroupTopic) {
                     // If it is a translated build then check if we have anything more to merge together
                     if (buildData.isTranslationBuild()) {
-                        topicDoc = mergeAdditionalTranslatedXML(buildData, topicDoc, (TranslatedTopicWrapper) topic, TopicType.AUTHOR_GROUP,
-                                useFixedUrls);
+                        topicDoc = mergeAdditionalTranslatedXML(buildData, topicDoc, (TranslatedTopicWrapper) topic,
+                                TopicType.AUTHOR_GROUP);
                     }
 
                     DocBookUtilities.wrapDocumentInAuthorGroup(topicDoc);
@@ -1162,7 +1138,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     DocBookUtilities.setSectionTitle(topic.getTitle(), topicDoc);
 
                     processTopicSectionInfo(topic, topicDoc);
-                    DocbookBuildUtilities.processTopicID(topic, topicDoc, useFixedUrls);
+                    DocBookBuildUtilities.processTopicID(buildData, topic, topicDoc);
                 }
 
                 // Add the document & topic to the database spec topics
@@ -1203,13 +1179,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param topicDoc        The transformed original XML content.
      * @param translatedTopic The Translated Topic that is being merged.
      * @param topicType       The type of topic being merged.
-     * @param useFixedUrls    If fixed urls should be used.
      * @return The merged DOM document.
      * @throws BuildProcessingException
      */
     private Document mergeAdditionalTranslatedXML(BuildData buildData, final Document topicDoc,
-            final TranslatedTopicWrapper translatedTopic, final TopicType topicType,
-            final boolean useFixedUrls) throws BuildProcessingException {
+            final TranslatedTopicWrapper translatedTopic, final TopicType topicType) throws BuildProcessingException {
         Document retValue = topicDoc;
         if (!isNullOrEmpty(translatedTopic.getTranslatedAdditionalXML())) {
             Document additionalXMLDoc = null;
@@ -1218,17 +1192,17 @@ public class DocbookBuilder implements ShutdownAbleApp {
             } catch (Exception ex) {
                 buildData.getErrorDatabase().addError(translatedTopic, ErrorType.INVALID_CONTENT,
                         BuilderConstants.ERROR_INVALID_TOPIC_XML + " " + StringUtilities.escapeForXML(ex.getMessage()));
-                retValue = DocbookBuildUtilities.setTopicXMLForError(buildData, translatedTopic,
-                        getErrorInvalidValidationTopicTemplate().getValue(), useFixedUrls);
+                retValue = DocBookBuildUtilities.setTopicXMLForError(buildData, translatedTopic,
+                        getErrorInvalidValidationTopicTemplate().getValue());
             }
 
             if (additionalXMLDoc != null) {
                 // Merge the two together
                 try {
                     if (TopicType.AUTHOR_GROUP.equals(topicType)) {
-                        DocbookBuildUtilities.mergeAuthorGroups(topicDoc, additionalXMLDoc);
+                        DocBookBuildUtilities.mergeAuthorGroups(topicDoc, additionalXMLDoc);
                     } else if (TopicType.REVISION_HISTORY.equals(topicType)) {
-                        DocbookBuildUtilities.mergeRevisionHistories(topicDoc, additionalXMLDoc);
+                        DocBookBuildUtilities.mergeRevisionHistories(topicDoc, additionalXMLDoc);
                     }
                 } catch (BuildProcessingException ex) {
                     final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(translatedTopic.getTranslatedAdditionalXML());
@@ -1236,16 +1210,16 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             BuilderConstants.ERROR_BAD_XML_STRUCTURE + " " + StringUtilities.escapeForXML(
                                     ex.getMessage()) + " The processed XML is <programlisting>" + xmlStringInCDATA +
                                     "</programlisting>");
-                    retValue = DocbookBuildUtilities.setTopicXMLForError(buildData, translatedTopic,
-                            getErrorInvalidValidationTopicTemplate().getValue(), useFixedUrls);
+                    retValue = DocBookBuildUtilities.setTopicXMLForError(buildData, translatedTopic,
+                            getErrorInvalidValidationTopicTemplate().getValue());
                 }
             } else {
                 final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(translatedTopic.getTranslatedAdditionalXML());
                 buildData.getErrorDatabase().addError(translatedTopic, ErrorType.INVALID_CONTENT,
                         BuilderConstants.ERROR_INVALID_XML_CONTENT + " The processed XML is <programlisting>" +
                                 xmlStringInCDATA + "</programlisting>");
-                retValue = DocbookBuildUtilities.setTopicXMLForError(buildData, translatedTopic,
-                        getErrorInvalidValidationTopicTemplate().getValue(), useFixedUrls);
+                retValue = DocBookBuildUtilities.setTopicXMLForError(buildData, translatedTopic,
+                        getErrorInvalidValidationTopicTemplate().getValue());
             }
         }
 
@@ -1320,8 +1294,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(
-                            specTopic.getRevision())) {
+                            .equals(specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             buildData.getErrorDatabase().addWarning(topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -1336,7 +1309,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                  * Extract the id attributes used in this topic. We'll use this data in the second pass to make sure that
                  * individual topics don't repeat id attributes.
                  */
-                DocbookBuildUtilities.collectIdAttributes(specTopic, doc, usedIdAttributes);
+                DocBookBuildUtilities.collectIdAttributes(specTopic, doc, usedIdAttributes);
             }
         }
     }
@@ -1357,18 +1330,16 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * Go through each topic and ensure that the links are valid, and then sets the duplicate ids for the SpecTopics/Levels
      *
      * @param buildData
-     * @param useFixedUrls     If during processing the fixed urls should be used.
      * @param bookIdAttributes The set of ids that have been used in the set of topics in the content spec.
      * @throws BuildProcessingException
      */
-    protected void doLinkPass(final BuildData buildData, final boolean useFixedUrls,
-            final Set<String> bookIdAttributes) throws BuildProcessingException {
+    protected void doLinkPass(final BuildData buildData, final Set<String> bookIdAttributes) throws BuildProcessingException {
         log.info("Doing " + buildData.getBuildLocale() + " Topic Link Pass");
 
-        validateTopicLinks(buildData, bookIdAttributes, useFixedUrls);
+        validateTopicLinks(buildData, bookIdAttributes);
 
         // Apply the duplicate ids for the spec topics
-        buildData.getBuildDatabase().setDatabaseDuplicateIds(useFixedUrls);
+        buildData.getBuildDatabase().setDatabaseDuplicateIds(buildData);
     }
 
     /**
@@ -1377,12 +1348,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
      *
      * @param buildData        Information and data structures for the build.
      * @param usedIdAttributes The set of ids that have been used in the set of topics in the content spec.
-     * @param useFixedUrls     If during processing the fixed urls should be used.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
     @SuppressWarnings("unchecked")
     private <T extends BaseTopicWrapper<T>> void doSpecTopicSecondPass(final BuildData buildData,
-            final Map<SpecTopic, Set<String>> usedIdAttributes, final boolean useFixedUrls) throws BuildProcessingException {
+            final Map<SpecTopic, Set<String>> usedIdAttributes) throws BuildProcessingException {
         log.info("Doing " + buildData.getBuildLocale() + " Spec Topic Pass");
         final List<SpecTopic> specTopics = buildData.getBuildDatabase().getAllSpecTopics();
 
@@ -1435,8 +1405,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             assert topic != null;
 
             if (doc != null) {
-                final boolean valid = processSpecTopicInjections(buildData, specTopic, xmlPreProcessor, relatedTopicsDatabase,
-                        useFixedUrls);
+                final boolean valid = processSpecTopicInjections(buildData, specTopic, xmlPreProcessor, relatedTopicsDatabase);
 
                 // Check if the app should be shutdown
                 if (isShuttingDown.get()) {
@@ -1444,17 +1413,16 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 }
 
                 if (!valid) {
-                    final String xmlStringInCDATA = DocbookBuildUtilities.convertDocumentToCDATAFormattedString(doc,
+                    final String xmlStringInCDATA = DocBookBuildUtilities.convertDocumentToCDATAFormattedString(doc,
                             getXMLFormatProperties());
                     buildData.getErrorDatabase().addError(topic,
                             BuilderConstants.ERROR_INVALID_INJECTIONS + " The processed XML is <programlisting>" + xmlStringInCDATA +
                                     "</programlisting>");
 
-                    DocbookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidInjectionTopicTemplate().getValue(),
-                            useFixedUrls);
+                    DocBookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidInjectionTopicTemplate().getValue());
                 } else {
                     // Check for any possible invalid injection references
-                    final List<InjectionError> injectionErrors = DocbookBuildUtilities.checkForInvalidInjections(doc);
+                    final List<InjectionError> injectionErrors = DocBookBuildUtilities.checkForInvalidInjections(doc);
                     if (!injectionErrors.isEmpty()) {
                         for (final InjectionError injectionError : injectionErrors) {
                             final List<String> injectionErrorMsgs = new ArrayList<String>();
@@ -1474,11 +1442,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             buildData.getBuildDate(), buildData.getZanataDetails());
 
                     // Make sure the XML is valid docbook after the standard processing has been done
-                    validateTopicXML(buildData, specTopic, doc, useFixedUrls);
+                    validateTopicXML(buildData, specTopic, doc);
                 }
 
                 // Ensure that all of the id attributes are valid by setting any duplicates with a post fixed number.
-                DocbookBuildUtilities.setUniqueIds(specTopic, specTopic.getXMLDocument(), specTopic.getXMLDocument(), usedIdAttributes);
+                DocBookBuildUtilities.setUniqueIds(specTopic, specTopic.getXMLDocument(), specTopic.getXMLDocument(), usedIdAttributes);
             }
         }
     }
@@ -1487,11 +1455,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * Fixes any topics links that have been broken due to the linked topics XML being invalid.
      *
      * @param buildData        Information and data structures for the build.
-     * @param useFixedUrls     If during processing the fixed urls should be used.
      * @param usedIdAttributes The set of ids that have been used in the set of topics in the content spec.
      * @throws BuildProcessingException
      */
-    protected void doLinkSecondPass(final BuildData buildData, final boolean useFixedUrls,
+    protected void doLinkSecondPass(final BuildData buildData,
             final Map<SpecTopic, Set<String>> usedIdAttributes) throws BuildProcessingException {
         final List<SpecTopic> topics = buildData.getBuildDatabase().getAllSpecTopics();
         for (final SpecTopic specTopic : topics) {
@@ -1499,7 +1466,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
             // Get the XRef links in the topic document
             final Set<String> linkIds = new HashSet<String>();
-            DocbookBuildUtilities.getTopicLinkIds(doc, linkIds);
+            DocBookBuildUtilities.getTopicLinkIds(doc, linkIds);
 
             final Map<String, SpecTopic> invalidLinks = new HashMap<String, SpecTopic>();
 
@@ -1533,7 +1500,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                     if (invalidLinks.containsKey(linkId)) {
                         final SpecTopic linkedTopic = invalidLinks.get(linkId);
-                        ((Element) linkNode).setAttribute("linkend", linkedTopic.getUniqueLinkId(useFixedUrls));
+                        ((Element) linkNode).setAttribute("linkend",
+                                linkedTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
+                                        buildData.isUseFixedUrls()));
                     }
                 }
             }
@@ -1547,15 +1516,16 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param specTopic             The Build Topic to do injection processing on.
      * @param xmlPreProcessor       The XML Processor to use for Injections.
      * @param relatedTopicsDatabase The Database of Related Topics.
-     * @param useFixedUrls          If during processing the fixed urls should be used.
      * @return True if no errors occurred or if the build is set to ignore missing injections, otherwise false.
      */
     @SuppressWarnings("unchecked")
     protected boolean processSpecTopicInjections(final BuildData buildData, final SpecTopic specTopic,
-            final DocbookXMLPreProcessor xmlPreProcessor, final TocTopicDatabase relatedTopicsDatabase, final boolean useFixedUrls) {
+            final DocbookXMLPreProcessor xmlPreProcessor, final TocTopicDatabase relatedTopicsDatabase) {
         final BaseTopicWrapper<?> topic = specTopic.getTopic();
         final Document doc = specTopic.getXMLDocument();
         final Level baseLevel = buildData.getContentSpec().getBaseLevel();
+        final boolean useFixedUrls = buildData.isUseFixedUrls();
+        final Integer fixedUrlPropertyTagId = buildData.getServerEntities().getFixedUrlPropertyTagId();
         boolean valid = true;
 
         // Process the injection points
@@ -1563,15 +1533,15 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
             final ArrayList<Integer> customInjectionIds = new ArrayList<Integer>();
 
-            xmlPreProcessor.processPrerequisiteInjections(specTopic, doc, useFixedUrls);
-            xmlPreProcessor.processPrevRelationshipInjections(specTopic, doc, useFixedUrls);
-            xmlPreProcessor.processLinkListRelationshipInjections(specTopic, doc, useFixedUrls);
-            xmlPreProcessor.processNextRelationshipInjections(specTopic, doc, useFixedUrls);
-            xmlPreProcessor.processSeeAlsoInjections(specTopic, doc, useFixedUrls);
+            xmlPreProcessor.processPrerequisiteInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
+            xmlPreProcessor.processPrevRelationshipInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
+            xmlPreProcessor.processLinkListRelationshipInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
+            xmlPreProcessor.processNextRelationshipInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
+            xmlPreProcessor.processSeeAlsoInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
 
             // Process the topics XML and insert the injection links
             final List<Integer> customInjectionErrors = xmlPreProcessor.processInjections(baseLevel, specTopic, customInjectionIds, doc,
-                    buildData.getBuildOptions(), relatedTopicsDatabase, useFixedUrls);
+                    buildData.getBuildOptions(), relatedTopicsDatabase, useFixedUrls, fixedUrlPropertyTagId);
 
             // Check if the app should be shutdown
             if (isShuttingDown.get()) {
@@ -1656,23 +1626,22 @@ public class DocbookBuilder implements ShutdownAbleApp {
     /**
      * Wrap all of the topics, images, common content, etc... files into a ZIP Archive.
      *
-     * @param buildData    Information and data structures for the build.
-     * @param useFixedUrls If during processing the fixed urls should be used.
+     * @param buildData Information and data structures for the build.
      * @return A ZIP Archive containing all the information to build the book.
      * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
      *                                  converted to a DOM Document.
      */
-    private HashMap<String, byte[]> doBuildZipPass(final BuildData buildData, final boolean useFixedUrls) throws BuildProcessingException {
+    private HashMap<String, byte[]> doBuildZipPass(final BuildData buildData) throws BuildProcessingException {
         log.info("Building the ZIP file");
 
         // Add the base book information
         final HashMap<String, byte[]> files = buildData.getOutputFiles();
 
         // Build the book base
-        buildBookBase(buildData, useFixedUrls);
+        buildBookBase(buildData);
 
         // Add the additional files
-        buildBookAdditions(buildData, useFixedUrls);
+        buildBookAdditions(buildData);
 
         // add the images to the book
         addImagesToBook(buildData);
@@ -1687,19 +1656,19 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * Builds the Book.xml file of a Docbook from the resource files for a specific content specification.
      *
      * @param buildData
-     * @param useFixedUrls If during processing the fixed urls should be used.
      * @throws BuildProcessingException
      */
-    protected void buildBookBase(final BuildData buildData, final boolean useFixedUrls) throws BuildProcessingException {
+    protected void buildBookBase(final BuildData buildData) throws BuildProcessingException {
         final ContentSpec contentSpec = buildData.getContentSpec();
         final String escapedTitle = buildData.getEscapedBookTitle();
 
         // Get the template from the server
         final String bookXmlTemplate;
         if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            bookXmlTemplate = stringConstantProvider.getStringConstant(BuilderConstants.ARTICLE_XML_ID).getValue();
+            bookXmlTemplate = stringConstantProvider.getStringConstant(
+                    buildData.getServerEntities().getArticleStringConstantId()).getValue();
         } else {
-            bookXmlTemplate = stringConstantProvider.getStringConstant(BuilderConstants.BOOK_XML_ID).getValue();
+            bookXmlTemplate = stringConstantProvider.getStringConstant(buildData.getServerEntities().getBookStringConstantId()).getValue();
         }
 
         // Setup the basic book.xml
@@ -1746,14 +1715,13 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
                         // Create the section and its title
                         final Element sectionNode = bookBase.createElement("section");
-                        setUpRootElement(buildData, level, bookBase, sectionNode, useFixedUrls);
+                        setUpRootElement(buildData, level, bookBase, sectionNode);
 
-                        createSectionXML(buildData, level, bookBase, sectionNode, buildData.getBookTopicsFolder(), useFixedUrls,
-                                flattenStructure);
+                        createSectionXML(buildData, level, bookBase, sectionNode, buildData.getBookTopicsFolder(), flattenStructure);
 
                         bookBase.getDocumentElement().appendChild(sectionNode);
                     } else {
-                        final Element xiInclude = createRootElementXML(buildData, bookBase, level, useFixedUrls, flattenStructure);
+                        final Element xiInclude = createRootElementXML(buildData, bookBase, level, flattenStructure);
                         if (xiInclude != null) {
                             bookBase.getDocumentElement().appendChild(xiInclude);
                         }
@@ -1771,7 +1739,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     // Include the topic as is, into the chapter
                     topicNode = bookBase.importNode(specTopic.getXMLDocument().getDocumentElement(), true);
                 } else {
-                    final String topicFileName = createTopicXMLFile(buildData, specTopic, buildData.getBookTopicsFolder(), useFixedUrls);
+                    final String topicFileName = createTopicXMLFile(buildData, specTopic, buildData.getBookTopicsFolder());
                     if (topicFileName != null) {
                         topicNode = XMLUtilities.createXIInclude(bookBase, "topics/" + topicFileName);
                     }
@@ -1842,7 +1810,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // Change the DOM Document into a string so it can be added to the ZIP
         final String rootElementName = contentSpec.getBookType().toString().toLowerCase().replace("-draft", "");
-        final String book = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(bookBase, rootElementName,
+        final String book = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(bookBase, rootElementName,
                 escapedTitle + ".ent", getXMLFormatProperties());
         addToZip(buildData.getBookLocaleFolder() + escapedTitle + ".xml", book, buildData);
     }
@@ -1850,12 +1818,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
     /**
      * Builds the basics of a Docbook from the resource files for a specific content specification.
      *
-     * @param buildData    Information and data structures for the build.
-     * @param useFixedUrls If during processing the fixed urls should be used.
+     * @param buildData Information and data structures for the build.
      * @return A Document object to be used in generating the book.xml
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
-    protected void buildBookAdditions(final BuildData buildData, final boolean useFixedUrls) throws BuildProcessingException {
+    protected void buildBookAdditions(final BuildData buildData) throws BuildProcessingException {
         log.info("\tAdding standard files to Publican ZIP file");
 
         final ContentSpec contentSpec = buildData.getContentSpec();
@@ -1863,13 +1830,16 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final Map<String, byte[]> overrideFiles = buildData.getOverrideFiles();
 
         // Load the templates from the server
-        final String prefaceXmlTemplate = stringConstantProvider.getStringConstant(BuilderConstants.CSP_PREFACE_XML_ID).getValue();
+        final String prefaceXmlTemplate = stringConstantProvider.getStringConstant(
+                buildData.getServerEntities().getPrefaceStringConstantId()).getValue();
 
         final String bookInfoTemplate;
         if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            bookInfoTemplate = stringConstantProvider.getStringConstant(BuilderConstants.ARTICLE_INFO_XML_ID).getValue();
+            bookInfoTemplate = stringConstantProvider.getStringConstant(
+                    buildData.getServerEntities().getArticleInfoStringConstantId()).getValue();
         } else {
-            bookInfoTemplate = stringConstantProvider.getStringConstant(BuilderConstants.BOOK_INFO_XML_ID).getValue();
+            bookInfoTemplate = stringConstantProvider.getStringConstant(
+                    buildData.getServerEntities().getBookInfoStringConstantId()).getValue();
         }
 
         // Setup Book_Info.xml
@@ -1887,7 +1857,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     buildData);
         } else if (contentSpec.getAuthorGroup() != null) {
             final TopicErrorData errorData = buildData.getErrorDatabase().getErrorData(contentSpec.getAuthorGroup().getTopic());
-            final String authorGroupXML = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
+            final String authorGroupXML = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(
                     contentSpec.getAuthorGroup().getXMLDocument(), "authorgroup", buildData.getEntityFileName(), getXMLFormatProperties());
             if (errorData != null && errorData.hasFatalErrors()) {
                 buildAuthorGroup(buildData);
@@ -1904,7 +1874,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             // Add the override Feedback.xml file to the book
             addToZip(buildData.getBookLocaleFolder() + FEEDBACK_FILE_NAME, overrideFiles.get(CSConstants.FEEDBACK_OVERRIDE), buildData);
         } else if (contentSpec.getFeedback() != null) {
-            final String feedbackXml = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
+            final String feedbackXml = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(
                     contentSpec.getFeedback().getXMLDocument(), DocBookUtilities.TOPIC_ROOT_NODE_NAME, buildData.getEntityFileName(),
                     getXMLFormatProperties());
             // Add the feedback directly to the book
@@ -1913,7 +1883,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // Setup Legal_Notice.xml
         if (contentSpec.getLegalNotice() != null) {
-            final String legalNoticeXML = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
+            final String legalNoticeXML = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(
                     contentSpec.getLegalNotice().getXMLDocument(), "legalnotice", buildData.getEntityFileName(), getXMLFormatProperties());
             addToZip(buildData.getBookLocaleFolder() + LEGAL_NOTICE_FILE_NAME, legalNoticeXML, buildData);
         }
@@ -1935,29 +1905,24 @@ public class DocbookBuilder implements ShutdownAbleApp {
         addToZip(buildData.getBookLocaleFolder() + buildData.getEntityFileName(), entFile, buildData);
 
         // Setup the images and files folders
-        addBookBaseFilesAndImages(buildData, useFixedUrls);
+        addBookBaseFilesAndImages(buildData);
     }
 
     /**
      * Adds the basic Images and Files to the book that are the minimum requirements to build it.
      *
-     * @param buildData    Information and data structures for the build.
-     * @param useFixedUrls If during processing the fixed urls should be used.
+     * @param buildData Information and data structures for the build.
      */
-    protected void addBookBaseFilesAndImages(final BuildData buildData, final boolean useFixedUrls) throws BuildProcessingException {
-        final String iconSvg = stringConstantProvider.getStringConstant(BuilderConstants.ICON_SVG_ID).getValue();
-        final String pressgangWebsiteJS = buildPressGangWebsiteJS(buildData, useFixedUrls);
+    protected void addBookBaseFilesAndImages(final BuildData buildData) throws BuildProcessingException {
+        final String pressgangWebsiteJS = buildPressGangWebsiteJS(buildData);
 
-        addToZip(buildData.getBookImagesFolder() + "icon.svg", iconSvg, buildData);
         addToZip(buildData.getBookFilesFolder() + "pressgang_website.js", pressgangWebsiteJS, buildData);
     }
 
     /**
      * Build up the pressgang_website.js file to be used in help overlays from the topics used in the build.
-     *
-     * @param useFixedUrls If during processing the fixed urls should be used.
      */
-    protected String buildPressGangWebsiteJS(final BuildData buildData, final boolean useFixedUrls) throws BuildProcessingException {
+    protected String buildPressGangWebsiteJS(final BuildData buildData) throws BuildProcessingException {
         final StringBuilder retValue = new StringBuilder("pressgang_website_callback([\n");
 
         final JsonStringEncoder encoder = JsonStringEncoder.getInstance();
@@ -1975,11 +1940,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
             // Find the fixed url to use
             final Integer topicId = topic.getTopicId();
             final List<SpecTopic> specTopics = buildData.getBuildDatabase().getSpecTopicsForTopicID(topicId);
-            final String fixedUrl = specTopics.get(0).getUniqueLinkId(useFixedUrls);
+            final String fixedUrl = specTopics.get(0).getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
+                    buildData.isUseFixedUrls());
 
             // Find the new since value to use
             final List<PropertyTagInTopicWrapper> newSinceProperties = topic.getProperties(
-                    BuilderConstants.PRESSGANG_WEBSITE_NEW_SINCE_PROPERTY);
+                    buildData.getServerEntities().getPressGangWebsitePropertyTagId());
             final List<String> values = new ArrayList<String>();
             if (newSinceProperties != null) {
                 for (final PropertyTagInTopicWrapper newSinceProperty : newSinceProperties) {
@@ -1994,10 +1960,10 @@ public class DocbookBuilder implements ShutdownAbleApp {
             // Data
             try {
                 retValue.append("\"topicId\":").append(topicId);
-                retValue.append(",\"target\":\"").append(new String(encoder.quoteAsUTF8(fixedUrl), "UTF-8")).append("\"");
-                retValue.append(",\"title\":\"").append(new String(encoder.quoteAsUTF8(topic.getTitle()), "UTF-8")).append("\"");
+                retValue.append(",\"target\":\"").append(new String(encoder.quoteAsUTF8(fixedUrl), ENCODING)).append("\"");
+                retValue.append(",\"title\":\"").append(new String(encoder.quoteAsUTF8(topic.getTitle()), ENCODING)).append("\"");
                 retValue.append(",\"newSince\":\"").append(
-                        values.isEmpty() ? "" : new String(encoder.quoteAsUTF8(values.get(values.size() - 1)), "UTF-8")).append("\"");
+                        values.isEmpty() ? "" : new String(encoder.quoteAsUTF8(values.get(values.size() - 1)), ENCODING)).append("\"");
             } catch (UnsupportedEncodingException e) {
                 throw new BuildProcessingException(e);
             }
@@ -2024,14 +1990,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
         String bookInfo = bookInfoTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, buildData.getEscapedBookTitle());
         // Set the book title
         bookInfo = bookInfo.replaceAll(BuilderConstants.TITLE_REGEX,
-                DocbookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeTitleString(contentSpec.getTitle())));
+                DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeTitleString(contentSpec.getTitle())));
         // Set the book subtitle
         bookInfo = bookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX,
-                contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : DocbookBuildUtilities.escapeForReplaceAll(
+                contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : DocBookBuildUtilities.escapeForReplaceAll(
                         StringUtilities.escapeForXML(contentSpec.getSubtitle())));
         // Set the book product
         bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX,
-                DocbookBuildUtilities.escapeForReplaceAll(StringUtilities.escapeForXML(contentSpec.getProduct())));
+                DocBookBuildUtilities.escapeForReplaceAll(StringUtilities.escapeForXML(contentSpec.getProduct())));
         // Set the book product version
         bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion() == null ? "" : contentSpec.getVersion());
         // Set or remove the book edition
@@ -2070,7 +2036,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         if (contentSpec.getAbstract() == null && contentSpec.getAbstractTopic() == null) {
             retValue = BuilderConstants.DEFAULT_ABSTRACT;
         } else if (contentSpec.getAbstract() == null) {
-            retValue = DocbookBuildUtilities.convertDocumentToFormattedString(contentSpec.getAbstractTopic().getXMLDocument(),
+            retValue = DocBookBuildUtilities.convertDocumentToFormattedString(contentSpec.getAbstractTopic().getXMLDocument(),
                     getXMLFormatProperties());
         } else if (contentSpec.getAbstract().matches("^<(formal|sim)?para>(.|\\s)*")) {
             retValue = "<abstract>\n\t\t" + contentSpec.getAbstract() + "\n\t</abstract>\n";
@@ -2078,7 +2044,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             retValue = "<abstract>\n\t\t<para>\n\t\t\t" + contentSpec.getAbstract() + "\n\t\t</para>\n\t</abstract>\n";
         }
 
-        return DocbookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeTitleString(retValue));
+        return DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeTitleString(retValue));
     }
 
     /**
@@ -2118,13 +2084,13 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // PRODUCT
         if (!definedEntities.contains("PRODUCT")) {
-            final String escapedProduct = DocbookBuildUtilities.escapeForXMLEntity(contentSpec.getProduct());
+            final String escapedProduct = DocBookBuildUtilities.escapeForXMLEntity(contentSpec.getProduct());
             retValue.append("<!ENTITY PRODUCT \"").append(escapedProduct).append("\">\n");
         }
 
         // TITLE
         if (!definedEntities.contains("TITLE")) {
-            final String escapedTitle = DocbookBuildUtilities.escapeTitleForXMLEntity(buildData.getOriginalBookTitle());
+            final String escapedTitle = DocBookBuildUtilities.escapeTitleForXMLEntity(buildData.getOriginalBookTitle());
             retValue.append("<!ENTITY TITLE \"").append(escapedTitle).append("\">\n");
         }
 
@@ -2137,20 +2103,20 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // HOLDER
         if (!definedEntities.contains("HOLDER")) {
-            final String escapedHolder = DocbookBuildUtilities.escapeForXMLEntity(contentSpec.getCopyrightHolder());
+            final String escapedHolder = DocBookBuildUtilities.escapeForXMLEntity(contentSpec.getCopyrightHolder());
             retValue.append("<!ENTITY HOLDER \"").append(escapedHolder).append("\">\n");
         }
 
         // BZPRODUCT
         if (!definedEntities.contains("BZPRODUCT")) {
-            final String escapedBZProduct = DocbookBuildUtilities.escapeForXMLEntity(
+            final String escapedBZProduct = DocBookBuildUtilities.escapeForXMLEntity(
                     contentSpec.getBugzillaProduct() == null ? buildData.getOriginalBookProduct() : contentSpec.getBugzillaProduct());
             retValue.append("<!ENTITY BZPRODUCT \"").append(escapedBZProduct).append("\">\n");
         }
 
         // BZCOMPONENT
         if (!definedEntities.contains("BZCOMPONENT")) {
-            final String escapedBZComponent = DocbookBuildUtilities.escapeForXMLEntity(
+            final String escapedBZComponent = DocBookBuildUtilities.escapeForXMLEntity(
                     contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec.getBugzillaComponent());
             retValue.append("<!ENTITY BZCOMPONENT \"").append(escapedBZComponent).append("\">\n");
         }
@@ -2201,12 +2167,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param buildData        Information and data structures for the build.
      * @param doc              The Book document object to add the child level content to.
      * @param level            The level to build the chapter from.
-     * @param useFixedUrls     If Fixed URL Properties should be used for topic ID attributes.
      * @param flattenStructure Whether or not the build should be flattened.
      * @return The Element that specifies the XiInclude for the chapter/appendix in the files.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
-    protected Element createRootElementXML(final BuildData buildData, final Document doc, final Level level, final boolean useFixedUrls,
+    protected Element createRootElementXML(final BuildData buildData, final Document doc, final Level level,
             final boolean flattenStructure) throws BuildProcessingException {
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -2227,21 +2192,22 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         // Create the title
-        final String chapterName = level.getUniqueLinkId(useFixedUrls);
+        final String chapterName = level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
+                buildData.isUseFixedUrls());
         final String chapterXMLName = chapterName + ".xml";
 
         // Create the xiInclude to be added to the book.xml file
         final Element xiInclude = XMLUtilities.createXIInclude(doc, chapterXMLName);
 
         // Setup the title and id
-        setUpRootElement(buildData, level, chapter, chapter.getDocumentElement(), useFixedUrls);
+        setUpRootElement(buildData, level, chapter, chapter.getDocumentElement());
 
         // Create and add the chapter/level contents
         createSectionXML(buildData, level, chapter, chapter.getDocumentElement(), buildData.getBookTopicsFolder() + chapterName + "/",
-                useFixedUrls, flattenStructure);
+                flattenStructure);
 
         // Add the boiler plate text and add the chapter to the book
-        final String chapterString = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(chapter, elementName,
+        final String chapterString = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(chapter, elementName,
                 buildData.getEntityFileName(), getXMLFormatProperties());
         addToZip(buildData.getBookLocaleFolder() + chapterXMLName, chapterString, buildData);
 
@@ -2256,13 +2222,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param doc                 The document object to add the child level content to.
      * @param level               The level to build the chapter from.
      * @param parentFileDirectory The parent file location, so any files can be saved in a subdirectory of the parents location.
-     * @param useFixedUrls        If Fixed URL Properties should be used for topic ID attributes.
      * @param flattenStructure    Whether or not the build should be flattened.
      * @return The Element that specifies the XiInclude for the chapter/appendix in the files.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
     protected Element createSubRootElementXML(final BuildData buildData, final Document doc, final Level level,
-            final String parentFileDirectory, final boolean useFixedUrls, final boolean flattenStructure) throws BuildProcessingException {
+            final String parentFileDirectory, final boolean flattenStructure) throws BuildProcessingException {
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
             return null;
@@ -2282,18 +2247,19 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         // Create the title
-        final String chapterName = level.getUniqueLinkId(useFixedUrls);
+        final String chapterName = level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
+                buildData.isUseFixedUrls());
         final String chapterXMLName = chapterName + ".xml";
 
         // Setup the title and id
-        setUpRootElement(buildData, level, chapter, chapter.getDocumentElement(), useFixedUrls);
+        setUpRootElement(buildData, level, chapter, chapter.getDocumentElement());
 
         // Create and add the chapter/level contents
-        createSectionXML(buildData, level, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + "/", useFixedUrls,
+        createSectionXML(buildData, level, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + "/",
                 flattenStructure);
 
         // Add the boiler plate text and add the chapter to the book
-        final String chapterString = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(chapter, elementName,
+        final String chapterString = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(chapter, elementName,
                 buildData.getEntityFileName(), getXMLFormatProperties());
         addToZip(buildData.getBookLocaleFolder() + chapterXMLName, chapterString, buildData);
 
@@ -2306,14 +2272,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
     /**
      * Sets up an elements title and id based on the passed level.
      *
-     * @param buildData    Information and data structures for the build.
-     * @param level        The level to build the root element is being built for.
-     * @param doc          The document object the content is being added to.
+     * @param buildData Information and data structures for the build.
+     * @param level     The level to build the root element is being built for.
+     * @param doc       The document object the content is being added to.
      * @param ele
-     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
      */
-    protected void setUpRootElement(final BuildData buildData, final Level level, final Document doc, Element ele,
-            final boolean useFixedUrls) {
+    protected void setUpRootElement(final BuildData buildData, final Level level, final Document doc, Element ele) {
         final Element titleNode = doc.createElement("title");
         if (buildData.isTranslationBuild() && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty()) {
             titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTranslatedTitle()));
@@ -2321,7 +2285,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTitle()));
         }
         ele.appendChild(titleNode);
-        ele.setAttribute("id", level.getUniqueLinkId(useFixedUrls));
+        ele.setAttribute("id", level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(), buildData.isUseFixedUrls()));
     }
 
     /**
@@ -2332,12 +2296,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param chapter            The chapter document object that this section is to be added to.
      * @param parentNode         The parent XML node of this section.
      * @param parentFileLocation The parent file location, so any files can be saved in a subdirectory of the parents location.
-     * @param useFixedUrls       If Fixed URL Properties should be used for topic ID attributes.
      * @param flattenStructure   Whether or not the build should be flattened.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
     protected void createSectionXML(final BuildData buildData, final Level level, final Document chapter, final Element parentNode,
-            final String parentFileLocation, final boolean useFixedUrls, final Boolean flattenStructure) throws BuildProcessingException {
+            final String parentFileLocation, final Boolean flattenStructure) throws BuildProcessingException {
         final LinkedList<org.jboss.pressgang.ccms.contentspec.Node> levelData = level.getChildNodes();
 
         // Get the name of the element based on the type
@@ -2360,8 +2323,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                 final Level childLevel = (Level) node;
 
                 // Create a new file for the Chapter/Appendix
-                final Element xiInclude = createSubRootElementXML(buildData, chapter, childLevel, parentFileLocation, useFixedUrls,
-                        flattenStructure);
+                final Element xiInclude = createSubRootElementXML(buildData, chapter, childLevel, parentFileLocation, flattenStructure);
                 if (xiInclude != null) {
                     childNodes.add(xiInclude);
                 }
@@ -2370,7 +2332,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                 // Create the section and its title
                 final Element sectionNode = chapter.createElement("section");
-                setUpRootElement(buildData, childLevel, chapter, sectionNode, useFixedUrls);
+                setUpRootElement(buildData, childLevel, chapter, sectionNode);
 
                 // Ignore sections that have no spec topics
                 if (!childLevel.hasSpecTopics()) {
@@ -2383,7 +2345,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     }
                 } else {
                     // Add this sections child sections/topics
-                    createSectionXML(buildData, childLevel, chapter, sectionNode, parentFileLocation, useFixedUrls, flattenStructure);
+                    createSectionXML(buildData, childLevel, chapter, sectionNode, parentFileLocation, flattenStructure);
                 }
 
                 childNodes.add(sectionNode);
@@ -2395,7 +2357,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     topicNode = chapter.importNode(specTopic.getXMLDocument().getDocumentElement(), true);
                 } else {
                     // Create the topic file and add the reference to the chapter
-                    final String topicFileName = createTopicXMLFile(buildData, specTopic, parentFileLocation, useFixedUrls);
+                    final String topicFileName = createTopicXMLFile(buildData, specTopic, parentFileLocation);
                     if (topicFileName != null) {
 
                         // Remove the initial file location as we only want where it lives in the topics directory
@@ -2499,34 +2461,23 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param buildData          Information and data structures for the build.
      * @param specTopic          The build topic object to get content from.
      * @param parentFileLocation The topics parent file location, so the topic can be saved in a subdirectory.
-     * @param useFixedUrls       If Fixed URL Properties should be used for topic ID attributes.  @return The filename of the new topic
-     *                           XML file.
      * @return The Topics filename.
      */
-    protected String createTopicXMLFile(final BuildData buildData, final SpecTopic specTopic, final String parentFileLocation,
-            final boolean useFixedUrls) throws BuildProcessingException {
+    protected String createTopicXMLFile(final BuildData buildData, final SpecTopic specTopic,
+            final String parentFileLocation) throws BuildProcessingException {
         String topicFileName;
         final BaseTopicWrapper<?> topic = specTopic.getTopic();
 
         if (topic != null) {
-            if (useFixedUrls) {
-                topicFileName = topic.getXRefPropertyOrId(CommonConstants.FIXED_URL_PROP_TAG_ID);
-            } else {
-                topicFileName = topic.getXRefId();
-            }
-
-            if (specTopic.getDuplicateId() != null) {
-                topicFileName += "-" + specTopic.getDuplicateId();
-            }
-
-            topicFileName += ".xml";
+            topicFileName = specTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
+                    buildData.isUseFixedUrls()) + ".xml";
 
             final String fixedParentFileLocation = buildData.getBuildOptions().getFlattenTopics() ? buildData.getBookTopicsFolder() :
                     parentFileLocation;
             final String fixedEntityPath = fixedParentFileLocation.replace(buildData.getBookLocaleFolder(), "").replaceAll(
                     ".*?" + File.separator + "", "../");
 
-            final String topicXML = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(specTopic.getXMLDocument(),
+            final String topicXML = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(specTopic.getXMLDocument(),
                     DocBookUtilities.TOPIC_ROOT_NODE_NAME, fixedEntityPath + buildData.getEntityFileName(), getXMLFormatProperties());
 
             addToZip(fixedParentFileLocation + topicFileName, topicXML, buildData);
@@ -2544,10 +2495,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * @param buildData Information and data structures for the build.
      */
     private void addImagesToBook(final BuildData buildData) {
-        /* Load the database constants */
-        final byte[] failpenguinPng = blobConstantProvider.getBlobConstant(BuilderConstants.FAILPENGUIN_PNG_ID).getValue();
+        // Load the database constants
+        final byte[] failpenguinPng = blobConstantProvider.getBlobConstant(
+                buildData.getServerEntities().getFailPenguinBlobConstantId()).getValue();
 
-        /* download the image files that were identified in the processing stage */
+        // Download the image files that were identified in the processing stage
         float imageProgress = 0;
         final float imageTotal = buildData.getImageLocations().size();
         final int showPercent = 5;
@@ -2565,9 +2517,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
             final int pathIndex = imageLocation.getImageName().lastIndexOf("/");
             final int hypenIndex = imageLocation.getImageName().lastIndexOf("-");
 
-            if (/* characters were found */
+            if (    /* characters were found */
                     extensionIndex != -1 && pathIndex != -1
-            /* the path character was found before the extension */ && extensionIndex > pathIndex) {
+                    /* the path character was found before the extension */ && extensionIndex > pathIndex) {
                 try {
                     /*
                      * The file name minus the extension should be an integer that references an ImageFile record ID.
@@ -2604,7 +2556,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             for (final LanguageImageWrapper image : languageImages) {
                                 if (image.getLocale().equals(buildData.getBuildLocale())) {
                                     languageImageFile = image;
-                                } else if (image.getLocale().equals(getDefaultBuildLocale()) && languageImageFile == null) {
+                                } else if (image.getLocale().equals(
+                                        buildData.getServerSettings().getDefaultLocale()) && languageImageFile == null) {
                                     languageImageFile = image;
                                 }
                             }
@@ -2659,7 +2612,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
         log.info("\tBuilding " + AUTHOR_GROUP_FILE_NAME);
 
         // Setup Author_Group.xml
-        final String authorGroupXml = stringConstantProvider.getStringConstant(BuilderConstants.AUTHOR_GROUP_XML_ID).getValue();
+        final String authorGroupXml = stringConstantProvider.getStringConstant(
+                buildData.getServerEntities().getAuthorGroupStringConstantId()).getValue();
         String fixedAuthorGroupXml = authorGroupXml;
         Document authorDoc = null;
         try {
@@ -2680,13 +2634,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
         // Get the mapping of authors using the topics inside the content spec
         for (final Integer topicId : buildData.getBuildDatabase().getTopicIds()) {
             final BaseTopicWrapper<?> topic = buildData.getBuildDatabase().getSpecTopicsForTopicID(topicId).get(0).getTopic();
-            final List<TagWrapper> authorTags = topic.getTagsInCategories(CollectionUtilities.toArrayList(CSConstants.WRITER_CATEGORY_ID));
+            final List<TagWrapper> authorTags = topic.getTagsInCategories(
+                    CollectionUtilities.toArrayList(buildData.getServerEntities().getWriterCategoryId()));
 
             if (authorTags.size() > 0) {
                 for (final TagWrapper author : authorTags) {
                     if (!authorIDtoAuthor.containsKey(author.getId())) {
-                        final AuthorInformation authorInfo = EntityUtilities.getAuthorInformation(providerFactory, author.getId(),
-                                author.getRevision());
+                        final AuthorInformation authorInfo = EntityUtilities.getAuthorInformation(providerFactory,
+                                buildData.getServerEntities(), author.getId(), author.getRevision());
                         if (authorInfo != null) {
                             authorIDtoAuthor.put(author.getId(), authorInfo);
                         }
@@ -2783,7 +2738,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         // Add the Author_Group.xml to the book
-        fixedAuthorGroupXml = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(authorDoc, "authorgroup",
+        fixedAuthorGroupXml = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(authorDoc, "authorgroup",
                 buildData.getEntityFileName(), getXMLFormatProperties());
         addToZip(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, fixedAuthorGroupXml, buildData);
     }
@@ -2803,7 +2758,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final ContentSpec contentSpec = buildData.getContentSpec();
 
         // Replace the basic injection data inside the revision history
-        final String revisionHistoryXml = stringConstantProvider.getStringConstant(BuilderConstants.REVISION_HISTORY_XML_ID).getValue();
+        final String revisionHistoryXml = stringConstantProvider.getStringConstant(
+                buildData.getServerEntities().getRevisionHistoryStringConstantId()).getValue();
         final String fixedRevisionHistoryXml = revisionHistoryXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX,
                 buildData.getEscapedBookTitle());
 
@@ -2845,7 +2801,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             }
         } else if (contentSpec.getRevisionHistory() != null) {
             final TopicErrorData errorData = buildData.getErrorDatabase().getErrorData(contentSpec.getRevisionHistory().getTopic());
-            final String revisionHistoryXML = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(
+            final String revisionHistoryXML = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(
                     contentSpec.getRevisionHistory().getXMLDocument(), "appendix", buildData.getEntityFileName(), getXMLFormatProperties());
             if (buildData.getBuildOptions().getRevisionMessages() != null && !buildData.getBuildOptions().getRevisionMessages().isEmpty()) {
                 buildRevisionHistoryFromTemplate(buildData, revisionHistoryXML);
@@ -2914,7 +2870,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
         // An assigned writer tag exists for the User so check if there is an AuthorInformation tuple for that writer
         if (author != null) {
-            AuthorInformation authorInfo = EntityUtilities.getAuthorInformation(providerFactory, author.getId(), author.getRevision());
+            AuthorInformation authorInfo = EntityUtilities.getAuthorInformation(providerFactory, buildData.getServerEntities(),
+                    author.getId(), author.getRevision());
             if (authorInfo != null) {
                 final Element revision = generateRevision(buildData, revHistoryDoc, authorInfo);
 
@@ -2938,7 +2895,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         }
 
         // Add the revision history to the book
-        final String fixedRevisionHistoryXml = DocbookBuildUtilities.convertDocumentToDocbook45FormattedString(revHistoryDoc, "appendix",
+        final String fixedRevisionHistoryXml = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(revHistoryDoc, "appendix",
                 buildData.getEntityFileName(), getXMLFormatProperties());
         addToZip(buildData.getBookLocaleFolder() + REVISION_HISTORY_FILE_NAME, fixedRevisionHistoryXml, buildData);
     }
@@ -2993,7 +2950,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
         final String overrideRevnumber = buildData.getBuildOptions().getOverrides().get(CSConstants.REVNUMBER_OVERRIDE);
         final String revnumber;
         if (overrideRevnumber == null) {
-            revnumber = DocbookBuildUtilities.generateRevisionNumber(buildData.getContentSpec());
+            revnumber = DocBookBuildUtilities.generateRevisionNumber(buildData.getContentSpec());
         } else {
             revnumber = overrideRevnumber;
         }
@@ -3504,16 +3461,15 @@ public class DocbookBuilder implements ShutdownAbleApp {
     /**
      * Validates the XML after the first set of injections have been processed.
      *
-     * @param buildData    Information and data structures for the build.
-     * @param specTopic    The topic that is being validated.
-     * @param topicDoc     A Document object that holds the Topic's XML
-     * @param useFixedUrls If Fixed URL Properties should be used for topic ID attributes.
+     * @param buildData Information and data structures for the build.
+     * @param specTopic The topic that is being validated.
+     * @param topicDoc  A Document object that holds the Topic's XML
      * @return The validate document or a template if it failed validation.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
     @SuppressWarnings("unchecked")
-    private boolean validateTopicXML(final BuildData buildData, final SpecTopic specTopic, final Document topicDoc,
-            final boolean useFixedUrls) throws BuildProcessingException {
+    private boolean validateTopicXML(final BuildData buildData, final SpecTopic specTopic,
+            final Document topicDoc) throws BuildProcessingException {
         final SAXXMLValidator validator = new SAXXMLValidator();
         final BaseTopicWrapper<?> topic = specTopic.getTopic();
 
@@ -3538,21 +3494,20 @@ public class DocbookBuilder implements ShutdownAbleApp {
             // Store the error message
             final String errorMsg = validator.getErrorText();
 
-            final String xmlStringInCDATA = DocbookBuildUtilities.convertDocumentToCDATAFormattedString(topicDoc, getXMLFormatProperties());
+            final String xmlStringInCDATA = DocBookBuildUtilities.convertDocumentToCDATAFormattedString(topicDoc, getXMLFormatProperties());
             buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
                     BuilderConstants.ERROR_INVALID_TOPIC_XML + " The error is <emphasis>" + StringEscapeUtils.escapeXml(
                             errorMsg) + "</emphasis>. The " +
                             "processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
-            DocbookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidValidationTopicTemplate().getValue(),
-                    useFixedUrls);
+            DocBookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidValidationTopicTemplate().getValue());
 
             return false;
         }
 
         // Check the content of the XML for things not picked up by DTD validation
-        final List<String> xmlErrors = DocbookBuildUtilities.checkTopicForInvalidContent(topic, topicDoc);
+        final List<String> xmlErrors = DocBookBuildUtilities.checkTopicForInvalidContent(topic, topicDoc, buildData);
         if (xmlErrors.size() > 0) {
-            final String xmlStringInCDATA = DocbookBuildUtilities.convertDocumentToCDATAFormattedString(topicDoc, getXMLFormatProperties());
+            final String xmlStringInCDATA = DocBookBuildUtilities.convertDocumentToCDATAFormattedString(topicDoc, getXMLFormatProperties());
 
             // Add the error and processed XML to the error message
             final String errorMessage = CollectionUtilities.toSeperatedString(xmlErrors,
@@ -3561,8 +3516,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                     BuilderConstants.ERROR_INVALID_TOPIC_XML + " " + errorMessage + "</para><para>The processed XML is <programlisting>" +
                             xmlStringInCDATA + "</programlisting>");
 
-            DocbookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidValidationTopicTemplate().getValue(),
-                    useFixedUrls);
+            DocBookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidValidationTopicTemplate().getValue());
 
             return false;
         }
@@ -3575,14 +3529,15 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * keywords are populated using the tags assigned to the topic.
      *
      * @param topic The Topic to create the sectioninfo for.
-     * @param doc   The XML Document DOM oject for the topics XML.
+     * @param doc   The XML Document DOM object for the topics XML.
      */
     protected void processTopicSectionInfo(final BaseTopicWrapper<?> topic, final Document doc) {
         if (doc == null || topic == null) return;
 
         final CollectionWrapper<TagWrapper> tags = topic.getTags();
+        final List<Integer> seoCategoryIds = buildData.getServerSettings().getSEOCategoryIds();
 
-        if (tags != null && tags.getItems() != null && tags.getItems().size() > 0) {
+        if (seoCategoryIds != null && !seoCategoryIds.isEmpty() && tags != null && tags.getItems() != null && tags.getItems().size() > 0) {
             // Find the sectioninfo node in the document, or create one if it doesn't exist
             final Element sectionInfo;
             final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(doc.getDocumentElement(), "sectioninfo");
@@ -3599,7 +3554,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
             for (final TagWrapper tag : tagItems) {
                 if (tag.getName() == null || tag.getName().isEmpty()) continue;
 
-                if (tag.containedInCategories(validKeywordCategoryIds)) {
+                if (tag.containedInCategories(seoCategoryIds)) {
                     final Element keyword = doc.createElement("keyword");
                     keyword.setTextContent(tag.getName());
 
@@ -3620,11 +3575,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * This method does a pass over all the topics returned by the query and attempts to create unique Fixed URL if one does not
      * already exist.
      *
+     * @param buildData          Information and data structures for the build.
      * @param topics             The list of topics to set the Fixed URL's for.
      * @param processedFileNames A modifiable Set of filenames that have already been processed.
      * @return True if the fixed url property tags were able to be created for all topics, and false otherwise.
      */
-    protected boolean setFixedURLsPass(final List<TopicWrapper> topics, final Set<String> processedFileNames) {
+    protected boolean setFixedURLsPass(final BuildData buildData, final List<TopicWrapper> topics, final Set<String> processedFileNames) {
         log.info("Doing Fixed URL Pass");
 
         int tries = 0;
@@ -3645,11 +3601,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                     // Create the PropertyTagCollection to be used to update any data
                     final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
-                            .newPropertyTagInTopicCollection(
-                            topic);
+                            .newPropertyTagInTopicCollection(topic);
 
                     // Get a list of all property tag items that exist for the current topic
-                    final List<PropertyTagInTopicWrapper> existingUniqueURLs = topic.getProperties(CommonConstants.FIXED_URL_PROP_TAG_ID);
+                    final List<PropertyTagInTopicWrapper> existingUniqueURLs = topic.getProperties(
+                            buildData.getServerEntities().getFixedUrlPropertyTagId());
 
                     // Remove any Duplicate Fixed URL's
                     PropertyTagInTopicWrapper existingUniqueURL = null;
@@ -3665,14 +3621,14 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                     if (existingUniqueURL == null || !existingUniqueURL.isValid()) {
                         // generate the base url
-                        String baseUrlName = DocbookBuildUtilities.createURLTitle(topic.getTitle());
+                        String baseUrlName = DocBookBuildUtilities.createURLTitle(topic.getTitle());
 
                         // generate a unique fixed url
                         String postFix = "";
 
                         for (int uniqueCount = 1; uniqueCount <= BuilderConstants.MAXIMUM_SET_PROP_TAG_NAME_RETRY; ++uniqueCount) {
-                            final String query = "query;propertyTag" + CommonConstants.FIXED_URL_PROP_TAG_ID + "=" + URLEncoder.encode(
-                                    baseUrlName + postFix, ENCODING);
+                            final String query = "query;propertyTag" + buildData.getServerEntities().getFixedUrlPropertyTagId() + "=" +
+                                    URLEncoder.encode(baseUrlName + postFix, ENCODING);
                             final CollectionWrapper<TopicWrapper> queryTopics = topicProvider.getTopicsWithQuery(query);
 
                             if (queryTopics.size() != 0 || processedFileNames.contains(baseUrlName + postFix)) {
@@ -3695,7 +3651,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             if (topic.getProperties() != null && topic.getProperties().getItems() != null) {
                                 final List<PropertyTagInTopicWrapper> propertyTags = topic.getProperties().getItems();
                                 for (final PropertyTagInTopicWrapper existing : propertyTags) {
-                                    if (existing.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
+                                    if (existing.getId().equals(buildData.getServerEntities().getFixedUrlPropertyTagId())) {
                                         if (found) {
                                             // If we've already found one then we need to remove any duplicates
                                             updatePropertyTags.addRemoveItem(existing);
@@ -3712,7 +3668,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             // If we didn't find any tags then add a new one
                             if (!found) {
                                 final PropertyTagInTopicWrapper propertyTag = propertyTagProvider.newPropertyTagInTopic(topic);
-                                propertyTag.setId(CommonConstants.FIXED_URL_PROP_TAG_ID);
+                                propertyTag.setId(buildData.getServerEntities().getFixedUrlPropertyTagId());
                                 propertyTag.setValue(baseUrlName + postFix);
 
                                 updatePropertyTags.addNewItem(propertyTag);
@@ -3760,10 +3716,11 @@ public class DocbookBuilder implements ShutdownAbleApp {
      * Ensure that the FixedURL Properties for revision topics are still valid inside the book. Revision topics can either be
      * Normal Topics or Translated Topics (which are actually a saved normal revision).
      *
+     * @param buildData          Information and data structures for the build.
      * @param topics             The list of revision topics.
      * @param processedFileNames A List of file names that has already been processed. (ie in the setFixedURLsPass() method)
      */
-    protected <T extends BaseTopicWrapper<T>> void setFixedURLsForRevisionsPass(final List<T> topics,
+    protected <T extends BaseTopicWrapper<T>> void setFixedURLsForRevisionsPass(final BuildData buildData, final List<T> topics,
             final Set<String> processedFileNames) {
         log.info("Doing Revisions Fixed URL Pass");
 
@@ -3774,12 +3731,12 @@ public class DocbookBuilder implements ShutdownAbleApp {
         for (final BaseTopicWrapper<?> topic : topics) {
 
             // Get the existing property tag
-            PropertyTagInTopicWrapper existingUniqueURL = topic.getProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
+            PropertyTagInTopicWrapper existingUniqueURL = topic.getProperty(buildData.getServerEntities().getFixedUrlPropertyTagId());
 
             // Create a property tag if none exists
             if (existingUniqueURL == null) {
                 existingUniqueURL = propertyTagProvider.newPropertyTagInTopic(topic);
-                existingUniqueURL.setId(CommonConstants.FIXED_URL_PROP_TAG_ID);
+                existingUniqueURL.setId(buildData.getServerEntities().getFixedUrlPropertyTagId());
                 if (topic.getProperties() == null) {
                     topic.setProperties(propertyTagProvider.newPropertyTagInTopicCollection(topic));
                 }
@@ -3791,9 +3748,9 @@ public class DocbookBuilder implements ShutdownAbleApp {
 
                 final String baseUrlName;
                 if (topic instanceof TranslatedTopicWrapper) {
-                    baseUrlName = DocbookBuildUtilities.createURLTitle(((TranslatedTopicWrapper) topic).getTopic().getTitle());
+                    baseUrlName = DocBookBuildUtilities.createURLTitle(((TranslatedTopicWrapper) topic).getTopic().getTitle());
                 } else {
-                    baseUrlName = DocbookBuildUtilities.createURLTitle(topic.getTitle());
+                    baseUrlName = DocBookBuildUtilities.createURLTitle(topic.getTitle());
                 }
                 String postFix = "";
                 for (int uniqueCount = 1; ; ++uniqueCount) {
@@ -3824,7 +3781,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
             final List<TopicWrapper> updateItems = updatedTopics.getItems();
             for (final TopicWrapper topicWithFixedUrl : updateItems) {
                 for (final TopicWrapper topic : originalTopics) {
-                    final PropertyTagInTopicWrapper fixedUrlProp = topicWithFixedUrl.getProperty(CommonConstants.FIXED_URL_PROP_TAG_ID);
+                    final PropertyTagInTopicWrapper fixedUrlProp = topicWithFixedUrl.getProperty(
+                            buildData.getServerEntities().getFixedUrlPropertyTagId());
 
                     if (topic != null && topicWithFixedUrl.getId().equals(topic.getId())) {
                         CollectionWrapper<PropertyTagInTopicWrapper> properties = topic.getProperties();
@@ -3835,7 +3793,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                             final List<PropertyTagInTopicWrapper> propertyTags = new ArrayList<PropertyTagInTopicWrapper>(
                                     properties.getItems());
                             for (final PropertyTagInTopicWrapper prop : propertyTags) {
-                                if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
+                                if (prop.getId().equals(buildData.getServerEntities().getFixedUrlPropertyTagId())) {
                                     properties.remove(prop);
                                 }
                             }
@@ -3862,7 +3820,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
                                             ArrayList<PropertyTagInTopicWrapper>(
                                             relatedTopicProperties.getItems());
                                     for (final PropertyTagInTopicWrapper prop : relatedTopicPropertyTags) {
-                                        if (prop.getId().equals(CommonConstants.FIXED_URL_PROP_TAG_ID)) {
+                                        if (prop.getId().equals(buildData.getServerEntities().getFixedUrlPropertyTagId())) {
                                             relatedTopicProperties.remove(prop);
                                         }
                                     }
@@ -3909,7 +3867,7 @@ public class DocbookBuilder implements ShutdownAbleApp {
     /**
      * Adds the additional files defined in a content spec to the book.
      *
-     * @param buildData
+     * @param buildData Information and data structures for the build.
      */
     protected void addAdditionalFilesToBook(final BuildData buildData) throws BuildProcessingException {
         final FileProvider fileProvider = providerFactory.getProvider(FileProvider.class);
@@ -3929,7 +3887,8 @@ public class DocbookBuilder implements ShutdownAbleApp {
                         for (final LanguageFileWrapper languageFile : languageFiles) {
                             if (languageFile.getLocale().equals(buildData.getBuildLocale())) {
                                 languageFileFile = languageFile;
-                            } else if (languageFile.getLocale().equals(getDefaultBuildLocale()) && languageFileFile == null) {
+                            } else if (languageFile.getLocale().equals(
+                                    buildData.getServerSettings().getDefaultLocale()) && languageFileFile == null) {
                                 languageFileFile = languageFile;
                             }
                         }

@@ -10,17 +10,15 @@ import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
-import org.jboss.pressgang.ccms.contentspec.builder.utils.DocbookBuildUtilities;
+import org.jboss.pressgang.ccms.contentspec.builder.utils.DocBookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
-import org.jboss.pressgang.ccms.wrapper.BlobConstantWrapper;
 import org.w3c.dom.Document;
 
-public class PublicanDocbookBuilder extends DocbookBuilder {
+public class PublicanDocBookBuilder extends DocBookBuilder {
 
-    public PublicanDocbookBuilder(final DataProviderFactory providerFactory, final BlobConstantWrapper rocbookDtd,
-            final String defaultLocale) throws BuilderCreationException {
-        super(providerFactory, rocbookDtd, defaultLocale);
+    public PublicanDocBookBuilder(final DataProviderFactory providerFactory) throws BuilderCreationException {
+        super(providerFactory);
     }
 
     /**
@@ -33,17 +31,17 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
      */
     @Override
     protected void processConditions(final BuildData buildData, final SpecTopic specTopic, final Document doc) {
-        if (buildData.getContentSpec().getPublicanCfg() == null || !buildData.getContentSpec().getPublicanCfg().contains(
-                "condition:")) {
+        if (buildData.getContentSpec().getPublicanCfg() == null || !buildData.getContentSpec().getPublicanCfg().contains("condition:")) {
             super.processConditions(buildData, specTopic, doc);
         }
     }
 
     @Override
-    protected void buildBookAdditions(final BuildData buildData, final boolean useFixedUrls) throws BuildProcessingException {
-        super.buildBookAdditions(buildData, useFixedUrls);
+    protected void buildBookAdditions(final BuildData buildData) throws BuildProcessingException {
+        super.buildBookAdditions(buildData);
 
-        final String publicanCfg = stringConstantProvider.getStringConstant(BuilderConstants.PUBLICAN_CFG_ID).getValue();
+        final String publicanCfg = stringConstantProvider.getStringConstant(
+                buildData.getServerEntities().getPublicanCfgStringConstantId()).getValue();
 
         // Setup publican.cfg
         final String fixedPublicanCfg = buildCorePublicanCfgFile(buildData, publicanCfg);
@@ -88,7 +86,7 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
             if (contentSpec.getPublicanCfg().contains("git_branch")) {
                 publicanCfg = publicanCfg.replaceFirst("git_branch:\\s*.*(\\r)?(\\n)?", "");
             }
-            publicanCfg += DocbookBuildUtilities.cleanUserPublicanCfg(contentSpec.getPublicanCfg());
+            publicanCfg += DocBookBuildUtilities.cleanUserPublicanCfg(contentSpec.getPublicanCfg());
         }
 
         if (buildData.getBuildOptions().getPublicanShowRemarks()) {
@@ -132,8 +130,8 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
             final String brandOverride = overrides.containsKey(CSConstants.BRAND_OVERRIDE) ? overrides.get(
                     CSConstants.BRAND_OVERRIDE) : (overrides.containsKey(CSConstants.BRAND_ALT_OVERRIDE) ? overrides.get(
                     CSConstants.BRAND_ALT_OVERRIDE) : null);
-            final String brand = brandOverride != null ? brandOverride : (contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND :
-                    contentSpec.getBrand());
+            final String brand = brandOverride != null ? brandOverride : (contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND
+                    : contentSpec.getBrand());
 
             // Setup publican.cfg
             final StringBuilder publicanCfg = new StringBuilder("xml_lang: ").append(buildData.getOutputLocale()).append("\n");
@@ -141,7 +139,7 @@ public class PublicanDocbookBuilder extends DocbookBuilder {
             publicanCfg.append("brand: ").append(brand).append("\n");
 
             // Add the custom content
-            publicanCfg.append(DocbookBuildUtilities.cleanUserPublicanCfg(entry.getValue()));
+            publicanCfg.append(DocBookBuildUtilities.cleanUserPublicanCfg(entry.getValue()));
 
             // Add docname if it wasn't specified
             if (publicanCfg.indexOf("docname:") == -1) {

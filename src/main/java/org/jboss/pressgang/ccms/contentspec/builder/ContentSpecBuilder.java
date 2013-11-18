@@ -8,12 +8,9 @@ import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
-import org.jboss.pressgang.ccms.docbook.compiling.DocbookBuildingOptions;
-import org.jboss.pressgang.ccms.provider.BlobConstantProvider;
+import org.jboss.pressgang.ccms.docbook.compiling.DocBookBuildingOptions;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
 import org.jboss.pressgang.ccms.utils.common.ZipUtilities;
-import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
-import org.jboss.pressgang.ccms.wrapper.BlobConstantWrapper;
 import org.jboss.pressgang.ccms.zanata.ZanataDetails;
 
 /**
@@ -25,13 +22,11 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
     private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
 
-    private final BlobConstantWrapper rocbookdtd;
     private final DataProviderFactory providerFactory;
-    private DocbookBuilder docbookBuilder;
+    private DocBookBuilder docbookBuilder;
 
     public ContentSpecBuilder(final DataProviderFactory providerFactory) {
         this.providerFactory = providerFactory;
-        this.rocbookdtd = providerFactory.getProvider(BlobConstantProvider.class).getBlobConstant(CommonConstants.ROCBOOK_DTD_BLOB_ID);
     }
 
     @Override
@@ -56,7 +51,6 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
     /**
      * Builds a book into a zip file for the passed Content Specification.
      *
-     *
      * @param contentSpec    The content specification that is to be built. It should have already been validated, if not errors may occur.
      * @param requester      The user who requested the book to be built.
      * @param builderOptions The set of options what are to be when building the book.
@@ -65,7 +59,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException Any unexpected errors that occur during building.
      * @throws BuilderCreationException Any error that occurs while trying to setup/create the builder
      */
-    public byte[] buildBook(final ContentSpec contentSpec, final String requester, final DocbookBuildingOptions builderOptions,
+    public byte[] buildBook(final ContentSpec contentSpec, final String requester, final DocBookBuildingOptions builderOptions,
             final BuildType buildType) throws BuilderCreationException, BuildProcessingException {
         return buildBook(contentSpec, requester, builderOptions, new HashMap<String, byte[]>(), buildType);
     }
@@ -82,7 +76,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException Any unexpected errors that occur during building.
      * @throws BuilderCreationException Any error that occurs while trying to setup/create the builder
      */
-    public byte[] buildBook(final ContentSpec contentSpec, final String requester, final DocbookBuildingOptions builderOptions,
+    public byte[] buildBook(final ContentSpec contentSpec, final String requester, final DocBookBuildingOptions builderOptions,
             final Map<String, byte[]> overrideFiles, final BuildType buildType) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
@@ -91,11 +85,11 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
         }
 
         if (buildType == BuildType.PUBLICAN) {
-            docbookBuilder = new PublicanDocbookBuilder(providerFactory, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
+            docbookBuilder = new PublicanDocBookBuilder(providerFactory);
         } else if (buildType == BuildType.JDOCBOOK) {
-            docbookBuilder = new JDocbookBuilder(providerFactory, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
+            docbookBuilder = new JDocBookBuilder(providerFactory);
         } else {
-            docbookBuilder = new DocbookBuilder(providerFactory, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
+            docbookBuilder = new DocBookBuilder(providerFactory);
         }
 
         final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, overrideFiles);
@@ -113,7 +107,6 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
     /**
      * Builds a book into a zip file for the passed Content Specification.
      *
-     *
      * @param contentSpec    The content specification that is to be built. It should have already been validated, if not errors may occur.
      * @param requester      The user who requested the book to be built.
      * @param builderOptions The set of options what are to be when building the book.
@@ -123,15 +116,13 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException Any unexpected errors that occur during building.
      * @throws BuilderCreationException Any error that occurs while trying to setup/create the builder
      */
-    public byte[] buildTranslatedBook(final ContentSpec contentSpec, final String requester,
-            final DocbookBuildingOptions builderOptions, final ZanataDetails zanataDetails,
-            final BuildType buildType) throws BuilderCreationException, BuildProcessingException {
+    public byte[] buildTranslatedBook(final ContentSpec contentSpec, final String requester, final DocBookBuildingOptions builderOptions,
+            final ZanataDetails zanataDetails, final BuildType buildType) throws BuilderCreationException, BuildProcessingException {
         return buildTranslatedBook(contentSpec, requester, builderOptions, new HashMap<String, byte[]>(), zanataDetails, buildType);
     }
 
     /**
      * Builds a book into a zip file for the passed Content Specification.
-     *
      *
      * @param contentSpec    The content specification that is to be built. It should have already been validated, if not errors may occur.
      * @param requester      The user who requested the book to be built.
@@ -143,8 +134,8 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException Any unexpected errors that occur during building.
      * @throws BuilderCreationException Any error that occurs while trying to setup/create the builder
      */
-    public byte[] buildTranslatedBook(final ContentSpec contentSpec, final String requester,
-            final DocbookBuildingOptions builderOptions, final Map<String, byte[]> overrideFiles, final ZanataDetails zanataDetails,
+    public byte[] buildTranslatedBook(final ContentSpec contentSpec, final String requester, final DocBookBuildingOptions builderOptions,
+            final Map<String, byte[]> overrideFiles, final ZanataDetails zanataDetails,
             final BuildType buildType) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
@@ -153,11 +144,11 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
         }
 
         if (buildType == BuildType.PUBLICAN) {
-            docbookBuilder = new PublicanDocbookBuilder(providerFactory, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
+            docbookBuilder = new PublicanDocBookBuilder(providerFactory);
         } else if (buildType == BuildType.JDOCBOOK) {
-            docbookBuilder = new JDocbookBuilder(providerFactory, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
+            docbookBuilder = new JDocBookBuilder(providerFactory);
         } else {
-            docbookBuilder = new DocbookBuilder(providerFactory, rocbookdtd, CommonConstants.DEFAULT_LOCALE);
+            docbookBuilder = new DocBookBuilder(providerFactory);
         }
 
         final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, overrideFiles,

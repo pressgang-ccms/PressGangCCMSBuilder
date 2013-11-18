@@ -9,13 +9,18 @@ import java.util.Map;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.entities.InjectionOptions;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
-import org.jboss.pressgang.ccms.docbook.compiling.DocbookBuildingOptions;
+import org.jboss.pressgang.ccms.docbook.compiling.DocBookBuildingOptions;
 import org.jboss.pressgang.ccms.docbook.structures.TopicErrorDatabase;
 import org.jboss.pressgang.ccms.docbook.structures.TopicImageData;
+import org.jboss.pressgang.ccms.provider.DataProviderFactory;
+import org.jboss.pressgang.ccms.provider.ServerSettingsProvider;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
+import org.jboss.pressgang.ccms.wrapper.ServerEntitiesWrapper;
+import org.jboss.pressgang.ccms.wrapper.ServerSettingsWrapper;
 import org.jboss.pressgang.ccms.zanata.ZanataDetails;
 
 public class BuildData {
+    private final ServerSettingsWrapper serverSettings;
     /**
      * Holds the SpecTopics and their XML that exist within the content specification.
      */
@@ -61,7 +66,7 @@ public class BuildData {
     /**
      * The Docbook/Formatting Building Options to be used when building.
      */
-    private final DocbookBuildingOptions buildOptions;
+    private final DocBookBuildingOptions buildOptions;
     /**
      * A mapping of override key's to their files.
      */
@@ -88,24 +93,27 @@ public class BuildData {
     private final HashMap<String, byte[]> files = new HashMap<String, byte[]>();
     private final ContentSpec contentSpec;
 
-    public BuildData(final String requester, final String buildName, final ContentSpec contentSpec, final String locale,
-            final DocbookBuildingOptions buildOptions) {
-        this(requester, buildName, contentSpec, locale, buildOptions, new ZanataDetails());
+    private boolean useFixedUrls = false;
+
+    public BuildData(final String requester, final String buildName, final ContentSpec contentSpec, final DocBookBuildingOptions buildOptions, final DataProviderFactory providerFactory) {
+        this(requester, buildName, contentSpec, buildOptions, new ZanataDetails(), providerFactory);
     }
 
-    public BuildData(final String requester, final String buildName, final ContentSpec contentSpec, final String locale,
-            final DocbookBuildingOptions buildOptions, final ZanataDetails zanataDetails) {
+    public BuildData(final String requester, final String buildName, final ContentSpec contentSpec, final DocBookBuildingOptions buildOptions, final ZanataDetails zanataDetails, final DataProviderFactory providerFactory) {
         this.contentSpec = contentSpec;
         this.requester = requester;
         this.buildName = buildName;
-        this.locale = locale;
         this.buildOptions = buildOptions;
         this.zanataDetails = zanataDetails;
         originalProduct = contentSpec.getProduct();
         originalTitle = contentSpec.getTitle();
-        outputLocale = buildOptions.getOutputLocale() == null ? locale : buildOptions.getOutputLocale();
         escapedTitle = DocBookUtilities.escapeTitle(originalTitle);
         buildDate = new Date();
+
+        serverSettings = providerFactory.getProvider(ServerSettingsProvider.class).getServerSettings();
+
+        locale = buildOptions.getLocale() == null ? serverSettings.getDefaultLocale() : buildOptions.getLocale();
+        outputLocale = buildOptions.getOutputLocale() == null ? locale : buildOptions.getOutputLocale();
 
         applyBuildOptionsFromSpec(contentSpec, buildOptions);
         applyInjectionOptionsFromSpec(contentSpec, buildOptions);
@@ -159,7 +167,7 @@ public class BuildData {
         return locale;
     }
 
-    public DocbookBuildingOptions getBuildOptions() {
+    public DocBookBuildingOptions getBuildOptions() {
         return buildOptions;
     }
 
@@ -218,7 +226,7 @@ public class BuildData {
         return contentSpec;
     }
 
-    protected void applyBuildOptionsFromSpec(final ContentSpec contentSpec, final DocbookBuildingOptions buildOptions) {
+    protected void applyBuildOptionsFromSpec(final ContentSpec contentSpec, final DocBookBuildingOptions buildOptions) {
         /*
          * Apply the build options from the content spec only if the build options are true. We do this so that if the options
          * are turned off earlier then we don't re-enable them.
@@ -245,7 +253,7 @@ public class BuildData {
         }
     }
 
-    protected void applyInjectionOptionsFromSpec(final ContentSpec contentSpec, final DocbookBuildingOptions buildOptions) {
+    protected void applyInjectionOptionsFromSpec(final ContentSpec contentSpec, final DocBookBuildingOptions buildOptions) {
         // Get the injection mode
         InjectionOptions.UserType injectionType = InjectionOptions.UserType.NONE;
         final Boolean injection = buildOptions.getInjection();
@@ -286,5 +294,31 @@ public class BuildData {
 
     public String getRequester() {
         return requester;
+    }
+
+    /**
+     * Get whether the Fixed URL Properties should be used for the topic ID attributes.
+     *
+     * @return Whether the Fixed URL Properties should be used for the topic ID attributes.
+     */
+    public boolean isUseFixedUrls() {
+        return useFixedUrls;
+    }
+
+    /**
+     * Set whether the Fixed URL Properties should be used for the topic ID attributes.
+     *
+     * @param useFixedUrls True if the fixed urls should be used, otherwise false.
+     */
+    public void setUseFixedUrls(boolean useFixedUrls) {
+        this.useFixedUrls = useFixedUrls;
+    }
+
+    public ServerSettingsWrapper getServerSettings() {
+        return serverSettings;
+    }
+
+    public ServerEntitiesWrapper getServerEntities() {
+        return getServerSettings().getEntities();
     }
 }

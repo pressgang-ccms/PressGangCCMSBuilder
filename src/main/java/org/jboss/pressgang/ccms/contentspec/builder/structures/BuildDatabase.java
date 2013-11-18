@@ -22,8 +22,8 @@ public class BuildDatabase {
     /**
      * Add a SpecTopic to the database.
      *
-     * @param specTopic    The SpecTopic object to be added.
-     * @param key          A key that represents the Topic mapped to the SpecTopic
+     * @param specTopic The SpecTopic object to be added.
+     * @param key       A key that represents the Topic mapped to the SpecTopic
      */
     public void add(final SpecTopic specTopic, final String key) {
         if (specTopic == null) return;
@@ -65,15 +65,16 @@ public class BuildDatabase {
     /**
      * Sets the Duplicate IDs for all the SpecTopics in the Database.
      *
-     * @param useFixedURLs
+     * @param buildData
      */
-    public void setDatabaseDuplicateIds(final boolean useFixedURLs) {
+    public void setDatabaseDuplicateIds(final BuildData buildData) {
         // Create the mapping of topic titles to spec topics
         final Map<String, List<SpecTopic>> topicsTitles = new HashMap<String, List<SpecTopic>>();
         for (final Entry<Integer, List<SpecTopic>> topicEntry : topics.entrySet()) {
             final List<SpecTopic> specTopics = topicEntry.getValue();
             for (final SpecTopic specTopic : specTopics) {
-                String topicTitle = specTopic.getUniqueLinkId(useFixedURLs);
+                String topicTitle = specTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
+                        buildData.isUseFixedUrls());
 
                 if (!topicsTitles.containsKey(topicTitle)) {
                     topicsTitles.put(topicTitle, new LinkedList<SpecTopic>());
@@ -184,17 +185,17 @@ public class BuildDatabase {
     /**
      * Get a list of all the ID Attributes of all the topics and levels held in the database.
      *
-     * @param useFixedUrls If Fixed URLs should be used to generate the IDs for topics.
+     * @param buildData
      * @return A List of IDs that exist for levels and topics in the database.
      */
-    public Set<String> getIdAttributes(final boolean useFixedUrls) {
+    public Set<String> getIdAttributes(final BuildData buildData) {
         final Set<String> ids = new HashSet<String>();
 
         // Add all the level id attributes
         for (final Entry<String, List<Level>> levelTitleEntry : levelTitles.entrySet()) {
             final List<Level> levels = levelTitleEntry.getValue();
             for (final Level level : levels) {
-                ids.add(level.getUniqueLinkId(useFixedUrls));
+                ids.add(level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(), buildData.isUseFixedUrls()));
             }
         }
 
@@ -202,7 +203,7 @@ public class BuildDatabase {
         for (final Entry<Integer, List<SpecTopic>> topicEntry : topics.entrySet()) {
             final List<SpecTopic> topics = topicEntry.getValue();
             for (final SpecTopic topic : topics) {
-                ids.add(topic.getUniqueLinkId(useFixedUrls));
+                ids.add(topic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(), buildData.isUseFixedUrls()));
             }
         }
 

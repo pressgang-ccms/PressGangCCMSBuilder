@@ -13,22 +13,20 @@ import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
-import org.jboss.pressgang.ccms.contentspec.builder.utils.DocbookBuildUtilities;
+import org.jboss.pressgang.ccms.contentspec.builder.utils.DocBookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.FileUtilities;
-import org.jboss.pressgang.ccms.wrapper.BlobConstantWrapper;
 
-public class JDocbookBuilder extends DocbookBuilder {
-    public JDocbookBuilder(final DataProviderFactory providerFactory, final BlobConstantWrapper rocbookDtd,
-            final String defaultLocale) throws BuilderCreationException {
-        super(providerFactory, rocbookDtd, defaultLocale);
+public class JDocBookBuilder extends DocBookBuilder {
+    public JDocBookBuilder(final DataProviderFactory providerFactory) throws BuilderCreationException {
+        super(providerFactory);
     }
 
     @Override
-    protected void buildBookAdditions(final BuildData buildData, final boolean useFixedUrls) throws BuildProcessingException {
-        super.buildBookAdditions(buildData, useFixedUrls);
+    protected void buildBookAdditions(final BuildData buildData) throws BuildProcessingException {
+        super.buildBookAdditions(buildData);
 
         final Map<String, String> overrides = buildData.getBuildOptions().getOverrides();
 
@@ -139,7 +137,7 @@ public class JDocbookBuilder extends DocbookBuilder {
         final String originalProduct = buildData.getOriginalBookProduct();
 
         // Get the template from the server
-        String pomXML = stringConstantProvider.getStringConstant(BuilderConstants.POM_XML_ID).getValue();
+        String pomXML = stringConstantProvider.getStringConstant(buildData.getServerEntities().getPOMStringConstantId()).getValue();
 
         // Replace the generic template values
         pomXML = pomXML.replaceFirst("<translation>.*</translation>", "<translation>" + outputLocale + "</translation>").replaceFirst(
@@ -152,7 +150,7 @@ public class JDocbookBuilder extends DocbookBuilder {
         // Change the GroupId
         final String groupId;
         if (contentSpec.getGroupId() != null) {
-            groupId = DocbookBuildUtilities.escapeForReplaceAll(contentSpec.getGroupId());
+            groupId = DocBookBuildUtilities.escapeForReplaceAll(contentSpec.getGroupId());
         } else {
             groupId = DocBookUtilities.escapeTitle(originalProduct).replace("_", "-").toLowerCase();
         }
@@ -161,7 +159,7 @@ public class JDocbookBuilder extends DocbookBuilder {
         // Change the ArtifactId
         final String artifactId;
         if (contentSpec.getArtifactId() != null) {
-            artifactId = DocbookBuildUtilities.escapeForReplaceAll(contentSpec.getArtifactId());
+            artifactId = DocBookBuildUtilities.escapeForReplaceAll(contentSpec.getArtifactId());
         } else {
             artifactId = escapedTitle.toLowerCase().replace("_", "-") + "-" + outputLocale;
         }
