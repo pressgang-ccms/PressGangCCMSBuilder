@@ -3471,11 +3471,17 @@ public class DocBookBuilder implements ShutdownAbleApp {
     private boolean validateTopicXML(final BuildData buildData, final SpecTopic specTopic,
             final Document topicDoc) throws BuildProcessingException {
         final SAXXMLValidator validator = new SAXXMLValidator();
+        final ContentSpec contentSpec = buildData.getContentSpec();
         final BaseTopicWrapper<?> topic = specTopic.getTopic();
 
         byte[] entityData = new byte[0];
         try {
-            entityData = BuilderConstants.DUMMY_CS_NAME_ENT_FILE.getBytes(ENCODING);
+            final StringBuilder entity = new StringBuilder(BuilderConstants.DUMMY_CS_NAME_ENT_FILE);
+            // Add any custom entities
+            if (!isNullOrEmpty(contentSpec.getEntities())) {
+                entity.append(contentSpec.getEntities());
+            }
+            entityData = entity.toString().getBytes(ENCODING);
         } catch (UnsupportedEncodingException e) {
             // UTF-8 is a valid format so this should exception should never get thrown
             throw new BuildProcessingException(e);
