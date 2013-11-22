@@ -1990,14 +1990,14 @@ public class DocBookBuilder implements ShutdownAbleApp {
         String bookInfo = bookInfoTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, buildData.getEscapedBookTitle());
         // Set the book title
         bookInfo = bookInfo.replaceAll(BuilderConstants.TITLE_REGEX,
-                DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeTitleString(contentSpec.getTitle())));
+                DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeForXML(contentSpec.getTitle())));
         // Set the book subtitle
         bookInfo = bookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX,
                 contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : DocBookBuildUtilities.escapeForReplaceAll(
-                        DocBookUtilities.escapeTitleString(contentSpec.getSubtitle())));
+                        DocBookUtilities.escapeForXML(contentSpec.getSubtitle())));
         // Set the book product
         bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX,
-                DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeTitleString(contentSpec.getProduct())));
+                DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeForXML(contentSpec.getProduct())));
         // Set the book product version
         bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion() == null ? "" : contentSpec.getVersion());
         // Set or remove the book edition
@@ -2044,7 +2044,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
             retValue = "<abstract>\n\t\t<para>\n\t\t\t" + contentSpec.getAbstract() + "\n\t\t</para>\n\t</abstract>\n";
         }
 
-        return DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeTitleString(retValue));
+        return DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeForXML(retValue));
     }
 
     /**
@@ -2280,9 +2280,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
     protected void setUpRootElement(final BuildData buildData, final Level level, final Document doc, Element ele) {
         final Element titleNode = doc.createElement("title");
         if (buildData.isTranslationBuild() && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty()) {
-            titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTranslatedTitle()));
+            titleNode.setTextContent(DocBookUtilities.escapeForXML(level.getTranslatedTitle()));
         } else {
-            titleNode.setTextContent(DocBookUtilities.escapeTitleString(level.getTitle()));
+            titleNode.setTextContent(DocBookUtilities.escapeForXML(level.getTitle()));
         }
         ele.appendChild(titleNode);
         ele.setAttribute("id", level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(), buildData.isUseFixedUrls()));

@@ -99,7 +99,7 @@ public class DocBookBuildUtilities {
     }
 
     public static String escapeTitleForXMLEntity(final String input) {
-        return DocBookUtilities.escapeTitleString(input).replace("%", "&percnt;");
+        return DocBookUtilities.escapeForXML(input).replace("%", "&percnt;");
     }
 
     /**
