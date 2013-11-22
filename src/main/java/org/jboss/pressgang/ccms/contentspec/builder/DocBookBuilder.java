@@ -1994,10 +1994,10 @@ public class DocBookBuilder implements ShutdownAbleApp {
         // Set the book subtitle
         bookInfo = bookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX,
                 contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : DocBookBuildUtilities.escapeForReplaceAll(
-                        StringUtilities.escapeForXML(contentSpec.getSubtitle())));
+                        DocBookUtilities.escapeTitleString(contentSpec.getSubtitle())));
         // Set the book product
         bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX,
-                DocBookBuildUtilities.escapeForReplaceAll(StringUtilities.escapeForXML(contentSpec.getProduct())));
+                DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeTitleString(contentSpec.getProduct())));
         // Set the book product version
         bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion() == null ? "" : contentSpec.getVersion());
         // Set or remove the book edition
