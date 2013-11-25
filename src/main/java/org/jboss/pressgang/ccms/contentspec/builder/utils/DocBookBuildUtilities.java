@@ -63,7 +63,7 @@ public class DocBookBuildUtilities {
     private static final Pattern TUESDAY_DATE_RE = Pattern.compile("Tues(?!day)", java.util.regex.Pattern.CASE_INSENSITIVE);
 
     private static final Pattern INJECT_RE = Pattern.compile(
-            "^\\s*(?<TYPE>Inject\\w*)(?<COLON>:?)" + "\\s*(?<IDS>\\d+[\\w\\d\\s,\\.]*)\\s*$", java.util.regex.Pattern.CASE_INSENSITIVE);
+            "^\\s*(?<TYPE>Inject\\w*)(?<COLON>:?)" + "\\s*(?<IDS>\\d+.*)\\s*$", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final Pattern INJECT_ID_RE = Pattern.compile("^[\\d ,]+$");
     private static final List<String> VALID_INJECTION_TYPES = Arrays.asList("Inject", "InjectList", "InjectListItems",
             "InjectListAlphaSort", "InjectSequence");
@@ -918,7 +918,7 @@ public class DocBookBuildUtilities {
                                         "\"Inject: 1\"");
                     } else {
                         error.addMessage(
-                                "The Topic ID(s) in the injection are invalid. Please ensure that only the Topic ID is used and " + "is " +
+                                "The Topic ID(s) in the injection are invalid. Please ensure that only the Topic ID is used and is " +
                                         "in a comma separated list. eg \"InjectList: 1, 2, 3\"");
                     }
                 }
