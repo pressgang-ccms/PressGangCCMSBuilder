@@ -3476,7 +3476,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         byte[] entityData = new byte[0];
         try {
-            final StringBuilder entity = new StringBuilder(BuilderConstants.DUMMY_CS_NAME_ENT_FILE);
+            final StringBuilder entity = new StringBuilder(CSConstants.DUMMY_CS_NAME_ENT_FILE);
             // Add any custom entities
             if (!isNullOrEmpty(contentSpec.getEntities())) {
                 entity.append(contentSpec.getEntities());
