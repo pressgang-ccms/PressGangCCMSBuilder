@@ -107,6 +107,7 @@ import org.jboss.pressgang.ccms.wrapper.collection.UpdateableCollectionWrapper;
 import org.jboss.pressgang.ccms.zanata.ZanataDetails;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Entity;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -583,6 +584,11 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 }
             }
 
+            // Resolve any entities to make sure that the source string match
+            final List<Entity> entities = XMLUtilities.parseEntitiesFromString(contentSpec.getEntities());
+            TranslationUtilities.resolveCustomContentSpecEntities(entities, translatedContentSpec.getContentSpec());
+
+            // Replace all the translated strings
             TranslationUtilities.replaceTranslatedStrings(translatedContentSpec.getContentSpec(), contentSpec, translations);
 
             // Set the Unique Ids so that they can be used later
