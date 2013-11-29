@@ -1011,6 +1011,11 @@ public class DocBookBuilder implements ShutdownAbleApp {
      */
     private TranslatedTopicWrapper createDummyTranslatedTopicFromExisting(final TranslatedTopicWrapper translatedTopic,
             final String locale) {
+        // Make sure some collections are loaded, so the clone works properly
+        translatedTopic.getTags();
+        translatedTopic.getProperties();
+
+        // Clone the existing version
         final TranslatedTopicWrapper defaultLocaleTranslatedTopic = translatedTopic.clone(false);
 
         // Negate the ID to show it isn't a proper translated topic
