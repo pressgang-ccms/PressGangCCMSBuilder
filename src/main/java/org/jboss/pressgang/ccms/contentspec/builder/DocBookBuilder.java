@@ -80,6 +80,7 @@ import org.jboss.pressgang.ccms.provider.TranslatedTopicProvider;
 import org.jboss.pressgang.ccms.provider.exception.NotFoundException;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
+import org.jboss.pressgang.ccms.utils.common.ResourceUtilities;
 import org.jboss.pressgang.ccms.utils.common.SAXXMLValidator;
 import org.jboss.pressgang.ccms.utils.common.StringUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
@@ -1927,6 +1928,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
     protected void addBookBaseFilesAndImages(final BuildData buildData) throws BuildProcessingException {
         final String pressgangWebsiteJS = buildPressGangWebsiteJS(buildData);
 
+        addToZip(buildData.getBookImagesFolder() + "icon.svg", ResourceUtilities.resourceFileToByteArray("/", "icon.svg"), buildData);
         addToZip(buildData.getBookFilesFolder() + "pressgang_website.js", pressgangWebsiteJS, buildData);
     }
 
@@ -2513,7 +2515,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         // Download the image files that were identified in the processing stage
         float imageProgress = 0;
         final float imageTotal = buildData.getImageLocations().size();
-        final int showPercent = 5;
+        final int showPercent = 10;
         int lastPercent = 0;
 
         for (final TopicImageData imageLocation : buildData.getImageLocations()) {
