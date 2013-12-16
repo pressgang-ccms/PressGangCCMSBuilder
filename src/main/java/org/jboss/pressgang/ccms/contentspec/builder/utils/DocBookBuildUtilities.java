@@ -63,8 +63,9 @@ public class DocBookBuildUtilities {
     private static final Pattern TUESDAY_DATE_RE = Pattern.compile("Tues(?!day)", java.util.regex.Pattern.CASE_INSENSITIVE);
 
     private static final Pattern INJECT_RE = Pattern.compile(
-            "^\\s*(?<TYPE>Inject\\w*)(?<COLON>:?)" + "\\s*(?<IDS>\\d+.*)\\s*$", java.util.regex.Pattern.CASE_INSENSITIVE);
+            "^\\s*(?<TYPE>Inject\\w*)(?<COLON>:?)\\s*(?<IDS>\\d+.*)\\s*$", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final Pattern INJECT_ID_RE = Pattern.compile("^[\\d ,]+$");
+    private static final Pattern INJECT_SINGLE_ID_RE = Pattern.compile("^[\\d]+$");
     private static final List<String> VALID_INJECTION_TYPES = Arrays.asList("Inject", "InjectList", "InjectListItems",
             "InjectListAlphaSort", "InjectSequence");
 
@@ -896,7 +897,6 @@ public class DocBookBuildUtilities {
                 final String ids = match.group("IDS");
 
                 final InjectionError error = new InjectionError(comment.getTextContent());
-                retValue.add(error);
 
                 // Check the type
                 if (!VALID_INJECTION_TYPES.contains(type)) {
@@ -921,6 +921,15 @@ public class DocBookBuildUtilities {
                                 "The Topic ID(s) in the injection are invalid. Please ensure that only the Topic ID is used and is " +
                                         "in a comma separated list. eg \"InjectList: 1, 2, 3\"");
                     }
+                } else if (type.equalsIgnoreCase("inject") && !INJECT_SINGLE_ID_RE.matcher(ids.trim()).matches()) {
+                    error.addMessage(
+                            "The Topic ID in the injection is invalid. Please ensure that only the Topic ID is used. eg " +
+                                    "\"Inject: 1\"");
+                }
+
+                // Some errors were found so add the injection to the retValue
+                if (!error.getMessages().isEmpty()) {
+                    retValue.add(error);
                 }
             }
         }
