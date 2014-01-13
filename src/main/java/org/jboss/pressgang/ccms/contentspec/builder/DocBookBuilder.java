@@ -3502,7 +3502,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         // First check to see if the title is valid XML
         final String titleXML = "<title>" + topic.getTitle() + "</title>";
-        if (!validator.validateXML(titleXML, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue(), "title")) {
+        if (!validator.validateXML(titleXML, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue(), "Book.ent", entityData, "title")) {
             // The title is invalid so replace it with something that is valid
             topic.setTitle("Invalid Topic");
             DocBookUtilities.setSectionTitle(topic.getTitle(), topicDoc);
