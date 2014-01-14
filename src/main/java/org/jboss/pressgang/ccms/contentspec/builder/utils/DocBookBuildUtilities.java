@@ -936,4 +936,25 @@ public class DocBookBuildUtilities {
 
         return retValue;
     }
+
+    public static boolean useStaticFixedURLForTopic(final BuildData buildData, final BaseTopicWrapper<?> topic) {
+        return topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId())
+                || topic.hasTag(buildData.getServerEntities().getLegalNoticeTagId())
+                || topic.hasTag(buildData.getServerEntities().getAuthorGroupTagId())
+                || topic.hasTag(buildData.getServerEntities().getAbstractTagId());
+    }
+
+    public static String getStaticFixedURLForTopic(final BuildData buildData, final BaseTopicWrapper<?> topic) {
+        if (topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId())) {
+            return "Revision_History";
+        } else if (topic.hasTag(buildData.getServerEntities().getLegalNoticeTagId())) {
+            return "Legal_Notice";
+        } else if (topic.hasTag(buildData.getServerEntities().getAuthorGroupTagId())) {
+            return "Author_Group";
+        } else if (topic.hasTag(buildData.getServerEntities().getAbstractTagId())) {
+            return "Abstract";
+        } else {
+            return null;
+        }
+    }
 }

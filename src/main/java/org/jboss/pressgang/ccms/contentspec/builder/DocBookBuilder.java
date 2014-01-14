@@ -441,8 +441,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final String fixedRequester = requester == null ? "Unknown" : requester;
 
         // Create the build data
-        final BuildData buildData = new BuildData(fixedRequester, BuilderConstants.BUILD_NAME, contentSpec, buildingOptions,
-                zanataDetails, providerFactory);
+        final BuildData buildData = new BuildData(fixedRequester, BuilderConstants.BUILD_NAME, contentSpec, buildingOptions, zanataDetails,
+                providerFactory);
         setBuildData(buildData);
 
         // Get the Build Locale
@@ -450,7 +450,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
         if (buildData.getBuildLocale().equals(defaultBuildLocale) || !LOCALE_MAP.containsKey(buildData.getBuildLocale())) {
             constantsResourceBundle = ResourceBundle.getBundle("Constants", new UTF8ResourceBundleControl());
         } else {
-            constantsResourceBundle = ResourceBundle.getBundle("Constants", LOCALE_MAP.get(buildData.getBuildLocale()), new UTF8ResourceBundleControl());
+            constantsResourceBundle = ResourceBundle.getBundle("Constants", LOCALE_MAP.get(buildData.getBuildLocale()),
+                    new UTF8ResourceBundleControl());
         }
 
         // Set the override files if any were passed
@@ -1306,7 +1307,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(specTopic.getRevision())) {
+                            .equals(
+                            specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             buildData.getErrorDatabase().addWarning(topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -3618,93 +3620,101 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         return false;
                     }
 
-                    // Create the PropertyTagCollection to be used to update any data
-                    final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
-                            .newPropertyTagInTopicCollection(topic);
+                    // Ignore certain topics as those are unique per book and should have a static name
+                    if (DocBookBuildUtilities.useStaticFixedURLForTopic(buildData, topic)) {
+                        // Update the Topic Fixed URL to the set value
+                        final String value = DocBookBuildUtilities.getStaticFixedURLForTopic(buildData, topic);
+                        setFixedURLPropertyTag(buildData, topic, value);
+                    } else {
+                        // Create the PropertyTagCollection to be used to update any data
+                        final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
+                                .newPropertyTagInTopicCollection(
+                                topic);
 
-                    // Get a list of all property tag items that exist for the current topic
-                    final List<PropertyTagInTopicWrapper> existingUniqueURLs = topic.getProperties(
-                            buildData.getServerEntities().getFixedUrlPropertyTagId());
+                        // Get a list of all property tag items that exist for the current topic
+                        final List<PropertyTagInTopicWrapper> existingUniqueURLs = topic.getProperties(
+                                buildData.getServerEntities().getFixedUrlPropertyTagId());
 
-                    // Remove any Duplicate Fixed URL's
-                    PropertyTagInTopicWrapper existingUniqueURL = null;
-                    for (int i = 0; i < existingUniqueURLs.size(); i++) {
-                        final PropertyTagInTopicWrapper propertyTag = existingUniqueURLs.get(i);
-                        if (i == 0) {
-                            existingUniqueURL = propertyTag;
-                        } else {
-                            updatePropertyTags.addRemoveItem(propertyTag);
-                            topic.getProperties().getItems().remove(propertyTag);
-                        }
-                    }
-
-                    if (existingUniqueURL == null || !existingUniqueURL.isValid()) {
-                        // generate the base url
-                        String baseUrlName = DocBookBuildUtilities.createURLTitle(topic.getTitle());
-
-                        // generate a unique fixed url
-                        String postFix = "";
-
-                        for (int uniqueCount = 1; uniqueCount <= BuilderConstants.MAXIMUM_SET_PROP_TAG_NAME_RETRY; ++uniqueCount) {
-                            final String query = "query;propertyTag" + buildData.getServerEntities().getFixedUrlPropertyTagId() + "=" +
-                                    URLEncoder.encode(baseUrlName + postFix, ENCODING);
-                            final CollectionWrapper<TopicWrapper> queryTopics = topicProvider.getTopicsWithQuery(query);
-
-                            if (queryTopics.size() != 0 || processedFileNames.contains(baseUrlName + postFix)) {
-                                postFix = uniqueCount + "";
+                        // Remove any Duplicate Fixed URL's
+                        PropertyTagInTopicWrapper existingUniqueURL = null;
+                        for (int i = 0; i < existingUniqueURLs.size(); i++) {
+                            final PropertyTagInTopicWrapper propertyTag = existingUniqueURLs.get(i);
+                            if (i == 0) {
+                                existingUniqueURL = propertyTag;
                             } else {
-                                break;
+                                updatePropertyTags.addRemoveItem(propertyTag);
+                                topic.getProperties().getItems().remove(propertyTag);
                             }
                         }
 
-                        // Check if the app should be shutdown
-                        if (isShuttingDown.get()) {
-                            return false;
-                        }
+                        if (existingUniqueURL == null || !existingUniqueURL.isValid()) {
+                            // generate the base url
+                            String baseUrlName = DocBookBuildUtilities.createURLTitle(topic.getTitle());
 
-                        // persist the new fixed url, as long as we are not looking at a landing page topic
-                        if (topic.getId() >= 0) {
+                            // generate a unique fixed url
+                            String postFix = "";
 
-                            // update any old fixed url property tags
-                            boolean found = false;
-                            if (topic.getProperties() != null && topic.getProperties().getItems() != null) {
-                                final List<PropertyTagInTopicWrapper> propertyTags = topic.getProperties().getItems();
-                                for (final PropertyTagInTopicWrapper existing : propertyTags) {
-                                    if (existing.getId().equals(buildData.getServerEntities().getFixedUrlPropertyTagId())) {
-                                        if (found) {
-                                            // If we've already found one then we need to remove any duplicates
-                                            updatePropertyTags.addRemoveItem(existing);
-                                        } else {
-                                            found = true;
-                                            existing.setValue(baseUrlName + postFix);
+                            for (int uniqueCount = 1; uniqueCount <= BuilderConstants.MAXIMUM_SET_PROP_TAG_NAME_RETRY; ++uniqueCount) {
+                                final String query = "query;propertyTag" + buildData.getServerEntities().getFixedUrlPropertyTagId() + "=" +
+                                        URLEncoder.encode(baseUrlName + postFix, ENCODING);
+                                final CollectionWrapper<TopicWrapper> queryTopics = topicProvider.getTopicsWithQuery(query);
 
-                                            updatePropertyTags.addUpdateItem(existing);
-                                        }
-                                    }
+                                if (queryTopics.size() != 0 || processedFileNames.contains(baseUrlName + postFix)) {
+                                    postFix = uniqueCount + "";
+                                } else {
+                                    break;
                                 }
                             }
 
-                            // If we didn't find any tags then add a new one
-                            if (!found) {
-                                final PropertyTagInTopicWrapper propertyTag = propertyTagProvider.newPropertyTagInTopic(topic);
-                                propertyTag.setId(buildData.getServerEntities().getFixedUrlPropertyTagId());
-                                propertyTag.setValue(baseUrlName + postFix);
-
-                                updatePropertyTags.addNewItem(propertyTag);
+                            // Check if the app should be shutdown
+                            if (isShuttingDown.get()) {
+                                return false;
                             }
-                            processedFileNames.add(baseUrlName + postFix);
+
+                            // persist the new fixed url, as long as we are not looking at a landing page topic
+                            if (topic.getId() >= 0) {
+
+                                // update any old fixed url property tags
+                                boolean found = false;
+                                if (topic.getProperties() != null && topic.getProperties().getItems() != null) {
+                                    final List<PropertyTagInTopicWrapper> propertyTags = topic.getProperties().getItems();
+                                    for (final PropertyTagInTopicWrapper existing : propertyTags) {
+                                        if (existing.getId().equals(buildData.getServerEntities().getFixedUrlPropertyTagId())) {
+                                            if (found) {
+                                                // If we've already found one then we need to remove any duplicates
+                                                updatePropertyTags.addRemoveItem(existing);
+                                            } else {
+                                                found = true;
+                                                existing.setValue(baseUrlName + postFix);
+
+                                                updatePropertyTags.addUpdateItem(existing);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // If we didn't find any tags then add a new one
+                                if (!found) {
+                                    final PropertyTagInTopicWrapper propertyTag = propertyTagProvider.newPropertyTagInTopic(topic);
+                                    propertyTag.setId(buildData.getServerEntities().getFixedUrlPropertyTagId());
+                                    propertyTag.setValue(baseUrlName + postFix);
+
+                                    updatePropertyTags.addNewItem(propertyTag);
+                                }
+                                processedFileNames.add(baseUrlName + postFix);
+                            }
+                        } else {
+                            processedFileNames.add(existingUniqueURL.getValue());
                         }
-                    } else {
-                        processedFileNames.add(existingUniqueURL.getValue());
-                    }
 
-                    // If we have changes then create a basic topic so that the property tags can be updated.
-                    if (!updatePropertyTags.getItems().isEmpty()) {
-                        final TopicWrapper updateTopic = topicProvider.newTopic();
-                        updateTopic.setId(topic.getId());
+                        // If we have changes then create a basic topic so that the property tags can be updated.
+                        if (!updatePropertyTags.getItems().isEmpty()) {
+                            final TopicWrapper updateTopic = topicProvider.newTopic();
+                            updateTopic.setId(topic.getId());
 
-                        updateTopic.setProperties(updatePropertyTags);
-                        updateTopics.addItem(updateTopic);
+                            updateTopic.setProperties(updatePropertyTags);
+                            updateTopics.addItem(updateTopic);
+                        }
                     }
                 }
 
@@ -3720,7 +3730,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 // If we got here, then the REST update went ok
                 success = true;
 
-                updateFixedURLsForTopics(updateTopics, topics);
+                updateFixedURLsForTopics(buildData, updateTopics, topics);
             }
         } catch (final Exception ex) {
             log.error("\tFailed to update the Fixed URLs for the topic");
@@ -3748,53 +3758,77 @@ public class DocBookBuilder implements ShutdownAbleApp {
          * unique within the book.
          */
         for (final BaseTopicWrapper<?> topic : topics) {
+            // Ignore certain topics as those are unique per book and should have a static name
+            if (DocBookBuildUtilities.useStaticFixedURLForTopic(buildData, topic)) {
+                // Update the Topic Fixed URL to the set value
+                final String value = DocBookBuildUtilities.getStaticFixedURLForTopic(buildData, topic);
+                setFixedURLPropertyTag(buildData, topic, value);
+            } else {
+                // Get the existing property tag and value
+                final PropertyTagInTopicWrapper existingUniqueURL = topic.getProperty(buildData.getServerEntities().getFixedUrlPropertyTagId());
+                String value = existingUniqueURL == null ? null : existingUniqueURL.getValue();
 
-            // Get the existing property tag
-            PropertyTagInTopicWrapper existingUniqueURL = topic.getProperty(buildData.getServerEntities().getFixedUrlPropertyTagId());
-
-            // Create a property tag if none exists
-            if (existingUniqueURL == null) {
-                existingUniqueURL = propertyTagProvider.newPropertyTagInTopic(topic);
-                existingUniqueURL.setId(buildData.getServerEntities().getFixedUrlPropertyTagId());
-                if (topic.getProperties() == null) {
-                    topic.setProperties(propertyTagProvider.newPropertyTagInTopicCollection(topic));
-                }
-                topic.getProperties().addItem(existingUniqueURL);
-            }
-
-            if (existingUniqueURL.getValue() == null || existingUniqueURL.getValue().isEmpty() || processedFileNames.contains(
-                    existingUniqueURL.getValue())) {
-
-                final String baseUrlName;
-                if (topic instanceof TranslatedTopicWrapper) {
-                    baseUrlName = DocBookBuildUtilities.createURLTitle(((TranslatedTopicWrapper) topic).getTopic().getTitle());
-                } else {
-                    baseUrlName = DocBookBuildUtilities.createURLTitle(topic.getTitle());
-                }
-                String postFix = "";
-                for (int uniqueCount = 1; ; ++uniqueCount) {
-                    if (!processedFileNames.contains(baseUrlName + postFix)) {
-                        break;
+                // Check if a new value needs to be calculated
+                if (value == null || value.isEmpty() || processedFileNames.contains(value)) {
+                    final String baseUrlName;
+                    if (topic instanceof TranslatedTopicWrapper) {
+                        baseUrlName = DocBookBuildUtilities.createURLTitle(((TranslatedTopicWrapper) topic).getTopic().getTitle());
                     } else {
-                        postFix = uniqueCount + "";
+                        baseUrlName = DocBookBuildUtilities.createURLTitle(topic.getTitle());
+                    }
+                    String postFix = "";
+                    for (int uniqueCount = 1; ; ++uniqueCount) {
+                        if (!processedFileNames.contains(baseUrlName + postFix)) {
+                            value = baseUrlName + postFix;
+                            break;
+                        } else {
+                            postFix = uniqueCount + "";
+                        }
                     }
                 }
 
-                // Update the fixed url
-                existingUniqueURL.setValue(baseUrlName + postFix);
+                // Set the property tag value and add it to the processed file names
+                setFixedURLPropertyTag(buildData, topic, value);
+                processedFileNames.add(value);
             }
-
-            processedFileNames.add(existingUniqueURL.getValue());
         }
+    }
+
+    /**
+     * Sets the Fixed URL Property Tag value for a Topic. If a Fixed URL Property Tag doesn't exist then one is created and added to the
+     * topic.
+     *
+     * @param buildData Information and data structures for the build.
+     * @param topic     The topic to set the Fixed URL Property Tag for.
+     * @param fixedURL  The Fixed URL value to be set.
+     */
+    protected void setFixedURLPropertyTag(final BuildData buildData, final BaseTopicWrapper<?> topic, final String fixedURL) {
+        // Get the existing property tag
+        PropertyTagInTopicWrapper existingUniqueURL = topic.getProperty(buildData.getServerEntities().getFixedUrlPropertyTagId());
+
+        // Create a property tag if none exists
+        if (existingUniqueURL == null) {
+            existingUniqueURL = propertyTagProvider.newPropertyTagInTopic(topic);
+            existingUniqueURL.setId(buildData.getServerEntities().getFixedUrlPropertyTagId());
+            if (topic.getProperties() == null) {
+                topic.setProperties(propertyTagProvider.newPropertyTagInTopicCollection(topic));
+            }
+            topic.getProperties().addItem(existingUniqueURL);
+        }
+
+        // Update the fixed url
+        existingUniqueURL.setValue(fixedURL);
     }
 
     /**
      * Update the Fixed URL Property Tags from a collection of updated topics.
      *
+     * @param buildData      Information and data structures for the build.
      * @param updatedTopics  The collection of updated topics.
      * @param originalTopics The collection of original topics.
      */
-    protected void updateFixedURLsForTopics(final CollectionWrapper<TopicWrapper> updatedTopics, final List<TopicWrapper> originalTopics) {
+    protected void updateFixedURLsForTopics(final BuildData buildData, final CollectionWrapper<TopicWrapper> updatedTopics,
+            final List<TopicWrapper> originalTopics) {
         /* copy the topics fixed url properties to our local collection */
         if (updatedTopics.getItems() != null && updatedTopics.getItems().size() != 0) {
             final List<TopicWrapper> updateItems = updatedTopics.getItems();
