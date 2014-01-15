@@ -1876,7 +1876,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
             if (errorData != null && errorData.hasFatalErrors()) {
                 buildAuthorGroup(buildData);
             } else {
-
                 addToZip(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, authorGroupXML, buildData);
             }
         } else {

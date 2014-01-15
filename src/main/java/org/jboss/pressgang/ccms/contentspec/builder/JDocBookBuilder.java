@@ -20,6 +20,8 @@ import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.FileUtilities;
 
 public class JDocBookBuilder extends DocBookBuilder {
+    private static final String SNAPSHOT_SUFFIX = "-SNAPSHOT";
+
     public JDocBookBuilder(final DataProviderFactory providerFactory) throws BuilderCreationException {
         super(providerFactory);
     }
@@ -167,14 +169,16 @@ public class JDocBookBuilder extends DocBookBuilder {
 
         // Change the Version
         final String version;
-        if (!isNullOrEmpty(contentSpec.getBookVersion())) {
-            version = contentSpec.getBookVersion();
+        if (!isNullOrEmpty(contentSpec.getPOMVersion())) {
+            version = contentSpec.getPOMVersion();
+        } else if (!isNullOrEmpty(contentSpec.getBookVersion())) {
+            version = contentSpec.getBookVersion() + SNAPSHOT_SUFFIX;
         } else if (!isNullOrEmpty(contentSpec.getEdition())) {
-            version = contentSpec.getEdition();
+            version = contentSpec.getEdition() + SNAPSHOT_SUFFIX;
         } else {
-            version = contentSpec.getVersion();
+            version = contentSpec.getVersion() + SNAPSHOT_SUFFIX;
         }
-        pomXML = pomXML.replaceFirst("<version>.*</version>", "<version>" + version + "-SNAPSHOT</version>");
+        pomXML = pomXML.replaceFirst("<version>.*</version>", "<version>" + version + "</version>");
 
         addToZip(buildData.getRootBookFolder() + "pom.xml", pomXML, buildData);
     }
