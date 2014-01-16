@@ -5,6 +5,7 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import java.util.Map;
 
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
+import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
@@ -12,6 +13,7 @@ import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationExc
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.DocBookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
+import org.jboss.pressgang.ccms.contentspec.enums.LevelType;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
 import org.w3c.dom.Document;
 
@@ -73,20 +75,28 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
         publicanCfg = publicanCfg.replaceFirst("type\\:\\s*.*($|\\r\\n|\\n)",
                 "type: " + contentSpec.getBookType().toString().replaceAll("-Draft", "") + "\n");
         publicanCfg = publicanCfg.replaceAll("xml_lang\\:\\s*.*?($|\\r\\n|\\n)", "xml_lang: " + buildData.getOutputLocale() + "\n");
-        if (!publicanCfg.matches(".*\n$")) {
-            publicanCfg += "\n";
-        }
 
         // Remove the image width
         publicanCfg = publicanCfg.replaceFirst("max_image_width:\\s*\\d+\\s*(\\r)?\\n", "");
         publicanCfg = publicanCfg.replaceFirst("toc_section_depth:\\s*\\d+\\s*(\\r)?\\n", "");
 
+        // Minor formatting cleanup
+        publicanCfg = publicanCfg.trim() + "\n";
+
         if (contentSpec.getPublicanCfg() != null) {
+            // If the user publican.cfg doesn't contain a chunk_section_depth, then add a calculated one
+            if (!contentSpec.getPublicanCfg().contains("chunk_section_depth")) {
+                publicanCfg += "chunk_section_depth: " + calcChunkSectionDepth(buildData) + "\n";
+            }
+
             // Remove the git_branch if the content spec contains a git_branch
             if (contentSpec.getPublicanCfg().contains("git_branch")) {
                 publicanCfg = publicanCfg.replaceFirst("git_branch:\\s*.*(\\r)?(\\n)?", "");
             }
+
             publicanCfg += DocBookBuildUtilities.cleanUserPublicanCfg(contentSpec.getPublicanCfg());
+        } else {
+            publicanCfg += "chunk_section_depth: " + calcChunkSectionDepth(buildData) + "\n";
         }
 
         if (buildData.getBuildOptions().getPublicanShowRemarks()) {
@@ -202,5 +212,37 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
         }
 
         return retValue;
+    }
+
+    protected static int calcChunkSectionDepth(final BuildData buildData) {
+        final int sectionDepth = calcChunkSectionDepth(buildData.getContentSpec().getBaseLevel(), 0);
+        return sectionDepth > 0 ? sectionDepth - 1 : 0;
+    }
+
+    protected static int calcChunkSectionDepth(final Level level, int depth) {
+        // If this level has no children then it is at its max depth
+        if (level.getChildLevels().isEmpty()) return depth;
+
+        int maxDepth = depth;
+        for (final Level childLevel : level.getChildLevels()) {
+            Integer childDepth = null;
+            if (childLevel.getLevelType() == LevelType.SECTION) {
+                childDepth = calcChunkSectionDepth(childLevel, depth + 1);
+            } else if (childLevel.getLevelType() == LevelType.PROCESS) {
+                // Only calc the child level for processes that are sections
+                final LevelType parentLevelType = childLevel.getParent().getLevelType();
+                if (parentLevelType != LevelType.BASE && parentLevelType != LevelType.PART) {
+                    childDepth = calcChunkSectionDepth(childLevel, depth + 1);
+                }
+            } else {
+                childDepth = calcChunkSectionDepth(childLevel, depth);
+            }
+
+            if (childDepth != null && childDepth > maxDepth) {
+                maxDepth = childDepth;
+            }
+        }
+
+        return maxDepth;
     }
 }
