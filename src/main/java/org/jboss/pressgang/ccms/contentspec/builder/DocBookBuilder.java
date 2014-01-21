@@ -1575,10 +1575,10 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         // Process the injection points
         if (buildData.getInjectionOptions().isInjectionAllowed()) {
-            xmlPreProcessor.processPrerequisiteInjections(level.getFrontMatterTopics(), doc, node, useFixedUrls, fixedUrlPropertyTagId);
-            xmlPreProcessor.processLinkListRelationshipInjections(level.getFrontMatterTopics(), doc, node, useFixedUrls,
+            xmlPreProcessor.processPrerequisiteInjections(level.getInitialContentTopics(), doc, node, useFixedUrls, fixedUrlPropertyTagId);
+            xmlPreProcessor.processLinkListRelationshipInjections(level.getInitialContentTopics(), doc, node, useFixedUrls,
                     fixedUrlPropertyTagId);
-            xmlPreProcessor.processSeeAlsoInjections(level.getFrontMatterTopics(), doc, node, useFixedUrls, fixedUrlPropertyTagId);
+            xmlPreProcessor.processSeeAlsoInjections(level.getInitialContentTopics(), doc, node, useFixedUrls, fixedUrlPropertyTagId);
         }
     }
 
@@ -1682,17 +1682,20 @@ public class DocBookBuilder implements ShutdownAbleApp {
             throw new BuildProcessingException(e);
         }
 
-        final LinkedList<org.jboss.pressgang.ccms.contentspec.Node> levelData = contentSpec.getBaseLevel().getChildNodes();
+        boolean flattenStructure = buildData.getBuildOptions().isServerBuild() || buildData.getBuildOptions().getFlatten();
+        final List<org.jboss.pressgang.ccms.contentspec.Node> levelData = contentSpec.getBaseLevel().getChildNodes();
 
         // Loop through and create each chapter and the topics inside those chapters
         log.info("\tBuilding Level and Topic XML Files");
+
+        addLevelsInitialContent(contentSpec.getBaseLevel(), bookBase, bookBase.getDocumentElement());
+
         for (final org.jboss.pressgang.ccms.contentspec.Node node : levelData) {
             // Check if the app should be shutdown
             if (isShuttingDown.get()) {
                 return;
             }
 
-            boolean flattenStructure = buildData.getBuildOptions().isServerBuild() || buildData.getBuildOptions().getFlatten();
             if (node instanceof Level) {
                 final Level level = (Level) node;
 
@@ -2287,7 +2290,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
      */
     protected void createSectionXML(final BuildData buildData, final Level level, final Document chapter, final Element parentNode,
             final String parentFileLocation, final Boolean flattenStructure) throws BuildProcessingException {
-        final LinkedList<org.jboss.pressgang.ccms.contentspec.Node> levelData = level.getChildNodes();
+        final List<org.jboss.pressgang.ccms.contentspec.Node> levelData = level.getChildNodes();
 
         // Get the name of the element based on the type
         final String elementName = level.getLevelType() == LevelType.PROCESS ? "chapter" : level.getLevelType().getTitle().toLowerCase(
@@ -2367,34 +2370,11 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         // Add the intro text from the front matter topics
-        if (!level.getFrontMatterTopics().isEmpty()) {
-            // Copy the body content of the topics to the level's front matter
-            for (final SpecTopic frontMatterTopic : level.getFrontMatterTopics()) {
-                if (level.getLevelType() == LevelType.PART) {
-                    addTopicContentsToLevelDocument(level, frontMatterTopic, intro, chapter);
-                } else {
-                    addTopicContentsToLevelDocument(level, frontMatterTopic, parentNode, chapter);
-                }
-            }
-
-            final BugLinkOptions bugOptions = buildData.getBugLinkOptions();
-            final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
-            final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(getConstants(), bugLinkStrategy);
-
+        if (!level.getInitialContentTopics().isEmpty()) {
             if (level.getLevelType() == LevelType.PART) {
-                // Process the see also/prereq injections for the front matter topics
-                processFrontMatterInjections(buildData, level, chapter, intro, xmlPreProcessor);
-
-                // Add the bug links for the front matter content
-                xmlPreProcessor.processFrontMatterBugLink(level, chapter, intro, bugOptions, buildData.getBuildOptions(),
-                        buildData.getBuildDate());
+                addLevelsInitialContent(level, chapter, intro);
             } else {
-                // Process the see also/prereq injections for the front matter topics
-                processFrontMatterInjections(buildData, level, chapter, parentNode, xmlPreProcessor);
-
-                // Add the bug links for the front matter content
-                xmlPreProcessor.processFrontMatterBugLink(level, chapter, parentNode, bugOptions, buildData.getBuildOptions(),
-                        buildData.getBuildDate());
+                addLevelsInitialContent(level, chapter, parentNode);
             }
         }
 
@@ -2406,6 +2386,24 @@ public class DocBookBuilder implements ShutdownAbleApp {
         for (final Node node : childNodes) {
             parentNode.appendChild(node);
         }
+    }
+
+    protected void addLevelsInitialContent(final Level level, final Document chapter, final Element parentNode) {
+        // Copy the body content of the topics to the level's front matter
+        for (final SpecTopic frontMatterTopic : level.getInitialContentTopics()) {
+            addTopicContentsToLevelDocument(level, frontMatterTopic, parentNode, chapter);
+        }
+
+        final BugLinkOptions bugOptions = buildData.getBugLinkOptions();
+        final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
+        final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(getConstants(), bugLinkStrategy);
+
+        // Process the see also/prereq injections for the front matter topics
+        processFrontMatterInjections(buildData, level, chapter, parentNode, xmlPreProcessor);
+
+        // Add the bug links for the front matter content
+        xmlPreProcessor.processFrontMatterBugLink(level, chapter, parentNode, bugOptions, buildData.getBuildOptions(),
+                buildData.getBuildDate());
     }
 
     /**
