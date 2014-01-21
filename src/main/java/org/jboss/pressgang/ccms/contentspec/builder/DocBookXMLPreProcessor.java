@@ -1,6 +1,8 @@
 package org.jboss.pressgang.ccms.contentspec.builder;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -14,15 +16,15 @@ import org.jboss.pressgang.ccms.contentspec.SpecNode;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkOptions;
+import org.jboss.pressgang.ccms.contentspec.builder.sort.TopicTitleSorter;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.DocBookBuildingOptions;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionListData;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionTopicData;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.TocTopicDatabase;
 import org.jboss.pressgang.ccms.contentspec.entities.Relationship;
 import org.jboss.pressgang.ccms.contentspec.entities.TargetRelationship;
 import org.jboss.pressgang.ccms.contentspec.entities.TopicRelationship;
 import org.jboss.pressgang.ccms.contentspec.enums.TopicType;
-import org.jboss.pressgang.ccms.contentspec.builder.sort.TopicTitleSorter;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionListData;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionTopicData;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.TocTopicDatabase;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
 import org.jboss.pressgang.ccms.utils.sort.ExternalListSort;
@@ -40,8 +42,8 @@ import org.w3c.dom.Text;
 /**
  * This class takes the XML from a topic and modifies it to include and injected content.
  */
-public class DocbookXMLPreProcessor {
-    private static final Logger LOG = LoggerFactory.getLogger(DocbookXMLPreProcessor.class);
+public class DocBookXMLPreProcessor {
+    private static final Logger LOG = LoggerFactory.getLogger(DocBookXMLPreProcessor.class);
     /**
      * Used to identify that an <orderedlist> should be generated for the injection point
      */
@@ -188,7 +190,7 @@ public class DocbookXMLPreProcessor {
     protected final ResourceBundle translations;
     protected final BaseBugLinkStrategy bugLinkStrategy;
 
-    public DocbookXMLPreProcessor(final ResourceBundle translationStrings, final BaseBugLinkStrategy bugLinkStrategy) {
+    public DocBookXMLPreProcessor(final ResourceBundle translationStrings, final BaseBugLinkStrategy bugLinkStrategy) {
         translations = translationStrings;
         this.bugLinkStrategy = bugLinkStrategy;
     }
@@ -197,10 +199,10 @@ public class DocbookXMLPreProcessor {
      * Creates the wrapper element for bug or editor links and adds it to the document.
      *
      * @param document The document to add the wrapper/link to.
-     * @param cssClass The css class name to use for the wrapper.
-     * @return The wrapper element that links can be added to.
+     * @param node     The specific node the wrapper/link should be added to.
+     * @param cssClass The css class name to use for the wrapper.  @return The wrapper element that links can be added to.
      */
-    protected Element createLinkWrapperElement(final Document document, final String cssClass) {
+    protected Element createLinkWrapperElement(final Document document, final Node node, final String cssClass) {
         // Create the bug/editor link root element
         final Element linkElement = document.createElement("para");
         if (cssClass != null) {
@@ -217,7 +219,7 @@ public class DocbookXMLPreProcessor {
         final NodeList sections = document.getDocumentElement().getElementsByTagName("section");
         if (refEntries.getLength() > 0 || sections.getLength() > 0) {
             final Element bugzillaSection = document.createElement("simplesect");
-            document.getDocumentElement().appendChild(bugzillaSection);
+            node.appendChild(bugzillaSection);
 
             final Element bugzillaSectionTitle = document.createElement("title");
             bugzillaSectionTitle.setTextContent("");
@@ -225,7 +227,7 @@ public class DocbookXMLPreProcessor {
 
             bugzillaSection.appendChild(linkElement);
         } else {
-            document.getDocumentElement().appendChild(linkElement);
+            node.appendChild(linkElement);
         }
 
         return linkElement;
@@ -233,30 +235,47 @@ public class DocbookXMLPreProcessor {
 
     public void processTopicBugLink(final SpecTopic specTopic, final Document document, final BugLinkOptions bugOptions,
             final DocBookBuildingOptions docbookBuildingOptions, final Date buildDate) {
-        // BUG LINK
         try {
-            final Element bugzillaULink = document.createElement("ulink");
-
-            final String reportBugTranslation = translations.getString(REPORT_A_BUG_PROPERTY);
-            bugzillaULink.setTextContent(reportBugTranslation == null ? DEFAULT_REPORT_A_BUG : reportBugTranslation);
-
             String specifiedBuildName = "";
             if (docbookBuildingOptions != null && docbookBuildingOptions.getBuildName() != null)
                 specifiedBuildName = docbookBuildingOptions.getBuildName();
 
             // build the bug link url with the base components
-            String bugzillaUrl = bugLinkStrategy.generateUrl(bugOptions, specTopic, specifiedBuildName, buildDate);
-
-            bugzillaULink.setAttribute("url", bugzillaUrl);
-
-            /*
-             * only add the elements to the XML DOM if there was no exception (not that there should be one
-             */
-            final Element bugzillaSection = createLinkWrapperElement(document, ROLE_CREATE_BUG_PARA);
-            bugzillaSection.appendChild(bugzillaULink);
+            final String bugLinkUrl = bugLinkStrategy.generateUrl(bugOptions, specTopic, specifiedBuildName, buildDate);
+            processBugLink(bugLinkUrl, document, document.getDocumentElement());
         } catch (final Exception ex) {
             LOG.error("Failed to insert Bug Links into the DOM Document", ex);
         }
+    }
+
+    public void processFrontMatterBugLink(final Level level, final Document document, final Node node, final BugLinkOptions bugOptions,
+            final DocBookBuildingOptions docbookBuildingOptions, final Date buildDate) {
+        try {
+            String specifiedBuildName = "";
+            if (docbookBuildingOptions != null && docbookBuildingOptions.getBuildName() != null)
+                specifiedBuildName = docbookBuildingOptions.getBuildName();
+
+            // build the bug link url with the base components
+            final String bugLinkUrl = bugLinkStrategy.generateUrl(bugOptions, level, specifiedBuildName, buildDate);
+            processBugLink(bugLinkUrl, document, node);
+        } catch (final Exception ex) {
+            LOG.error("Failed to insert Bug Links into the DOM Document", ex);
+        }
+    }
+
+    protected void processBugLink(final String bugLinkUrl, final Document document, final Node node) {
+        final Element bugzillaULink = document.createElement("ulink");
+
+        final String reportBugTranslation = translations.getString(REPORT_A_BUG_PROPERTY);
+        bugzillaULink.setTextContent(reportBugTranslation == null ? DEFAULT_REPORT_A_BUG : reportBugTranslation);
+
+        bugzillaULink.setAttribute("url", bugLinkUrl);
+
+        /*
+         * Add the elements to the XML DOM last incase there is an exception (not that there should be one
+         */
+        final Element bugzillaSection = createLinkWrapperElement(document, node, ROLE_CREATE_BUG_PARA);
+        bugzillaSection.appendChild(bugzillaULink);
     }
 
     public void processTopicEditorLinks(final SpecTopic specTopic, final Document document,
@@ -266,7 +285,7 @@ public class DocbookXMLPreProcessor {
             final BaseTopicWrapper<?> topic = specTopic.getTopic();
             final String editorUrl = topic.getEditorURL(zanataDetails);
 
-            final Element editorLinkPara = createLinkWrapperElement(document, ROLE_CREATE_BUG_PARA);
+            final Element editorLinkPara = createLinkWrapperElement(document, document.getDocumentElement(), ROLE_CREATE_BUG_PARA);
 
             if (editorUrl != null) {
                 final Element editorULink = document.createElement("ulink");
@@ -287,7 +306,8 @@ public class DocbookXMLPreProcessor {
                 final String additionalXMLEditorUrl = topic.getPressGangURL();
 
                 if (additionalXMLEditorUrl != null) {
-                    final Element additionalXMLEditorLinkPara = createLinkWrapperElement(document, ROLE_CREATE_BUG_PARA);
+                    final Element additionalXMLEditorLinkPara = createLinkWrapperElement(document, document.getDocumentElement(),
+                            ROLE_CREATE_BUG_PARA);
 
                     final Element editorULink = document.createElement("ulink");
                     additionalXMLEditorLinkPara.appendChild(editorULink);
@@ -332,8 +352,7 @@ public class DocbookXMLPreProcessor {
         }
 
         // Only include a bugzilla link for normal topics
-        if (specTopic.getTopicType() == TopicType.NORMAL || specTopic.getTopicType() == TopicType.LEVEL) {
-            // BUGZILLA LINK
+        if (specTopic.getTopicType() == TopicType.NORMAL) {
             if (docbookBuildingOptions != null && docbookBuildingOptions.getInsertBugLinks()) {
                 processTopicBugLink(specTopic, document, bugOptions, docbookBuildingOptions, buildDate);
             }
@@ -535,7 +554,8 @@ public class DocbookXMLPreProcessor {
                                     list.add(DocBookUtilities.buildEmphasisPrefixedXRef(xmlDocument, OPTIONAL_LIST_PREFIX,
                                             closestSpecTopic.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
                                 } else {
-                                    list.add(DocBookUtilities.buildXRef(xmlDocument, closestSpecTopic.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
+                                    list.add(DocBookUtilities.buildXRef(xmlDocument,
+                                            closestSpecTopic.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
                                 }
                             }
 
@@ -744,14 +764,36 @@ public class DocbookXMLPreProcessor {
      * @param fixedUrlPropertyTagId The ID for the Fixed URL Property Tag.
      */
     public void processPrerequisiteInjections(final SpecTopic topic, final Document doc, final boolean useFixedUrls,
-            Integer fixedUrlPropertyTagId) {
-        if (topic.getPrerequisiteRelationships().isEmpty()) return;
+            final Integer fixedUrlPropertyTagId) {
+        processPrerequisiteInjections(Arrays.asList(topic), doc, doc.getDocumentElement(), useFixedUrls, fixedUrlPropertyTagId);
+    }
+
+    /**
+     * Insert a itemized list into the start of the topic, below the title with any PREREQUISITE relationships that exists for
+     * the Spec Topic. The title for the list is set to the "PREREQUISITE" property or "Prerequisites:" by default.
+     *
+     * @param topics                The topics to process the injection for.
+     * @param doc                   The DOM Document object that represents the topics XML.
+     * @param node                  The DOM Element to append the links to.
+     * @param useFixedUrls          Whether fixed URL's should be used in the injected links.
+     * @param fixedUrlPropertyTagId The ID for the Fixed URL Property Tag.
+     */
+    public void processPrerequisiteInjections(final Collection<SpecTopic> topics, final Document doc, final Element node,
+            final boolean useFixedUrls, final Integer fixedUrlPropertyTagId) {
+        if (topics.isEmpty()) return;
+
+        // Make sure we have some pre-requisites to inject
+        boolean hasPrereqs = false;
+        for (final SpecTopic topic : topics) {
+            if (!topic.getPrerequisiteRelationships().isEmpty()) hasPrereqs = true;
+        }
+        if (!hasPrereqs) return;
 
         // Get the title element so that it can be used later to add the prerequisite topic nodes
         Element titleEle = null;
-        final NodeList titleList = doc.getDocumentElement().getElementsByTagName("title");
+        final NodeList titleList = node.getElementsByTagName("title");
         for (int i = 0; i < titleList.getLength(); i++) {
-            if (titleList.item(i).getParentNode().equals(doc.getDocumentElement())) {
+            if (titleList.item(i).getParentNode().equals(node)) {
                 titleEle = (Element) titleList.item(i);
                 break;
             }
@@ -770,17 +812,19 @@ public class DocbookXMLPreProcessor {
             final List<List<Element>> list = new LinkedList<List<Element>>();
 
             // Add the Relationships
-            for (final Relationship prereq : topic.getPrerequisiteRelationships()) {
-                if (prereq instanceof TopicRelationship) {
-                    final SpecTopic relatedTopic = ((TopicRelationship) prereq).getSecondaryRelationship();
+            for (final SpecTopic topic : topics) {
+                for (final Relationship prereq : topic.getPrerequisiteRelationships()) {
+                    if (prereq instanceof TopicRelationship) {
+                        final SpecTopic relatedTopic = ((TopicRelationship) prereq).getSecondaryRelationship();
 
-                    list.add(DocBookUtilities.buildXRef(doc, relatedTopic.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls),
-                            ROLE_PREREQUISITE));
-                } else {
-                    final SpecNode specNode = ((TargetRelationship) prereq).getSecondaryRelationship();
+                        list.add(DocBookUtilities.buildXRef(doc, relatedTopic.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls),
+                                ROLE_PREREQUISITE));
+                    } else {
+                        final SpecNode specNode = ((TargetRelationship) prereq).getSecondaryRelationship();
 
-                    list.add(DocBookUtilities.buildXRef(doc, specNode.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls),
-                            ROLE_PREREQUISITE));
+                        list.add(DocBookUtilities.buildXRef(doc, specNode.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls),
+                                ROLE_PREREQUISITE));
+                    }
                 }
             }
 
@@ -796,7 +840,7 @@ public class DocbookXMLPreProcessor {
                 nextNode = nextNode.getNextSibling();
             }
 
-            doc.getDocumentElement().insertBefore(itemisedListEle, nextNode);
+            node.insertBefore(itemisedListEle, nextNode);
         }
     }
 
@@ -811,8 +855,31 @@ public class DocbookXMLPreProcessor {
      */
     public void processSeeAlsoInjections(final SpecTopic topic, final Document doc, final boolean useFixedUrls,
             final Integer fixedUrlPropertyTagId) {
-        // Create the paragraph and list of prerequisites.
-        if (topic.getRelatedRelationships().isEmpty()) return;
+        processSeeAlsoInjections(Arrays.asList(topic), doc, doc.getDocumentElement(), useFixedUrls, fixedUrlPropertyTagId);
+    }
+
+    /**
+     * Insert a itemized list into the end of the topic with any RELATED relationships that exists for the Spec Topic. The title
+     * for the list is set to "See Also:".
+     *
+     * @param topics                The topics to process the injection for.
+     * @param doc                   The DOM Document object that represents the topics XML.
+     * @param node                  The DOM Element to append the links to.
+     * @param useFixedUrls          Whether fixed URL's should be used in the injected links.
+     * @param fixedUrlPropertyTagId The ID for the Fixed URL Property Tag.
+     */
+    public void processSeeAlsoInjections(final Collection<SpecTopic> topics, final Document doc, final Element node,
+            final boolean useFixedUrls, final Integer fixedUrlPropertyTagId) {
+        if (topics.isEmpty()) return;
+
+        // Make sure we have some See Alsos to inject
+        boolean hasSeeAlsos = false;
+        for (final SpecTopic topic : topics) {
+            if (!topic.getRelatedRelationships().isEmpty()) hasSeeAlsos = true;
+        }
+        if (!hasSeeAlsos) return;
+
+        // Create the paragraph and list of see alsos.
         final Element itemisedListEle = doc.createElement("itemizedlist");
         itemisedListEle.setAttribute("role", ROLE_SEE_ALSO_LIST);
         final Element itemisedListTitleEle = doc.createElement("title");
@@ -824,15 +891,18 @@ public class DocbookXMLPreProcessor {
         final List<List<Element>> list = new LinkedList<List<Element>>();
 
         // Add the Relationships
-        for (final Relationship seeAlso : topic.getRelatedRelationships()) {
-            if (seeAlso instanceof TopicRelationship) {
-                final SpecTopic relatedTopic = ((TopicRelationship) seeAlso).getSecondaryRelationship();
+        for (final SpecTopic topic : topics) {
+            for (final Relationship seeAlso : topic.getRelatedRelationships()) {
+                if (seeAlso instanceof TopicRelationship) {
+                    final SpecTopic relatedTopic = ((TopicRelationship) seeAlso).getSecondaryRelationship();
 
-                list.add(DocBookUtilities.buildXRef(doc, relatedTopic.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls), ROLE_SEE_ALSO));
-            } else {
-                final SpecNode specNode = ((TargetRelationship) seeAlso).getSecondaryRelationship();
+                    list.add(DocBookUtilities.buildXRef(doc, relatedTopic.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls),
+                            ROLE_SEE_ALSO));
+                } else {
+                    final SpecNode specNode = ((TargetRelationship) seeAlso).getSecondaryRelationship();
 
-                list.add(DocBookUtilities.buildXRef(doc, specNode.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls), ROLE_SEE_ALSO));
+                    list.add(DocBookUtilities.buildXRef(doc, specNode.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls), ROLE_SEE_ALSO));
+                }
             }
         }
 
@@ -843,7 +913,7 @@ public class DocbookXMLPreProcessor {
         }
 
         // Add the paragraph and list after at the end of the xml data
-        doc.getDocumentElement().appendChild(itemisedListEle);
+        node.appendChild(itemisedListEle);
     }
 
     /**
@@ -856,8 +926,30 @@ public class DocbookXMLPreProcessor {
      */
     public void processLinkListRelationshipInjections(final SpecTopic topic, final Document doc, final boolean useFixedUrls,
             final Integer fixedUrlPropertyTagId) {
+        processLinkListRelationshipInjections(Arrays.asList(topic), doc, doc.getDocumentElement(), useFixedUrls, fixedUrlPropertyTagId);
+    }
+
+    /**
+     * Insert a itemized list into the end of the topic with the any LINKLIST relationships that exists for the Spec Topic.
+     *
+     * @param topics                The topics to process the injection for.
+     * @param doc                   The DOM Document object that represents the topics XML.
+     * @param node                  The DOM Element to append the links to.
+     * @param useFixedUrls          Whether fixed URL's should be used in the injected links.
+     * @param fixedUrlPropertyTagId The ID for the Fixed URL Property Tag.
+     */
+    public void processLinkListRelationshipInjections(final Collection<SpecTopic> topics, final Document doc, final Element node,
+            final boolean useFixedUrls, final Integer fixedUrlPropertyTagId) {
+        if (topics.isEmpty()) return;
+
+        // Make sure we have some links to inject
+        boolean hasLinks = false;
+        for (final SpecTopic topic : topics) {
+            if (!topic.getLinkListRelationships().isEmpty()) hasLinks = true;
+        }
+        if (!hasLinks) return;
+
         // Create the paragraph and list of prerequisites.
-        if (topic.getLinkListRelationships().isEmpty()) return;
         final Element itemisedListEle = doc.createElement("itemizedlist");
         itemisedListEle.setAttribute("role", ROLE_LINK_LIST_LIST);
         final Element itemisedListTitleEle = doc.createElement("title");
@@ -866,16 +958,19 @@ public class DocbookXMLPreProcessor {
         final List<List<Element>> list = new LinkedList<List<Element>>();
 
         // Add the Relationships
-        for (final Relationship linkList : topic.getLinkListRelationships()) {
-            if (linkList instanceof TopicRelationship) {
-                final SpecTopic relatedTopic = ((TopicRelationship) linkList).getSecondaryRelationship();
+        for (final SpecTopic topic : topics) {
+            for (final Relationship linkList : topic.getLinkListRelationships()) {
+                if (linkList instanceof TopicRelationship) {
+                    final SpecTopic relatedTopic = ((TopicRelationship) linkList).getSecondaryRelationship();
 
-                list.add(
-                        DocBookUtilities.buildXRef(doc, relatedTopic.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls), ROLE_LINK_LIST));
-            } else {
-                final SpecNode specNode = ((TargetRelationship) linkList).getSecondaryRelationship();
+                    list.add(DocBookUtilities.buildXRef(doc, relatedTopic.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls),
+                            ROLE_LINK_LIST));
+                } else {
+                    final SpecNode specNode = ((TargetRelationship) linkList).getSecondaryRelationship();
 
-                list.add(DocBookUtilities.buildXRef(doc, specNode.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls), ROLE_LINK_LIST));
+                    list.add(
+                            DocBookUtilities.buildXRef(doc, specNode.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls), ROLE_LINK_LIST));
+                }
             }
         }
 
@@ -886,6 +981,6 @@ public class DocbookXMLPreProcessor {
         }
 
         // Add the paragraph and list after at the end of the xml data
-        doc.getDocumentElement().appendChild(itemisedListEle);
+        node.appendChild(itemisedListEle);
     }
 }

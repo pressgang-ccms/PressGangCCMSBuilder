@@ -37,18 +37,22 @@ import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkOptions;
-import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkStrategyFactory;
 import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.DocBookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionError;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.TocTopicDatabase;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorData;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorDatabase.ErrorLevel;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorDatabase.ErrorType;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicImageData;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.DocBookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.ReportUtilities;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
 import org.jboss.pressgang.ccms.contentspec.entities.AuthorInformation;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
-import org.jboss.pressgang.ccms.contentspec.enums.BugLinkType;
 import org.jboss.pressgang.ccms.contentspec.enums.LevelType;
 import org.jboss.pressgang.ccms.contentspec.enums.TopicType;
 import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
@@ -57,12 +61,6 @@ import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.TranslationUtilities;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.DocBookBuildingOptions;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.TocTopicDatabase;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorData;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorDatabase.ErrorLevel;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorDatabase.ErrorType;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicImageData;
 import org.jboss.pressgang.ccms.provider.BlobConstantProvider;
 import org.jboss.pressgang.ccms.provider.ContentSpecProvider;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
@@ -1381,19 +1379,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final List<T> topics = buildData.getBuildDatabase().getAllTopics(true);
         relatedTopicsDatabase.setTopics(topics);
 
-        final BugLinkType bugLinkType = buildData.getContentSpec().getBugLinks();
-        final BugLinkOptions bugOptions;
-        if (buildData.getContentSpec().getBugLinks().equals(BugLinkType.JIRA)) {
-            bugOptions = buildData.getContentSpec().getJIRABugLinkOptions();
-        } else if (buildData.getContentSpec().getBugLinks().equals(BugLinkType.BUGZILLA)) {
-            bugOptions = buildData.getContentSpec().getBugzillaBugLinkOptions();
-        } else {
-            bugOptions = null;
-        }
-        final BaseBugLinkStrategy bugLinkStrategy = BugLinkStrategyFactory.getInstance().create(bugLinkType,
-                bugOptions == null ? null : bugOptions.getBaseUrl());
-
-        final DocbookXMLPreProcessor xmlPreProcessor = new DocbookXMLPreProcessor(getConstants(), bugLinkStrategy);
+        final BugLinkOptions bugOptions = buildData.getBugLinkOptions();
+        final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
+        final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(getConstants(), bugLinkStrategy);
 
         for (final SpecTopic specTopic : specTopics) {
             // Check if the app should be shutdown
@@ -1533,7 +1521,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
      */
     @SuppressWarnings("unchecked")
     protected boolean processSpecTopicInjections(final BuildData buildData, final SpecTopic specTopic,
-            final DocbookXMLPreProcessor xmlPreProcessor, final TocTopicDatabase relatedTopicsDatabase) {
+            final DocBookXMLPreProcessor xmlPreProcessor, final TocTopicDatabase relatedTopicsDatabase) {
         final BaseTopicWrapper<?> topic = specTopic.getTopic();
         final Document doc = specTopic.getXMLDocument();
         final Level baseLevel = buildData.getContentSpec().getBaseLevel();
@@ -1546,11 +1534,15 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
             final ArrayList<Integer> customInjectionIds = new ArrayList<Integer>();
 
-            xmlPreProcessor.processPrerequisiteInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
             xmlPreProcessor.processPrevRelationshipInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
-            xmlPreProcessor.processLinkListRelationshipInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
             xmlPreProcessor.processNextRelationshipInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
-            xmlPreProcessor.processSeeAlsoInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
+
+            // Front Matter topics are injected later as they need to be grouped
+            if (specTopic.getTopicType() != TopicType.LEVEL) {
+                xmlPreProcessor.processPrerequisiteInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
+                xmlPreProcessor.processLinkListRelationshipInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
+                xmlPreProcessor.processSeeAlsoInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
+            }
 
             // Process the topics XML and insert the injection links
             final List<Integer> customInjectionErrors = xmlPreProcessor.processInjections(baseLevel, specTopic, customInjectionIds, doc,
@@ -1563,50 +1555,31 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
             // Handle any errors that occurred while processing the injections
             valid = processSpecTopicInjectionErrors(buildData, topic, customInjectionErrors);
-
-            /*
-             * NOTE: The code below has been commented out because it has to do with the old building mechanism and should probably be
-             * removed.
-             */
-//            // Check for dummy topics
-//            if (topic instanceof TranslatedTopicWrapper) {
-//                // Add the warning for the topics relationships that haven't been translated
-//                if (topic.getOutgoingRelationships() != null && topic.getOutgoingRelationships().getItems() != null) {
-//                    final List<? extends BaseTopicWrapper<?>> relatedTopics = topic.getOutgoingRelationships().getItems();
-//                    for (final BaseTopicWrapper<?> relatedTopic : relatedTopics) {
-//                        // Check if the app should be shutdown
-//                        if (isShuttingDown.get()) {
-//                            return false;
-//                        }
-//
-//                        final TranslatedTopicWrapper relatedTranslatedTopic = (TranslatedTopicWrapper) relatedTopic;
-//
-//                        // Only show errors for topics that weren't included in the injections
-//                        if (!customInjectionErrors.contains(relatedTranslatedTopic.getTopicId())) {
-//                            if ((!baseLevel.isSpecTopicInLevelByTopicID(
-//                                    relatedTranslatedTopic.getTopicId()) && !buildData.getBuildOptions().getIgnoreMissingCustomInjections
-//                                    ()) || baseLevel.isSpecTopicInLevelByTopicID(
-//                                    relatedTranslatedTopic.getTopicId())) {
-//                                if (EntityUtilities.isDummyTopic(relatedTopic) && EntityUtilities.hasBeenPushedForTranslation(
-//                                        relatedTranslatedTopic)) {
-//                                    buildData.getErrorDatabase().addWarning(topic,
-//                                            "Topic ID " + relatedTranslatedTopic.getTopicId() + ", " +
-//                                                    "Revision " + relatedTranslatedTopic.getTopicRevision() + ", " +
-//                                                    "Title \"" + relatedTopic.getTitle() + "\" is an untranslated topic.");
-//                                } else if (EntityUtilities.isDummyTopic(relatedTopic)) {
-//                                    buildData.getErrorDatabase().addWarning(topic,
-//                                            "Topic ID " + relatedTranslatedTopic.getTopicId() + ", " +
-//                                                    "Revision " + relatedTranslatedTopic.getTopicRevision() + ", " +
-//                                                    "Title \"" + relatedTopic.getTitle() + "\" hasn't been pushed for translation.");
-//                                }
-//                            }
-//                        }
-//                    }
-//                }
-//            }
         }
 
         return valid;
+    }
+
+    /**
+     * Process the Injections for a SpecTopic and add any errors to the error database.
+     *
+     * @param buildData       Information and data structures for the build.
+     * @param level
+     * @param doc
+     * @param xmlPreProcessor The XML Processor to use for Injections.
+     */
+    protected void processFrontMatterInjections(final BuildData buildData, final Level level, final Document doc, final Element node,
+            final DocBookXMLPreProcessor xmlPreProcessor) {
+        final boolean useFixedUrls = buildData.isUseFixedUrls();
+        final Integer fixedUrlPropertyTagId = buildData.getServerEntities().getFixedUrlPropertyTagId();
+
+        // Process the injection points
+        if (buildData.getInjectionOptions().isInjectionAllowed()) {
+            xmlPreProcessor.processPrerequisiteInjections(level.getFrontMatterTopics(), doc, node, useFixedUrls, fixedUrlPropertyTagId);
+            xmlPreProcessor.processLinkListRelationshipInjections(level.getFrontMatterTopics(), doc, node, useFixedUrls,
+                    fixedUrlPropertyTagId);
+            xmlPreProcessor.processSeeAlsoInjections(level.getFrontMatterTopics(), doc, node, useFixedUrls, fixedUrlPropertyTagId);
+        }
     }
 
     /**
@@ -2393,12 +2366,35 @@ public class DocBookBuilder implements ShutdownAbleApp {
             }
         }
 
-        // Add the intro text from the inner topic if it exists
-        if (level.getInnerTopic() != null) {
+        // Add the intro text from the front matter topics
+        if (!level.getFrontMatterTopics().isEmpty()) {
+            // Copy the body content of the topics to the level's front matter
+            for (final SpecTopic frontMatterTopic : level.getFrontMatterTopics()) {
+                if (level.getLevelType() == LevelType.PART) {
+                    addTopicContentsToLevelDocument(level, frontMatterTopic, intro, chapter);
+                } else {
+                    addTopicContentsToLevelDocument(level, frontMatterTopic, parentNode, chapter);
+                }
+            }
+
+            final BugLinkOptions bugOptions = buildData.getBugLinkOptions();
+            final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
+            final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(getConstants(), bugLinkStrategy);
+
             if (level.getLevelType() == LevelType.PART) {
-                addTopicContentsToLevelDocument(level, level.getInnerTopic(), intro, chapter);
+                // Process the see also/prereq injections for the front matter topics
+                processFrontMatterInjections(buildData, level, chapter, intro, xmlPreProcessor);
+
+                // Add the bug links for the front matter content
+                xmlPreProcessor.processFrontMatterBugLink(level, chapter, intro, bugOptions, buildData.getBuildOptions(),
+                        buildData.getBuildDate());
             } else {
-                addTopicContentsToLevelDocument(level, level.getInnerTopic(), parentNode, chapter);
+                // Process the see also/prereq injections for the front matter topics
+                processFrontMatterInjections(buildData, level, chapter, parentNode, xmlPreProcessor);
+
+                // Add the bug links for the front matter content
+                xmlPreProcessor.processFrontMatterBugLink(level, chapter, parentNode, bugOptions, buildData.getBuildOptions(),
+                        buildData.getBuildDate());
             }
         }
 
@@ -2425,17 +2421,17 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final Node section = doc.importNode(specTopic.getXMLDocument().getDocumentElement(), true);
 
         if (level.getLevelType() != LevelType.PART) {
-            // Reposition the section intro
+            // Reposition the sectioninfo
             final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(section,
                     DocBookUtilities.TOPIC_ROOT_SECTIONINFO_NODE_NAME);
             if (sectionInfoNodes.size() != 0) {
-                final String introType = parentNode.getNodeName() + "info";
+                final String infoType = parentNode.getNodeName() + "info";
 
                 // Check if the parent already has the intro text
-                final List<Node> intros = XMLUtilities.getDirectChildNodes(parentNode, introType);
+                final List<Node> intros = XMLUtilities.getDirectChildNodes(parentNode, infoType);
                 final Node introNode;
                 if (intros.size() == 0) {
-                    introNode = doc.createElement(introType);
+                    introNode = doc.createElement(infoType);
                     parentNode.insertBefore(introNode, parentNode.getFirstChild());
                 } else {
                     introNode = intros.get(0);
@@ -3763,7 +3759,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 setFixedURLPropertyTag(buildData, topic, value);
             } else {
                 // Get the existing property tag and value
-                final PropertyTagInTopicWrapper existingUniqueURL = topic.getProperty(buildData.getServerEntities().getFixedUrlPropertyTagId());
+                final PropertyTagInTopicWrapper existingUniqueURL = topic.getProperty(
+                        buildData.getServerEntities().getFixedUrlPropertyTagId());
                 String value = existingUniqueURL == null ? null : existingUniqueURL.getValue();
 
                 // Check if a new value needs to be calculated

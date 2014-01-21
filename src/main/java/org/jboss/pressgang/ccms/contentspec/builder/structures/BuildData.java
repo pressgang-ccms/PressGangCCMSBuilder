@@ -7,8 +7,12 @@ import java.util.List;
 import java.util.Map;
 
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
+import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
+import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkOptions;
+import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkStrategyFactory;
 import org.jboss.pressgang.ccms.contentspec.entities.InjectionOptions;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
+import org.jboss.pressgang.ccms.contentspec.enums.BugLinkType;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
 import org.jboss.pressgang.ccms.provider.ServerSettingsProvider;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
@@ -91,6 +95,7 @@ public class BuildData {
     private final ContentSpec contentSpec;
 
     private boolean useFixedUrls = false;
+    private BaseBugLinkStrategy bugLinkStrategy = null;
 
     public BuildData(final String requester, final String buildName, final ContentSpec contentSpec, final DocBookBuildingOptions buildOptions, final DataProviderFactory providerFactory) {
         this(requester, buildName, contentSpec, buildOptions, new ZanataDetails(), providerFactory);
@@ -317,5 +322,26 @@ public class BuildData {
 
     public ServerEntitiesWrapper getServerEntities() {
         return getServerSettings().getEntities();
+    }
+
+    public BugLinkOptions getBugLinkOptions() {
+        if (getContentSpec().getBugLinks().equals(BugLinkType.JIRA)) {
+            return getContentSpec().getJIRABugLinkOptions();
+        } else if (getContentSpec().getBugLinks().equals(BugLinkType.BUGZILLA)) {
+            return getContentSpec().getBugzillaBugLinkOptions();
+        } else {
+            return null;
+        }
+    }
+
+    public BaseBugLinkStrategy getBugLinkStrategy() {
+        if (bugLinkStrategy == null) {
+            final BugLinkType bugLinkType = getContentSpec().getBugLinks();
+            final BugLinkOptions bugOptions = getBugLinkOptions();
+            bugLinkStrategy = BugLinkStrategyFactory.getInstance().create(bugLinkType,
+                bugOptions == null ? null : bugOptions.getBaseUrl());
+        }
+
+        return bugLinkStrategy;
     }
 }
