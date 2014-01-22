@@ -1568,17 +1568,16 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @param doc
      * @param xmlPreProcessor The XML Processor to use for Injections.
      */
-    protected void processFrontMatterInjections(final BuildData buildData, final Level level, final Document doc, final Element node,
+    protected void processLevelInjections(final BuildData buildData, final Level level, final Document doc, final Element node,
             final DocBookXMLPreProcessor xmlPreProcessor) {
         final boolean useFixedUrls = buildData.isUseFixedUrls();
         final Integer fixedUrlPropertyTagId = buildData.getServerEntities().getFixedUrlPropertyTagId();
 
         // Process the injection points
         if (buildData.getInjectionOptions().isInjectionAllowed()) {
-            xmlPreProcessor.processPrerequisiteInjections(level.getInitialContentTopics(), doc, node, useFixedUrls, fixedUrlPropertyTagId);
-            xmlPreProcessor.processLinkListRelationshipInjections(level.getInitialContentTopics(), doc, node, useFixedUrls,
-                    fixedUrlPropertyTagId);
-            xmlPreProcessor.processSeeAlsoInjections(level.getInitialContentTopics(), doc, node, useFixedUrls, fixedUrlPropertyTagId);
+            xmlPreProcessor.processPrerequisiteInjections(level, doc, node, useFixedUrls, fixedUrlPropertyTagId);
+            xmlPreProcessor.processLinkListRelationshipInjections(level, doc, node, useFixedUrls, fixedUrlPropertyTagId);
+            xmlPreProcessor.processSeeAlsoInjections(level, doc, node, useFixedUrls, fixedUrlPropertyTagId);
         }
     }
 
@@ -1688,7 +1687,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
         // Loop through and create each chapter and the topics inside those chapters
         log.info("\tBuilding Level and Topic XML Files");
 
-        addLevelsInitialContent(contentSpec.getBaseLevel(), bookBase, bookBase.getDocumentElement());
+        if (!contentSpec.getBaseLevel().getInitialContentTopics().isEmpty()) {
+            addLevelsInitialContent(contentSpec.getBaseLevel(), bookBase, bookBase.getDocumentElement());
+        }
 
         for (final org.jboss.pressgang.ccms.contentspec.Node node : levelData) {
             // Check if the app should be shutdown
@@ -2398,11 +2399,11 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
         final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(getConstants(), bugLinkStrategy);
 
-        // Process the see also/prereq injections for the front matter topics
-        processFrontMatterInjections(buildData, level, chapter, parentNode, xmlPreProcessor);
+        // Process the see also/prereq injections for the level
+        processLevelInjections(buildData, level, chapter, parentNode, xmlPreProcessor);
 
         // Add the bug links for the front matter content
-        xmlPreProcessor.processFrontMatterBugLink(level, chapter, parentNode, bugOptions, buildData.getBuildOptions(),
+        xmlPreProcessor.processInitialContentBugLink(level, chapter, parentNode, bugOptions, buildData.getBuildOptions(),
                 buildData.getBuildDate());
     }
 

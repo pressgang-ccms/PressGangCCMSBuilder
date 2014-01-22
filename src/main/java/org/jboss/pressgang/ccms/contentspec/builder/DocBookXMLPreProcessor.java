@@ -1,8 +1,6 @@
 package org.jboss.pressgang.ccms.contentspec.builder;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -13,6 +11,7 @@ import com.google.code.regexp.Matcher;
 import com.google.code.regexp.Pattern;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecNode;
+import org.jboss.pressgang.ccms.contentspec.SpecNodeWithRelationships;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkOptions;
@@ -248,7 +247,7 @@ public class DocBookXMLPreProcessor {
         }
     }
 
-    public void processFrontMatterBugLink(final Level level, final Document document, final Node node, final BugLinkOptions bugOptions,
+    public void processInitialContentBugLink(final Level level, final Document document, final Node node, final BugLinkOptions bugOptions,
             final DocBookBuildingOptions docbookBuildingOptions, final Date buildDate) {
         try {
             String specifiedBuildName = "";
@@ -758,36 +757,30 @@ public class DocBookXMLPreProcessor {
      * Insert a itemized list into the start of the topic, below the title with any PREREQUISITE relationships that exists for
      * the Spec Topic. The title for the list is set to the "PREREQUISITE" property or "Prerequisites:" by default.
      *
-     * @param topic                 The topic to process the injection for.
+     * @param specNode              The content spec node to process the injection for.
      * @param doc                   The DOM Document object that represents the topics XML.
      * @param useFixedUrls          Whether fixed URL's should be used in the injected links.
      * @param fixedUrlPropertyTagId The ID for the Fixed URL Property Tag.
      */
-    public void processPrerequisiteInjections(final SpecTopic topic, final Document doc, final boolean useFixedUrls,
+    public void processPrerequisiteInjections(final SpecNodeWithRelationships specNode, final Document doc, final boolean useFixedUrls,
             final Integer fixedUrlPropertyTagId) {
-        processPrerequisiteInjections(Arrays.asList(topic), doc, doc.getDocumentElement(), useFixedUrls, fixedUrlPropertyTagId);
+        processPrerequisiteInjections(specNode, doc, doc.getDocumentElement(), useFixedUrls, fixedUrlPropertyTagId);
     }
 
     /**
      * Insert a itemized list into the start of the topic, below the title with any PREREQUISITE relationships that exists for
      * the Spec Topic. The title for the list is set to the "PREREQUISITE" property or "Prerequisites:" by default.
      *
-     * @param topics                The topics to process the injection for.
+     * @param specNode              The content spec node to process the injection for.
      * @param doc                   The DOM Document object that represents the topics XML.
      * @param node                  The DOM Element to append the links to.
      * @param useFixedUrls          Whether fixed URL's should be used in the injected links.
      * @param fixedUrlPropertyTagId The ID for the Fixed URL Property Tag.
      */
-    public void processPrerequisiteInjections(final Collection<SpecTopic> topics, final Document doc, final Element node,
+    public void processPrerequisiteInjections(final SpecNodeWithRelationships specNode, final Document doc, final Element node,
             final boolean useFixedUrls, final Integer fixedUrlPropertyTagId) {
-        if (topics.isEmpty()) return;
-
-        // Make sure we have some pre-requisites to inject
-        boolean hasPrereqs = false;
-        for (final SpecTopic topic : topics) {
-            if (!topic.getPrerequisiteRelationships().isEmpty()) hasPrereqs = true;
-        }
-        if (!hasPrereqs) return;
+        // Make sure we have some links to inject
+        if (specNode.getPrerequisiteRelationships().isEmpty()) return;
 
         // Get the title element so that it can be used later to add the prerequisite topic nodes
         Element titleEle = null;
@@ -812,19 +805,17 @@ public class DocBookXMLPreProcessor {
             final List<List<Element>> list = new LinkedList<List<Element>>();
 
             // Add the Relationships
-            for (final SpecTopic topic : topics) {
-                for (final Relationship prereq : topic.getPrerequisiteRelationships()) {
-                    if (prereq instanceof TopicRelationship) {
-                        final SpecTopic relatedTopic = ((TopicRelationship) prereq).getSecondaryRelationship();
+            for (final Relationship prereq : specNode.getPrerequisiteRelationships()) {
+                if (prereq instanceof TopicRelationship) {
+                    final SpecTopic relatedTopic = ((TopicRelationship) prereq).getSecondaryRelationship();
 
-                        list.add(DocBookUtilities.buildXRef(doc, relatedTopic.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls),
-                                ROLE_PREREQUISITE));
-                    } else {
-                        final SpecNode specNode = ((TargetRelationship) prereq).getSecondaryRelationship();
+                    list.add(DocBookUtilities.buildXRef(doc, relatedTopic.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls),
+                            ROLE_PREREQUISITE));
+                } else {
+                    final SpecNode relatedNode = ((TargetRelationship) prereq).getSecondaryRelationship();
 
-                        list.add(DocBookUtilities.buildXRef(doc, specNode.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls),
-                                ROLE_PREREQUISITE));
-                    }
+                    list.add(DocBookUtilities.buildXRef(doc, relatedNode.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls),
+                            ROLE_PREREQUISITE));
                 }
             }
 
@@ -848,36 +839,30 @@ public class DocBookXMLPreProcessor {
      * Insert a itemized list into the end of the topic with any RELATED relationships that exists for the Spec Topic. The title
      * for the list is set to "See Also:".
      *
-     * @param topic                 The topic to process the injection for.
+     * @param specNode              The content spec node to process the injection for.
      * @param doc                   The DOM Document object that represents the topics XML.
      * @param useFixedUrls          Whether fixed URL's should be used in the injected links.
      * @param fixedUrlPropertyTagId The ID for the Fixed URL Property Tag.
      */
-    public void processSeeAlsoInjections(final SpecTopic topic, final Document doc, final boolean useFixedUrls,
+    public void processSeeAlsoInjections(final SpecNodeWithRelationships specNode, final Document doc, final boolean useFixedUrls,
             final Integer fixedUrlPropertyTagId) {
-        processSeeAlsoInjections(Arrays.asList(topic), doc, doc.getDocumentElement(), useFixedUrls, fixedUrlPropertyTagId);
+        processSeeAlsoInjections(specNode, doc, doc.getDocumentElement(), useFixedUrls, fixedUrlPropertyTagId);
     }
 
     /**
      * Insert a itemized list into the end of the topic with any RELATED relationships that exists for the Spec Topic. The title
      * for the list is set to "See Also:".
      *
-     * @param topics                The topics to process the injection for.
+     * @param specNode              The content spec node to process the injection for.
      * @param doc                   The DOM Document object that represents the topics XML.
      * @param node                  The DOM Element to append the links to.
      * @param useFixedUrls          Whether fixed URL's should be used in the injected links.
      * @param fixedUrlPropertyTagId The ID for the Fixed URL Property Tag.
      */
-    public void processSeeAlsoInjections(final Collection<SpecTopic> topics, final Document doc, final Element node,
+    public void processSeeAlsoInjections(final SpecNodeWithRelationships specNode, final Document doc, final Element node,
             final boolean useFixedUrls, final Integer fixedUrlPropertyTagId) {
-        if (topics.isEmpty()) return;
-
-        // Make sure we have some See Alsos to inject
-        boolean hasSeeAlsos = false;
-        for (final SpecTopic topic : topics) {
-            if (!topic.getRelatedRelationships().isEmpty()) hasSeeAlsos = true;
-        }
-        if (!hasSeeAlsos) return;
+        // Make sure we have some links to inject
+        if (specNode.getRelatedRelationships().isEmpty()) return;
 
         // Create the paragraph and list of see alsos.
         final Element itemisedListEle = doc.createElement("itemizedlist");
@@ -891,18 +876,15 @@ public class DocBookXMLPreProcessor {
         final List<List<Element>> list = new LinkedList<List<Element>>();
 
         // Add the Relationships
-        for (final SpecTopic topic : topics) {
-            for (final Relationship seeAlso : topic.getRelatedRelationships()) {
-                if (seeAlso instanceof TopicRelationship) {
-                    final SpecTopic relatedTopic = ((TopicRelationship) seeAlso).getSecondaryRelationship();
+        for (final Relationship seeAlso : specNode.getRelatedRelationships()) {
+            if (seeAlso instanceof TopicRelationship) {
+                final SpecTopic relatedTopic = ((TopicRelationship) seeAlso).getSecondaryRelationship();
 
-                    list.add(DocBookUtilities.buildXRef(doc, relatedTopic.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls),
-                            ROLE_SEE_ALSO));
-                } else {
-                    final SpecNode specNode = ((TargetRelationship) seeAlso).getSecondaryRelationship();
+                list.add(DocBookUtilities.buildXRef(doc, relatedTopic.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls), ROLE_SEE_ALSO));
+            } else {
+                final SpecNode relatedNode = ((TargetRelationship) seeAlso).getSecondaryRelationship();
 
-                    list.add(DocBookUtilities.buildXRef(doc, specNode.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls), ROLE_SEE_ALSO));
-                }
+                list.add(DocBookUtilities.buildXRef(doc, relatedNode.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls), ROLE_SEE_ALSO));
             }
         }
 
@@ -919,35 +901,29 @@ public class DocBookXMLPreProcessor {
     /**
      * Insert a itemized list into the end of the topic with the any LINKLIST relationships that exists for the Spec Topic.
      *
-     * @param topic                 The topic to process the injection for.
+     * @param specNode              The content spec node to process the injection for.
      * @param doc                   The DOM Document object that represents the topics XML.
      * @param useFixedUrls          Whether fixed URL's should be used in the injected links.
      * @param fixedUrlPropertyTagId The ID for the Fixed URL Property Tag.
      */
-    public void processLinkListRelationshipInjections(final SpecTopic topic, final Document doc, final boolean useFixedUrls,
-            final Integer fixedUrlPropertyTagId) {
-        processLinkListRelationshipInjections(Arrays.asList(topic), doc, doc.getDocumentElement(), useFixedUrls, fixedUrlPropertyTagId);
+    public void processLinkListRelationshipInjections(final SpecNodeWithRelationships specNode, final Document doc,
+            final boolean useFixedUrls, final Integer fixedUrlPropertyTagId) {
+        processLinkListRelationshipInjections(specNode, doc, doc.getDocumentElement(), useFixedUrls, fixedUrlPropertyTagId);
     }
 
     /**
      * Insert a itemized list into the end of the topic with the any LINKLIST relationships that exists for the Spec Topic.
      *
-     * @param topics                The topics to process the injection for.
+     * @param specNode              The content spec node to process the injection for.
      * @param doc                   The DOM Document object that represents the topics XML.
      * @param node                  The DOM Element to append the links to.
      * @param useFixedUrls          Whether fixed URL's should be used in the injected links.
      * @param fixedUrlPropertyTagId The ID for the Fixed URL Property Tag.
      */
-    public void processLinkListRelationshipInjections(final Collection<SpecTopic> topics, final Document doc, final Element node,
+    public void processLinkListRelationshipInjections(final SpecNodeWithRelationships specNode, final Document doc, final Element node,
             final boolean useFixedUrls, final Integer fixedUrlPropertyTagId) {
-        if (topics.isEmpty()) return;
-
         // Make sure we have some links to inject
-        boolean hasLinks = false;
-        for (final SpecTopic topic : topics) {
-            if (!topic.getLinkListRelationships().isEmpty()) hasLinks = true;
-        }
-        if (!hasLinks) return;
+        if (specNode.getLinkListRelationships().isEmpty()) return;
 
         // Create the paragraph and list of prerequisites.
         final Element itemisedListEle = doc.createElement("itemizedlist");
@@ -958,19 +934,16 @@ public class DocBookXMLPreProcessor {
         final List<List<Element>> list = new LinkedList<List<Element>>();
 
         // Add the Relationships
-        for (final SpecTopic topic : topics) {
-            for (final Relationship linkList : topic.getLinkListRelationships()) {
-                if (linkList instanceof TopicRelationship) {
-                    final SpecTopic relatedTopic = ((TopicRelationship) linkList).getSecondaryRelationship();
+        for (final Relationship linkList : specNode.getLinkListRelationships()) {
+            if (linkList instanceof TopicRelationship) {
+                final SpecTopic relatedTopic = ((TopicRelationship) linkList).getSecondaryRelationship();
 
-                    list.add(DocBookUtilities.buildXRef(doc, relatedTopic.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls),
-                            ROLE_LINK_LIST));
-                } else {
-                    final SpecNode specNode = ((TargetRelationship) linkList).getSecondaryRelationship();
+                list.add(
+                        DocBookUtilities.buildXRef(doc, relatedTopic.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls), ROLE_LINK_LIST));
+            } else {
+                final SpecNode relatedNode = ((TargetRelationship) linkList).getSecondaryRelationship();
 
-                    list.add(
-                            DocBookUtilities.buildXRef(doc, specNode.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls), ROLE_LINK_LIST));
-                }
+                list.add(DocBookUtilities.buildXRef(doc, relatedNode.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls), ROLE_LINK_LIST));
             }
         }
 
