@@ -3083,7 +3083,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
                 topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + StringEscapeUtils.escapeXml(topic.getTitle())));
                 if (tags != null && !tags.isEmpty()) {
-                    topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + tags));
+                    topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + StringEscapeUtils.escapeXml(tags)));
                 }
                 topicErrorItems.add(DocBookUtilities.buildListItem("INFO: <ulink url=\"" + url + "\">Topic URL</ulink>"));
 
