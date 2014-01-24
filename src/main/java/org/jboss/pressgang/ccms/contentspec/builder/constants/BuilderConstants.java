@@ -2,6 +2,7 @@ package org.jboss.pressgang.ccms.contentspec.builder.constants;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 
@@ -19,6 +20,8 @@ public class BuilderConstants {
     public static final String ROCBOOK_45_DTD = "rocbookx.dtd";
 
     public static final String FAILPENGUIN_PNG_NAME = "failpenguinPng";
+
+    public static final Pattern IMAGE_FILE_REF_PATTERN = Pattern.compile("^(images/)?\\d+(-\\d+)?\\.\\w+$");
 
     // Regex strings used to replace content
     public static final String ESCAPED_TITLE_REGEX = "<<contentSpec\\.escapedTitle>>";

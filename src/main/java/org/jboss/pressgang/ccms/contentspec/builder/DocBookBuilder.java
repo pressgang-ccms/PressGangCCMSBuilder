@@ -2557,13 +2557,14 @@ public class DocBookBuilder implements ShutdownAbleApp {
 //                            imageFile = imageProvider.getImage(Integer.parseInt(imageID), imageLocation.getRevision());
 //                        }
 
-                        /* Find the image that matches this locale. If the locale isn't found then use the default locale */
+                        // Find the image that matches this locale. If the locale isn't found then use the default locale
                         LanguageImageWrapper languageImageFile = null;
                         if (imageFile.getLanguageImages() != null && imageFile.getLanguageImages().getItems() != null) {
                             final List<LanguageImageWrapper> languageImages = imageFile.getLanguageImages().getItems();
                             for (final LanguageImageWrapper image : languageImages) {
                                 if (image.getLocale().equals(buildData.getBuildLocale())) {
                                     languageImageFile = image;
+                                    break;
                                 } else if (image.getLocale().equals(
                                         buildData.getServerSettings().getDefaultLocale()) && languageImageFile == null) {
                                     languageImageFile = image;
@@ -3428,38 +3429,41 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     )) {
                         fileRefAttribute.setNodeValue("images/" + BuilderConstants.FAILPENGUIN_PNG_NAME + ".jpg");
                         buildData.getImageLocations().add(new TopicImageData(topic, fileRefAttribute.getNodeValue()));
-                    } else if (fileRefAttribute != null) {
-                        // TODO Uncomment once image processing is fixed.
-//                        if (specTopic.getRevision() == null)
-//                        {
-                        if (fileRefAttribute != null && !fileRefAttribute.getNodeValue().startsWith("images/")) {
-                            fileRefAttribute.setNodeValue("images/" + fileRefAttribute.getNodeValue());
+                    } else if (fileRefAttribute != null && fileRefAttribute.getNodeValue() != null) {
+                        final String fileRefValue = fileRefAttribute.getNodeValue();
+                        if (BuilderConstants.IMAGE_FILE_REF_PATTERN.matcher(fileRefValue).matches()) {
+                            // TODO Uncomment once image processing is fixed.
+    //                        if (specTopic.getRevision() == null)
+    //                        {
+                            if (!fileRefValue.startsWith("images/")) {
+                                fileRefAttribute.setNodeValue("images/" + fileRefValue);
+                            }
+
+                            buildData.getImageLocations().add(new TopicImageData(topic, fileRefValue));
+
+    //                        } else {
+    //                            if (fileRefAttribute != null && !fileRefAttribute.getNodeValue().startsWith("images/")) {
+    //                                fileRefAttribute.setNodeValue("images/" + fileRefAttribute.getNodeValue());
+    //                            }
+    //
+    //                            // Add the revision number to the name
+    //                            final String imageFileRef = fileRefAttribute.getNodeValue();
+    //                            final int extensionIndex = imageFileRef.lastIndexOf(".");
+    //                            final String fixedImageFileRef;
+    //                            if (extensionIndex != -1) {
+    //                                fixedImageFileRef = imageFileRef.substring(0, extensionIndex) + "-" + specTopic.getRevision() +
+    // imageFileRef
+    //                                        .substring(extensionIndex);
+    //                            } else {
+    //                                fixedImageFileRef = imageFileRef + "-" + specTopic.getRevision();
+    //                            }
+    //
+    //                            fileRefAttribute.setNodeValue(fixedImageFileRef);
+    //
+    //                            buildData.getImageLocations().add(new TopicImageData(topic, fileRefAttribute.getNodeValue(),
+    // specTopic.getRevision()));
+    //                        }
                         }
-
-                        buildData.getImageLocations().add(new TopicImageData(topic, fileRefAttribute.getNodeValue()));
-
-//                        } else {
-//                            if (fileRefAttribute != null && !fileRefAttribute.getNodeValue().startsWith("images/")) {
-//                                fileRefAttribute.setNodeValue("images/" + fileRefAttribute.getNodeValue());
-//                            }
-//
-//                            // Add the revision number to the name
-//                            final String imageFileRef = fileRefAttribute.getNodeValue();
-//                            final int extensionIndex = imageFileRef.lastIndexOf(".");
-//                            final String fixedImageFileRef;
-//                            if (extensionIndex != -1) {
-//                                fixedImageFileRef = imageFileRef.substring(0, extensionIndex) + "-" + specTopic.getRevision() +
-// imageFileRef
-//                                        .substring(extensionIndex);
-//                            } else {
-//                                fixedImageFileRef = imageFileRef + "-" + specTopic.getRevision();
-//                            }
-//
-//                            fileRefAttribute.setNodeValue(fixedImageFileRef);
-//
-//                            buildData.getImageLocations().add(new TopicImageData(topic, fileRefAttribute.getNodeValue(),
-// specTopic.getRevision()));
-//                        }
                     }
                 }
             }
