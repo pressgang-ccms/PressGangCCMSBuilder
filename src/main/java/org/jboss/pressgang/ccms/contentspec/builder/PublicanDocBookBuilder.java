@@ -85,7 +85,7 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
 
         if (contentSpec.getPublicanCfg() != null) {
             // If the user publican.cfg doesn't contain a chunk_section_depth, then add a calculated one
-            if (!contentSpec.getPublicanCfg().contains("chunk_section_depth")) {
+            if (buildData.getBuildOptions().getCalculateChunkDepth() && !contentSpec.getPublicanCfg().contains("chunk_section_depth")) {
                 publicanCfg += "chunk_section_depth: " + calcChunkSectionDepth(buildData) + "\n";
             }
 
@@ -95,7 +95,7 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
             }
 
             publicanCfg += DocBookBuildUtilities.cleanUserPublicanCfg(contentSpec.getPublicanCfg());
-        } else {
+        } else if (buildData.getBuildOptions().getCalculateChunkDepth()) {
             publicanCfg += "chunk_section_depth: " + calcChunkSectionDepth(buildData) + "\n";
         }
 

@@ -33,6 +33,7 @@ public class DocBookBuildingOptions implements Serializable {
     private Boolean forceInjectBugLinks = false;
     private Boolean serverBuild = false;
     private Integer maxRevision = null;
+    private Boolean calculateChunkDepth = false;
 
     public DocBookBuildingOptions() {
 
@@ -236,5 +237,13 @@ public class DocBookBuildingOptions implements Serializable {
 
     public void setMaxRevision(Integer maxRevision) {
         this.maxRevision = maxRevision;
+    }
+
+    public Boolean getCalculateChunkDepth() {
+        return calculateChunkDepth;
+    }
+
+    public void setCalculateChunkDepth(Boolean calculateChunkDepth) {
+        this.calculateChunkDepth = calculateChunkDepth;
     }
 }
