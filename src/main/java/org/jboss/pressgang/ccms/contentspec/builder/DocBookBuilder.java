@@ -33,6 +33,7 @@ import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.io.JsonStringEncoder;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
+import org.jboss.pressgang.ccms.contentspec.InitialContent;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
@@ -1538,7 +1539,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
             xmlPreProcessor.processNextRelationshipInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
 
             // Front Matter topics are injected later as they need to be grouped
-            if (specTopic.getTopicType() != TopicType.LEVEL) {
+            if (specTopic.getTopicType() != TopicType.INITIAL_CONTENT) {
                 xmlPreProcessor.processPrerequisiteInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
                 xmlPreProcessor.processLinkListRelationshipInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
                 xmlPreProcessor.processSeeAlsoInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
@@ -1687,10 +1688,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
         // Loop through and create each chapter and the topics inside those chapters
         log.info("\tBuilding Level and Topic XML Files");
 
-        if (!contentSpec.getBaseLevel().getInitialContentTopics().isEmpty()) {
-            addLevelsInitialContent(contentSpec.getBaseLevel(), bookBase, bookBase.getDocumentElement());
-        }
-
         for (final org.jboss.pressgang.ccms.contentspec.Node node : levelData) {
             // Check if the app should be shutdown
             if (isShuttingDown.get()) {
@@ -1700,7 +1697,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
             if (node instanceof Level) {
                 final Level level = (Level) node;
 
-                if (level.hasSpecTopics()) {
+                if (level instanceof InitialContent && level.hasSpecTopics()) {
+                    addLevelsInitialContent((InitialContent) level, bookBase, bookBase.getDocumentElement(), false);
+                } else if (level.hasSpecTopics()) {
                     // If the book is an article than just include it directly and don't create a new file
                     if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
                         // Create the section and its title
@@ -2317,6 +2316,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 if (xiInclude != null) {
                     childNodes.add(xiInclude);
                 }
+            } else if (node instanceof Level && ((Level) node).getLevelType() == LevelType.INITIAL_CONTENT) {
+                if (level.getLevelType() == LevelType.PART) {
+                    addLevelsInitialContent((InitialContent) node, chapter, intro);
+                } else {
+                    addLevelsInitialContent((InitialContent) node, chapter, parentNode);
+                }
             } else if (node instanceof Level) {
                 final Level childLevel = (Level) node;
 
@@ -2370,15 +2375,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
             }
         }
 
-        // Add the intro text from the front matter topics
-        if (!level.getInitialContentTopics().isEmpty()) {
-            if (level.getLevelType() == LevelType.PART) {
-                addLevelsInitialContent(level, chapter, intro);
-            } else {
-                addLevelsInitialContent(level, chapter, parentNode);
-            }
-        }
-
         // Add the child nodes and intro to the parent
         if (intro.hasChildNodes()) {
             parentNode.appendChild(intro);
@@ -2389,10 +2385,15 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
     }
 
-    protected void addLevelsInitialContent(final Level level, final Document chapter, final Element parentNode) {
+    protected void addLevelsInitialContent(final InitialContent initialContent, final Document chapter, final Element parentNode) {
+        addLevelsInitialContent(initialContent, chapter, parentNode, true);
+    }
+
+    protected void addLevelsInitialContent(final InitialContent initialContent, final Document chapter, final Element parentNode,
+            final boolean includeInfo) {
         // Copy the body content of the topics to the level's front matter
-        for (final SpecTopic frontMatterTopic : level.getInitialContentTopics()) {
-            addTopicContentsToLevelDocument(level, frontMatterTopic, parentNode, chapter);
+        for (final SpecTopic initialContentTopic : initialContent.getSpecTopics()) {
+            addTopicContentsToLevelDocument(initialContent, initialContentTopic, parentNode, chapter, includeInfo);
         }
 
         final BugLinkOptions bugOptions = buildData.getBugLinkOptions();
@@ -2400,10 +2401,10 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(getConstants(), bugLinkStrategy);
 
         // Process the see also/prereq injections for the level
-        processLevelInjections(buildData, level, chapter, parentNode, xmlPreProcessor);
+        processLevelInjections(buildData, initialContent, chapter, parentNode, xmlPreProcessor);
 
         // Add the bug links for the front matter content
-        xmlPreProcessor.processInitialContentBugLink(level, chapter, parentNode, bugOptions, buildData.getBuildOptions(),
+        xmlPreProcessor.processInitialContentBugLink(initialContent, chapter, parentNode, bugOptions, buildData.getBuildOptions(),
                 buildData.getBuildDate());
     }
 
@@ -2417,9 +2418,22 @@ public class DocBookBuilder implements ShutdownAbleApp {
      */
     protected void addTopicContentsToLevelDocument(final Level level, final SpecTopic specTopic, final Element parentNode,
             final Document doc) {
+        addTopicContentsToLevelDocument(level, specTopic, parentNode, doc, true);
+    }
+
+    /**
+     * Adds a Topics contents as the introduction text for a Level.
+     *
+     * @param level      The level the intro topic is being added for.
+     * @param specTopic  The Topic that contains the introduction content.
+     * @param parentNode The DOM parent node the intro content is to be appended to.
+     * @param doc        The DOM Document the content is to be added to.
+     */
+    protected void addTopicContentsToLevelDocument(final Level level, final SpecTopic specTopic, final Element parentNode,
+            final Document doc, final boolean includeInfo) {
         final Node section = doc.importNode(specTopic.getXMLDocument().getDocumentElement(), true);
 
-        if (level.getLevelType() != LevelType.PART) {
+        if (includeInfo && level.getLevelType() != LevelType.PART) {
             // Reposition the sectioninfo
             final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(section,
                     DocBookUtilities.TOPIC_ROOT_SECTIONINFO_NODE_NAME);

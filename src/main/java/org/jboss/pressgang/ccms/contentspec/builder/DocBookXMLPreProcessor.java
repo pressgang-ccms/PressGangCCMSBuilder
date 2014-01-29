@@ -9,6 +9,7 @@ import java.util.ResourceBundle;
 
 import com.google.code.regexp.Matcher;
 import com.google.code.regexp.Pattern;
+import org.jboss.pressgang.ccms.contentspec.InitialContent;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecNode;
 import org.jboss.pressgang.ccms.contentspec.SpecNodeWithRelationships;
@@ -247,15 +248,15 @@ public class DocBookXMLPreProcessor {
         }
     }
 
-    public void processInitialContentBugLink(final Level level, final Document document, final Node node, final BugLinkOptions bugOptions,
-            final DocBookBuildingOptions docbookBuildingOptions, final Date buildDate) {
+    public void processInitialContentBugLink(final InitialContent initialContent, final Document document, final Node node,
+            final BugLinkOptions bugOptions, final DocBookBuildingOptions docbookBuildingOptions, final Date buildDate) {
         try {
             String specifiedBuildName = "";
             if (docbookBuildingOptions != null && docbookBuildingOptions.getBuildName() != null)
                 specifiedBuildName = docbookBuildingOptions.getBuildName();
 
             // build the bug link url with the base components
-            final String bugLinkUrl = bugLinkStrategy.generateUrl(bugOptions, level, specifiedBuildName, buildDate);
+            final String bugLinkUrl = bugLinkStrategy.generateUrl(bugOptions, initialContent, specifiedBuildName, buildDate);
             processBugLink(bugLinkUrl, document, node);
         } catch (final Exception ex) {
             LOG.error("Failed to insert Bug Links into the DOM Document", ex);
