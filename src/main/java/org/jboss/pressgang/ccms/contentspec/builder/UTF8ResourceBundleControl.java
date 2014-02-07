@@ -12,7 +12,7 @@ import java.util.ResourceBundle;
 /**
  * See: http://stackoverflow.com/a/4660195/1330640
  */
-public class UTF8ResourceBundleControl  extends ResourceBundle.Control {
+public class UTF8ResourceBundleControl extends ResourceBundle.Control {
     public ResourceBundle newBundle
             (String baseName, Locale locale, String format, ClassLoader loader, boolean reload)
             throws IllegalAccessException, InstantiationException, IOException

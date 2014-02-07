@@ -13,7 +13,6 @@ public class DocBookBuildingOptions implements Serializable {
     private Boolean publicanShowRemarks = false;
     private Boolean ignoreMissingCustomInjections = true;
     private Boolean suppressErrorsPage = false;
-    private Boolean insertSurveyLink = false;
     private Boolean insertEditorLinks = false;
     private String buildName = null;
     private List<String> injectionTypes = new ArrayList<String>();
@@ -93,14 +92,6 @@ public class DocBookBuildingOptions implements Serializable {
 
     public void setSuppressErrorsPage(final Boolean suppressErrorsPage) {
         this.suppressErrorsPage = suppressErrorsPage;
-    }
-
-    public Boolean getInsertSurveyLink() {
-        return insertSurveyLink;
-    }
-
-    public void setInsertSurveyLink(final Boolean insertSurveyLink) {
-        this.insertSurveyLink = insertSurveyLink;
     }
 
     public List<String> getInjectionTypes() {

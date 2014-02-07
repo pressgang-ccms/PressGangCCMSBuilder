@@ -13,11 +13,9 @@ public class BuilderConstants {
     public static final Integer MAXIMUM_SET_PROP_TAGS_RETRY = 5;
     public static final Integer MAXIMUM_SET_PROP_TAG_NAME_RETRY = 50;
 
-    public static final String BUILDER_VERSION = "2.0";
-    public static final String BUILD_NAME = "CSProcessor Builder Version " + BUILDER_VERSION;
-
     public static final String DOCBOOK_45_DTD = "docbookx.dtd";
     public static final String ROCBOOK_45_DTD = "rocbookx.dtd";
+    public static final String DOCBOOK_50_RNG = "docbook.rng";
 
     public static final String FAILPENGUIN_PNG_NAME = "failpenguinPng";
 
@@ -120,7 +118,7 @@ public class BuilderConstants {
     public static final String ERROR_INVALID_XML_CONTENT = "This topic contains an invalid element that can't be converted into a DOM " +
             "Element.";
     public static final String ERROR_BAD_XML_STRUCTURE = "This topic doesn't have well-formed xml.";
-    public static final String ERROR_INVALID_TOPIC_XML = "This topic has invalid Docbook XML.";
+    public static final String ERROR_INVALID_TOPIC_XML = "This topic has invalid DocBook XML.";
     public static final String ERROR_INVALID_INJECTIONS = "This topic has invalid Injection Points.";
 
     // Glossary Defs for warning messages
@@ -177,8 +175,8 @@ public class BuilderConstants {
                             + "characters are represented as XML entities."});
 
     public static final List<String> ERROR_INVALID_TOPIC_XML_DEFINITION = CollectionUtilities.toArrayList(
-            new String[]{"The topic XML is not valid against the Docbook 4.5 DTD.", "To fix this error please ensure that all XML " +
-                    "elements are valid Docbook elements . Also check to ensure all XML sub elements are valid for the root XML element."});
+            new String[]{"The topic XML is not valid against the DocBook specification.", "To fix this error please ensure that all XML " +
+                    "elements are valid DocBook elements . Also check to ensure all XML sub elements are valid for the root XML element."});
 
     public static final List<String> ERROR_INVALID_INJECTIONS_DEFINITION = CollectionUtilities.toArrayList(
             new String[]{"The topic XML contains Injection Points that cannot be resolved into links.",

@@ -16,6 +16,8 @@ import org.jboss.pressgang.ccms.contentspec.enums.BugLinkType;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
 import org.jboss.pressgang.ccms.provider.ServerSettingsProvider;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
+import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
+import org.jboss.pressgang.ccms.utils.structures.DocBookVersion;
 import org.jboss.pressgang.ccms.wrapper.ServerEntitiesWrapper;
 import org.jboss.pressgang.ccms.wrapper.ServerSettingsWrapper;
 import org.jboss.pressgang.ccms.zanata.ZanataDetails;
@@ -81,10 +83,6 @@ public class BuildData {
      */
     private final ZanataDetails zanataDetails;
     /**
-     * A specific name for the build to be used in bug links.
-     */
-    private final String buildName;
-    /**
      * The username of the user who requested the build.
      */
     private final String requester;
@@ -97,14 +95,13 @@ public class BuildData {
     private boolean useFixedUrls = false;
     private BaseBugLinkStrategy bugLinkStrategy = null;
 
-    public BuildData(final String requester, final String buildName, final ContentSpec contentSpec, final DocBookBuildingOptions buildOptions, final DataProviderFactory providerFactory) {
-        this(requester, buildName, contentSpec, buildOptions, new ZanataDetails(), providerFactory);
+    public BuildData(final String requester, final ContentSpec contentSpec, final DocBookBuildingOptions buildOptions, final DataProviderFactory providerFactory) {
+        this(requester, contentSpec, buildOptions, new ZanataDetails(), providerFactory);
     }
 
-    public BuildData(final String requester, final String buildName, final ContentSpec contentSpec, final DocBookBuildingOptions buildOptions, final ZanataDetails zanataDetails, final DataProviderFactory providerFactory) {
+    public BuildData(final String requester, final ContentSpec contentSpec, final DocBookBuildingOptions buildOptions, final ZanataDetails zanataDetails, final DataProviderFactory providerFactory) {
         this.contentSpec = contentSpec;
         this.requester = requester;
-        this.buildName = buildName;
         this.buildOptions = buildOptions;
         this.zanataDetails = zanataDetails;
         originalProduct = contentSpec.getProduct();
@@ -221,7 +218,7 @@ public class BuildData {
     }
 
     public String getBuildName() {
-        return buildName;
+        return getBuildOptions().getBuildName();
     }
 
     public ContentSpec getContentSpec() {
@@ -233,9 +230,6 @@ public class BuildData {
          * Apply the build options from the content spec only if the build options are true. We do this so that if the options
          * are turned off earlier then we don't re-enable them.
          */
-        if (buildOptions.getInsertSurveyLink()) {
-            buildOptions.setInsertSurveyLink(contentSpec.isInjectSurveyLinks());
-        }
         if (buildOptions.getForceInjectBugLinks()) {
             buildOptions.setInsertBugLinks(true);
         } else {
@@ -343,5 +337,13 @@ public class BuildData {
         }
 
         return bugLinkStrategy;
+    }
+
+    public DocBookVersion getDocBookVersion() {
+        if (contentSpec.getFormat().equalsIgnoreCase(CommonConstants.DOCBOOK_50_TITLE)) {
+            return DocBookVersion.DOCBOOK_50;
+        } else {
+            return DocBookVersion.DOCBOOK_45;
+        }
     }
 }

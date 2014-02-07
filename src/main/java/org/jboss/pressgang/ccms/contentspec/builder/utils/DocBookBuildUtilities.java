@@ -26,6 +26,7 @@ import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
+import org.jboss.pressgang.ccms.utils.structures.DocBookVersion;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionError;
 import org.jboss.pressgang.ccms.contentspec.sort.RevisionNodeSort;
 import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
@@ -62,8 +63,8 @@ public class DocBookBuildUtilities {
     private static final Pattern THURSDAY_DATE_RE = Pattern.compile("Thurs?(?!s?day)", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final Pattern TUESDAY_DATE_RE = Pattern.compile("Tues(?!day)", java.util.regex.Pattern.CASE_INSENSITIVE);
 
-    private static final Pattern INJECT_RE = Pattern.compile(
-            "^\\s*(?<TYPE>Inject\\w*)(?<COLON>:?)\\s*(?<IDS>\\d+.*)\\s*$", java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final Pattern INJECT_RE = Pattern.compile("^\\s*(?<TYPE>Inject\\w*)(?<COLON>:?)\\s*(?<IDS>\\d+.*)\\s*$",
+            java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final Pattern INJECT_ID_RE = Pattern.compile("^[\\d ,]+$");
     private static final Pattern INJECT_SINGLE_ID_RE = Pattern.compile("^[\\d]+$");
     private static final List<String> VALID_INJECTION_TYPES = Arrays.asList("Inject", "InjectList", "InjectListItems",
@@ -111,11 +112,16 @@ public class DocBookBuildUtilities {
      * @param node             The node to process for id attributes.
      * @param usedIdAttributes The list of usedIdAttributes.
      */
-    public static void setUniqueIds(final SpecTopic specTopic, final Node node, final Document doc,
+    public static void setUniqueIds(final DocBookVersion docBookVersion, final SpecTopic specTopic, final Node node, final Document doc,
             final Map<SpecTopic, Set<String>> usedIdAttributes) {
         final NamedNodeMap attributes = node.getAttributes();
         if (attributes != null) {
-            final Node idAttribute = attributes.getNamedItem("id");
+            final Node idAttribute;
+            if (docBookVersion == DocBookVersion.DOCBOOK_50) {
+                idAttribute = attributes.getNamedItem("xml:id");
+            } else {
+                idAttribute = attributes.getNamedItem("id");
+            }
             if (idAttribute != null) {
                 final String idAttributeValue = idAttribute.getNodeValue();
                 String fixedIdAttributeValue = idAttributeValue;
@@ -136,7 +142,7 @@ public class DocBookBuildUtilities {
 
         final NodeList elements = node.getChildNodes();
         for (int i = 0; i < elements.getLength(); ++i) {
-            setUniqueIds(specTopic, elements.item(i), doc, usedIdAttributes);
+            setUniqueIds(docBookVersion, specTopic, elements.item(i), doc, usedIdAttributes);
         }
     }
 
@@ -283,14 +289,14 @@ public class DocBookBuildUtilities {
      * <!-- Inject TopicID -->
      * <!-- Inject ErrorXREF -->}
      *
-     *
      * @param buildData     Information and data structures for the build.
      * @param topic         The topic to generate the error template for.
      * @param errorTemplate The pre processed error template.
      * @return The input error template with the pointers replaced
      *         with values from the topic.
      */
-    protected static String buildTopicErrorTemplate(final BuildData buildData, final BaseTopicWrapper<?> topic, final String errorTemplate) {
+    protected static String buildTopicErrorTemplate(final BuildData buildData, final BaseTopicWrapper<?> topic,
+            final String errorTemplate) {
         String topicXMLErrorTemplate = errorTemplate;
 
         topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, "Invalid Topic");
@@ -461,17 +467,38 @@ public class DocBookBuildUtilities {
     }
 
     /**
-     * Convert a DOM Document to a Docbook 4.5 Formatted String representation including the XML preamble and DOCTYPE.
+     * Convert a DOM Document to a DocBook Formatted String representation including the XML preamble and DOCTYPE/namespaces.
      *
+     * @param docBookVersion The DocBook version to add the preamble content for.
      * @param doc                 The DOM Document to be converted and formatted.
      * @param elementName         The name that the root element should be.
      * @param entityName          The name of the local entity file, if one exists.
      * @param xmlFormatProperties The XML Formatting Properties.
      * @return The converted XML String representation.
      */
-    public static String convertDocumentToDocbook45FormattedString(final Document doc, final String elementName, final String entityName,
-            final XMLFormatProperties xmlFormatProperties) {
-        return DocBookUtilities.addDocbook45XMLDoctype(convertDocumentToFormattedString(doc, xmlFormatProperties), entityName, elementName);
+    public static String convertDocumentToDocBookFormattedString(final DocBookVersion docBookVersion, final Document doc, final String elementName,
+            final String entityName, final XMLFormatProperties xmlFormatProperties) {
+        final String formattedXML = convertDocumentToFormattedString(doc, xmlFormatProperties);
+        return addDocBookPreamble(docBookVersion, formattedXML, elementName, entityName);
+    }
+
+    /**
+     * Adds any content to the xml that is required for the specified DocBook version.
+     *
+     * @param docBookVersion The DocBook version to add the preamble content for.
+     * @param xml            The XML to add the preamble content to.
+     * @param elementName    The name that the root element should be.
+     * @param entityName     The name of the local entity file, if one exists.
+     * @return
+     */
+    public static String addDocBookPreamble(final DocBookVersion docBookVersion, final String xml, final String elementName,
+            final String entityName) {
+        if (docBookVersion == DocBookVersion.DOCBOOK_50) {
+            final String xmlWithNamespace = DocBookUtilities.addDocBook50Namespace(xml, elementName);
+            return XMLUtilities.addDoctype(xmlWithNamespace, elementName, entityName);
+        } else {
+            return DocBookUtilities.addDocBook45Doctype(xml, entityName, elementName);
+        }
     }
 
     /**
@@ -537,16 +564,32 @@ public class DocBookBuildUtilities {
      * @param doc       The document object for the topics XML.
      */
     public static void processTopicID(final BuildData buildData, final BaseTopicWrapper<?> topic, final Document doc) {
+        // Get the id value
+        final String errorXRefID;
         if (buildData.isUseFixedUrls()) {
-            final String errorXRefID = topic.getXRefPropertyOrId(buildData.getServerEntities().getFixedUrlPropertyTagId());
-            doc.getDocumentElement().setAttribute("id", errorXRefID);
+            errorXRefID = topic.getXRefPropertyOrId(buildData.getServerEntities().getFixedUrlPropertyTagId());
         } else {
-            final String errorXRefID = topic.getXRefId();
-            doc.getDocumentElement().setAttribute("id", errorXRefID);
+            errorXRefID = topic.getXRefId();
         }
+
+        // Set the id
+        setDOMElementId(buildData.getDocBookVersion(), doc.getDocumentElement(), errorXRefID);
 
         final Integer topicId = topic.getTopicId();
         doc.getDocumentElement().setAttribute("remap", "TID_" + topicId);
+    }
+
+    public static void setDOMElementId(final DocBookVersion docBookVersion, final Element element, final String id) {
+        // Remove any current ids
+        element.removeAttribute("id");
+        element.removeAttribute("xml:id");
+
+        // Set the id
+        if (docBookVersion == DocBookVersion.DOCBOOK_50) {
+            element.setAttribute("xml:id", id);
+        } else {
+            element.setAttribute("id", id);
+        }
     }
 
     /**
@@ -605,15 +648,22 @@ public class DocBookBuildUtilities {
      * This function scans the supplied XML node and it's children for id attributes, collecting them in the usedIdAttributes
      * parameter.
      *
-     * @param node             The current node being processed (will be the document root to start with, and then all the children as this
-     *                         function is recursively called)
+     * @param docBookVersion
      * @param topic            The topic that we are collecting attribute ID's for.
+     * @param node             The current node being processed (will be the document root to start with, and then all the children as this
+ *                         function is recursively called)
      * @param usedIdAttributes The set of Used ID Attributes that should be added to.
      */
-    public static void collectIdAttributes(final SpecTopic topic, final Node node, final Map<SpecTopic, Set<String>> usedIdAttributes) {
+    public static void collectIdAttributes(final DocBookVersion docBookVersion, final SpecTopic topic, final Node node,
+            final Map<SpecTopic, Set<String>> usedIdAttributes) {
         final NamedNodeMap attributes = node.getAttributes();
         if (attributes != null) {
-            final Node idAttribute = attributes.getNamedItem("id");
+            final Node idAttribute;
+            if (docBookVersion == DocBookVersion.DOCBOOK_50) {
+                idAttribute = attributes.getNamedItem("xml:id");
+            } else {
+                idAttribute = attributes.getNamedItem("id");
+            }
             if (idAttribute != null) {
                 final String idAttributeValue = idAttribute.getNodeValue();
                 if (!usedIdAttributes.containsKey(topic)) {
@@ -625,7 +675,7 @@ public class DocBookBuildUtilities {
 
         final NodeList elements = node.getChildNodes();
         for (int i = 0; i < elements.getLength(); ++i) {
-            collectIdAttributes(topic, elements.item(i), usedIdAttributes);
+            collectIdAttributes(docBookVersion, topic, elements.item(i), usedIdAttributes);
         }
     }
 
@@ -676,7 +726,6 @@ public class DocBookBuildUtilities {
     }
 
     /**
-     *
      * @param buildData Information and data structures for the build.
      * @param topic
      * @param doc
@@ -711,7 +760,6 @@ public class DocBookBuildUtilities {
 
     /**
      * Check a topic and return an error messages if the content doesn't match the topic type.
-     *
      *
      * @param buildData Information and data structures for the build.
      * @param topic
@@ -923,8 +971,8 @@ public class DocBookBuildUtilities {
                     }
                 } else if (type.equalsIgnoreCase("inject") && !INJECT_SINGLE_ID_RE.matcher(ids.trim()).matches()) {
                     error.addMessage(
-                            "The Topic ID in the injection is invalid. Please ensure that only the Topic ID is used. eg " +
-                                    "\"Inject: 1\"");
+                            "The Topic ID in the injection is invalid. Please ensure that only the Topic ID is used. eg " + "\"Inject: " +
+                                    "1\"");
                 }
 
                 // Some errors were found so add the injection to the retValue
@@ -938,10 +986,9 @@ public class DocBookBuildUtilities {
     }
 
     public static boolean useStaticFixedURLForTopic(final BuildData buildData, final BaseTopicWrapper<?> topic) {
-        return topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId())
-                || topic.hasTag(buildData.getServerEntities().getLegalNoticeTagId())
-                || topic.hasTag(buildData.getServerEntities().getAuthorGroupTagId())
-                || topic.hasTag(buildData.getServerEntities().getAbstractTagId());
+        return topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId()) || topic.hasTag(
+                buildData.getServerEntities().getLegalNoticeTagId()) || topic.hasTag(
+                buildData.getServerEntities().getAuthorGroupTagId()) || topic.hasTag(buildData.getServerEntities().getAbstractTagId());
     }
 
     public static String getStaticFixedURLForTopic(final BuildData buildData, final BaseTopicWrapper<?> topic) {

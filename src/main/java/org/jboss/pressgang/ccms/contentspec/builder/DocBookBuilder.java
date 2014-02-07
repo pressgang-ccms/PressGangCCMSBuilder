@@ -37,7 +37,6 @@ import org.jboss.pressgang.ccms.contentspec.InitialContent;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
-import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkOptions;
 import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
@@ -79,12 +78,13 @@ import org.jboss.pressgang.ccms.provider.exception.NotFoundException;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.ResourceUtilities;
-import org.jboss.pressgang.ccms.utils.common.SAXXMLValidator;
 import org.jboss.pressgang.ccms.utils.common.StringUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
+import org.jboss.pressgang.ccms.utils.common.XMLValidator;
 import org.jboss.pressgang.ccms.utils.common.ZipUtilities;
 import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
 import org.jboss.pressgang.ccms.utils.constants.CommonFilterConstants;
+import org.jboss.pressgang.ccms.utils.structures.DocBookVersion;
 import org.jboss.pressgang.ccms.utils.structures.Pair;
 import org.jboss.pressgang.ccms.wrapper.BlobConstantWrapper;
 import org.jboss.pressgang.ccms.wrapper.FileWrapper;
@@ -208,7 +208,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
     protected final BlobConstantProvider blobConstantProvider;
     protected final ImageProvider imageProvider;
 
-    private final BlobConstantWrapper rocbookdtd;
+    private final BlobConstantWrapper rocbookDtd;
+    private final BlobConstantWrapper docbookRng;
     /**
      * The set of Constants to use when building
      */
@@ -250,7 +251,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         final ServerEntitiesWrapper serverEntities = providerFactory.getProvider(
                 ServerSettingsProvider.class).getServerSettings().getEntities();
-        rocbookdtd = blobConstantProvider.getBlobConstant(serverEntities.getRocBookDTDBlobConstantId());
+        rocbookDtd = blobConstantProvider.getBlobConstant(serverEntities.getRocBook45DTDBlobConstantId());
+        docbookRng = blobConstantProvider.getBlobConstant(serverEntities.getDocBook50RNGBlobConstantId());
         errorEmptyTopicTemplate = stringConstantProvider.getStringConstant(serverEntities.getEmptyTopicStringConstantId());
         errorInvalidInjectionTopicTemplate = stringConstantProvider.getStringConstant(serverEntities.getInvalidInjectionStringConstantId());
         errorInvalidValidationTopicTemplate = stringConstantProvider.getStringConstant(serverEntities.getInvalidTopicStringConstantId());
@@ -439,8 +441,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final String fixedRequester = requester == null ? "Unknown" : requester;
 
         // Create the build data
-        final BuildData buildData = new BuildData(fixedRequester, BuilderConstants.BUILD_NAME, contentSpec, buildingOptions, zanataDetails,
-                providerFactory);
+        final BuildData buildData = new BuildData(fixedRequester, contentSpec, buildingOptions, zanataDetails, providerFactory);
         setBuildData(buildData);
 
         // Get the Build Locale
@@ -1098,11 +1099,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     try {
                         topicDoc = XMLUtilities.convertStringToDocument(topic.getXml());
 
-                        if (topicDoc != null) {
-                            // Ensure the topic is wrapped in a section and the title matches the topic
-                            DocBookUtilities.wrapDocumentInSection(topicDoc);
-                            DocBookUtilities.setSectionTitle(topic.getTitle(), topicDoc);
-                        } else {
+                        if (topicDoc == null) {
                             final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(topic.getXml());
                             buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
                                     BuilderConstants.ERROR_INVALID_XML_CONTENT + " The processed XML is <programlisting>" +
@@ -1130,7 +1127,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     }
 
                     DocBookUtilities.wrapDocumentInAppendix(topicDoc);
-                    topicDoc.getDocumentElement().setAttribute("id", "appe-" + buildData.getEscapedBookTitle() + "-Revision_History");
+                    DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), topicDoc.getDocumentElement(),
+                            "appe-" + buildData.getEscapedBookTitle() + "-Revision_History");
                 } else if (authorGroupTopic) {
                     // If it is a translated build then check if we have anything more to merge together
                     if (buildData.isTranslationBuild()) {
@@ -1148,7 +1146,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     DocBookUtilities.wrapDocumentInSection(topicDoc);
                     DocBookUtilities.setSectionTitle(topic.getTitle(), topicDoc);
 
-                    processTopicSectionInfo(topic, topicDoc);
+                    processTopicSectionInfo(buildData, topic, topicDoc);
                     DocBookBuildUtilities.processTopicID(buildData, topic, topicDoc);
                 }
 
@@ -1305,8 +1303,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(
-                            specTopic.getRevision())) {
+                            .equals(specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             buildData.getErrorDatabase().addWarning(topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -1321,7 +1318,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                  * Extract the id attributes used in this topic. We'll use this data in the second pass to make sure that
                  * individual topics don't repeat id attributes.
                  */
-                DocBookBuildUtilities.collectIdAttributes(specTopic, doc, usedIdAttributes);
+                DocBookBuildUtilities.collectIdAttributes(buildData.getDocBookVersion(), specTopic, doc, usedIdAttributes);
             }
         }
     }
@@ -1380,7 +1377,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final List<T> topics = buildData.getBuildDatabase().getAllTopics(true);
         relatedTopicsDatabase.setTopics(topics);
 
-        final BugLinkOptions bugOptions = buildData.getBugLinkOptions();
         final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
         final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(getConstants(), bugLinkStrategy);
 
@@ -1440,15 +1436,15 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     }
 
                     // Add the standard boilerplate xml
-                    xmlPreProcessor.processTopicAdditionalInfo(specTopic, doc, bugOptions, buildData.getBuildOptions(),
-                            buildData.getBuildDate(), buildData.getZanataDetails());
+                    xmlPreProcessor.processTopicAdditionalInfo(buildData, specTopic, doc);
 
                     // Make sure the XML is valid docbook after the standard processing has been done
                     validateTopicXML(buildData, specTopic, doc);
                 }
 
                 // Ensure that all of the id attributes are valid by setting any duplicates with a post fixed number.
-                DocBookBuildUtilities.setUniqueIds(specTopic, specTopic.getXMLDocument(), specTopic.getXMLDocument(), usedIdAttributes);
+                DocBookBuildUtilities.setUniqueIds(buildData.getDocBookVersion(), specTopic, specTopic.getXMLDocument(),
+                        specTopic.getXMLDocument(), usedIdAttributes);
             }
         }
     }
@@ -1698,7 +1694,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 final Level level = (Level) node;
 
                 if (level instanceof InitialContent && level.hasSpecTopics()) {
-                    addLevelsInitialContent((InitialContent) level, bookBase, bookBase.getDocumentElement(), false);
+                    addLevelsInitialContent(buildData, (InitialContent) level, bookBase, bookBase.getDocumentElement(), false);
                 } else if (level.hasSpecTopics()) {
                     // If the book is an article than just include it directly and don't create a new file
                     if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
@@ -1780,7 +1776,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     "<programlisting>" + XMLUtilities.wrapStringInCDATA(contentSpec.toString(INCLUDE_CHECKSUMS)) + "</programlisting>"),
                     "Build Content Specification");
             addToZip(buildData.getBookLocaleFolder() + "Build_Content_Specification.xml",
-                    DocBookUtilities.addDocbook45XMLDoctype(contentSpecPage, escapedTitle + ".ent", "appendix"), buildData);
+                    DocBookBuildUtilities.addDocBookPreamble(buildData.getDocBookVersion(), contentSpecPage, "appendix",
+                            buildData.getEntityFileName()), buildData);
 
             // Create and append the XI Include element
             final Element translateXMLNode = XMLUtilities.createXIInclude(bookBase, "Build_Content_Specification.xml");
@@ -1799,8 +1796,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         // Change the DOM Document into a string so it can be added to the ZIP
         final String rootElementName = contentSpec.getBookType().toString().toLowerCase().replace("-draft", "");
-        final String book = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(bookBase, rootElementName,
-                escapedTitle + ".ent", getXMLFormatProperties());
+        final String book = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(), bookBase,
+                rootElementName, buildData.getEntityFileName(), getXMLFormatProperties());
         addToZip(buildData.getBookLocaleFolder() + escapedTitle + ".xml", book, buildData);
     }
 
@@ -1819,9 +1816,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final Map<String, byte[]> overrideFiles = buildData.getOverrideFiles();
 
         // Load the templates from the server
-        final String prefaceXmlTemplate = stringConstantProvider.getStringConstant(
-                buildData.getServerEntities().getPrefaceStringConstantId()).getValue();
-
         final String bookInfoTemplate;
         if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
             bookInfoTemplate = stringConstantProvider.getStringConstant(
@@ -1832,12 +1826,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         // Setup Book_Info.xml
-        final String fixedBookInfo = buildBookInfoFile(buildData, bookInfoTemplate);
-        if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            addToZip(buildData.getBookLocaleFolder() + "Article_Info.xml", fixedBookInfo, buildData);
-        } else {
-            addToZip(buildData.getBookLocaleFolder() + "Book_Info.xml", fixedBookInfo, buildData);
-        }
+        buildBookInfoFile(buildData, bookInfoTemplate);
 
         // Setup Author_Group.xml
         if (overrides.containsKey(CSConstants.AUTHOR_GROUP_OVERRIDE) && overrideFiles.containsKey(CSConstants.AUTHOR_GROUP_OVERRIDE)) {
@@ -1846,7 +1835,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     buildData);
         } else if (contentSpec.getAuthorGroup() != null) {
             final TopicErrorData errorData = buildData.getErrorDatabase().getErrorData(contentSpec.getAuthorGroup().getTopic());
-            final String authorGroupXML = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(
+            final String authorGroupXML = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(),
                     contentSpec.getAuthorGroup().getXMLDocument(), "authorgroup", buildData.getEntityFileName(), getXMLFormatProperties());
             if (errorData != null && errorData.hasFatalErrors()) {
                 buildAuthorGroup(buildData);
@@ -1862,7 +1851,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
             // Add the override Feedback.xml file to the book
             addToZip(buildData.getBookLocaleFolder() + FEEDBACK_FILE_NAME, overrideFiles.get(CSConstants.FEEDBACK_OVERRIDE), buildData);
         } else if (contentSpec.getFeedback() != null) {
-            final String feedbackXml = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(
+            final String feedbackXml = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(),
                     contentSpec.getFeedback().getXMLDocument(), DocBookUtilities.TOPIC_ROOT_NODE_NAME, buildData.getEntityFileName(),
                     getXMLFormatProperties());
             // Add the feedback directly to the book
@@ -1871,19 +1860,13 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         // Setup Legal_Notice.xml
         if (contentSpec.getLegalNotice() != null) {
-            final String legalNoticeXML = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(
+            final String legalNoticeXML = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(),
                     contentSpec.getLegalNotice().getXMLDocument(), "legalnotice", buildData.getEntityFileName(), getXMLFormatProperties());
             addToZip(buildData.getBookLocaleFolder() + LEGAL_NOTICE_FILE_NAME, legalNoticeXML, buildData);
         }
 
         // Setup Preface.xml
-        String fixedPrefaceXml = prefaceXmlTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, buildData.getEscapedBookTitle());
-
-        final String prefaceTitleTranslation = getConstants().getString("PREFACE");
-        if (prefaceTitleTranslation != null) {
-            fixedPrefaceXml = fixedPrefaceXml.replace("<title>Preface</title>", "<title>" + prefaceTitleTranslation + "</title>");
-        }
-        addToZip(buildData.getBookLocaleFolder() + PREFACE_FILE_NAME, fixedPrefaceXml, buildData);
+        buildBookPreface(buildData);
 
         // Setup Revision_History.xml
         buildRevisionHistory(buildData, overrides);
@@ -1970,13 +1953,32 @@ public class DocBookBuilder implements ShutdownAbleApp {
      *
      * @param buildData        Information and data structures for the build.
      * @param bookInfoTemplate The Book_Info.xml template to add content to.
-     * @return The Book_Info.xml file filled with content from the Content Spec.
      */
-    protected String buildBookInfoFile(final BuildData buildData, final String bookInfoTemplate) {
+    protected void buildBookInfoFile(final BuildData buildData, final String bookInfoTemplate) throws BuildProcessingException {
         final ContentSpec contentSpec = buildData.getContentSpec();
         final Map<String, String> overrides = buildData.getBuildOptions().getOverrides();
 
         String bookInfo = bookInfoTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, buildData.getEscapedBookTitle());
+
+        // DocBook 5 changed the name of <articleinfo>/<bookinfo> to just <info>
+        final String rootElementName;
+        if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+            rootElementName = "info";
+            bookInfo = bookInfo.replaceAll("<(/)?bookinfo", "<$1info").replaceAll("<(/)?articleinfo", "<$1info");
+
+            // Change the corpauthor element to orgname
+            bookInfo = bookInfo.replaceAll("<(/)?corpauthor>","<$1orgname>");
+
+            // change the "id" attribute to "xml:id"
+            bookInfo = bookInfo.replace("id=\"", "xml:id=\"");
+        } else {
+            if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
+                rootElementName = "articleinfo";
+            } else {
+                rootElementName = "bookinfo";
+            }
+        }
+
         // Set the book title
         bookInfo = bookInfo.replaceAll(BuilderConstants.TITLE_REGEX,
                 DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeForXML(contentSpec.getTitle())));
@@ -1995,11 +1997,19 @@ public class DocBookBuilder implements ShutdownAbleApp {
         } else {
             bookInfo = bookInfo.replaceAll(BuilderConstants.EDITION_REGEX, contentSpec.getEdition());
         }
-        // Set the book pubsnumber
+
+        // Get the pubsnumber
         final String pubsNumber = overrides.containsKey(CSConstants.PUBSNUMBER_OVERRIDE) ? overrides.get(
                 CSConstants.PUBSNUMBER_OVERRIDE) : (contentSpec.getPubsNumber() == null ? BuilderConstants.DEFAULT_PUBSNUMBER :
                 contentSpec.getPubsNumber().toString());
-        bookInfo = bookInfo.replaceAll(BuilderConstants.PUBSNUMBER_REGEX, "<pubsnumber>" + pubsNumber + "</pubsnumber>");
+
+        // pubsnumber is different is docbook 5
+        if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+            bookInfo = bookInfo.replaceAll(BuilderConstants.PUBSNUMBER_REGEX, "<biblioid class=\"pubsnumber\">" + pubsNumber +
+                    "</biblioid>");
+        } else {
+            bookInfo = bookInfo.replaceAll(BuilderConstants.PUBSNUMBER_REGEX, "<pubsnumber>" + pubsNumber + "</pubsnumber>");
+        }
         // Set the book abstract
         bookInfo = bookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX, getBookAbstract(contentSpec));
         // Set the book to have a Legal Notice
@@ -2011,7 +2021,15 @@ public class DocBookBuilder implements ShutdownAbleApp {
             bookInfo = bookInfo.replaceFirst("<imagedata.*?/>", "<imagedata fileref=\"" + fixedLogoPath + "\" />");
         }
 
-        return bookInfo;
+        // Add the preamble to the book info
+        bookInfo = DocBookBuildUtilities.addDocBookPreamble(buildData.getDocBookVersion(), bookInfo, rootElementName,
+                buildData.getEntityFileName());
+
+        if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
+            addToZip(buildData.getBookLocaleFolder() + "Article_Info.xml", bookInfo, buildData);
+        } else {
+            addToZip(buildData.getBookLocaleFolder() + "Book_Info.xml", bookInfo, buildData);
+        }
     }
 
     /**
@@ -2034,6 +2052,49 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         return DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeForXML(retValue));
+    }
+
+    /**
+     * Builds the Preface.xml file for the book.
+     *
+     * @param buildData
+     * @throws BuildProcessingException
+     */
+    protected void buildBookPreface(final BuildData buildData) throws BuildProcessingException {
+        final ContentSpec contentSpec = buildData.getContentSpec();
+        final Map<String, String> overrides = buildData.getBuildOptions().getOverrides();
+        final Map<String, byte[]> overrideFiles = buildData.getOverrideFiles();
+
+        final Document prefaceDoc;
+        try {
+            prefaceDoc = XMLUtilities.convertStringToDocument("<preface></preface>");
+        } catch (Exception e) {
+            throw new BuildProcessingException(e);
+        }
+
+        // Add the title
+        final String prefaceTitleTranslation = getConstants().getString("PREFACE");
+        final Element titleEle = prefaceDoc.createElement("title");
+        titleEle.setTextContent(prefaceTitleTranslation);
+        prefaceDoc.getDocumentElement().appendChild(titleEle);
+
+        // Add the Conventions.xml
+        final Element conventions = XMLUtilities.createXIInclude(prefaceDoc, "Common_Content/Conventions.xml");
+        prefaceDoc.getDocumentElement().appendChild(conventions);
+
+        // Add the Feedback.xml
+        if (overrides.containsKey(CSConstants.FEEDBACK_OVERRIDE) && overrideFiles.containsKey(CSConstants.FEEDBACK_OVERRIDE) ||
+            contentSpec.getFeedback() != null) {
+            final Element xinclude = XMLUtilities.createXIInclude(prefaceDoc, "Feedback.xml");
+            prefaceDoc.getDocumentElement().appendChild(xinclude);
+        } else {
+            final Element xinclude = XMLUtilities.createXIInclude(prefaceDoc, "Common_Content/Feedback.xml");
+            prefaceDoc.getDocumentElement().appendChild(xinclude);
+        }
+
+        final String prefaceXml = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(), prefaceDoc,
+                "preface", buildData.getEntityFileName(), getXMLFormatProperties());
+        addToZip(buildData.getBookLocaleFolder() + PREFACE_FILE_NAME, prefaceXml, buildData);
     }
 
     /**
@@ -2115,7 +2176,11 @@ public class DocBookBuilder implements ShutdownAbleApp {
             try {
                 final StringBuilder fixedBZURL = new StringBuilder();
                 if (contentSpec.getBugzillaURL() == null) {
-                    fixedBZURL.append("<ulink url='");
+                    if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+                        fixedBZURL.append("<link xlink:href='");
+                    } else {
+                        fixedBZURL.append("<ulink url='");
+                    }
                     fixedBZURL.append(BuilderConstants.DEFAULT_BUGZILLA_URL);
                     fixedBZURL.append("enter_bug.cgi");
                     // Add in the product specific link details
@@ -2131,7 +2196,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
                             fixedBZURL.append("&amp;version=").append(encodedVersion.replace("&", "&percnt;"));
                         }
                     }
-                    fixedBZURL.append("'>").append(BuilderConstants.DEFAULT_BUGZILLA_URL).append("</ulink>");
+                    fixedBZURL.append("'>").append(BuilderConstants.DEFAULT_BUGZILLA_URL);
+                    if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+                        fixedBZURL.append("</link>");
+                    } else {
+                        fixedBZURL.append("</ulink>");
+                    }
                 } else {
                     fixedBZURL.append(contentSpec.getBugzillaURL().replace("&", "&percnt;"));
                 }
@@ -2145,6 +2215,13 @@ public class DocBookBuilder implements ShutdownAbleApp {
         // Add the custom entities if any exist
         if (doc != null) {
             retValue.append(contentSpec.getEntities().trim());
+        }
+
+        // Add the docbook.ent file for DocBook 5 builds
+        if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+            final String docBookEnt = ResourceUtilities.resourceFileToString("/", "docbook.ent");
+            retValue.append("<!-- START DOCBOOK ENTITIES -->\n");
+            retValue.append(docBookEnt);
         }
 
         return retValue.toString();
@@ -2196,8 +2273,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 flattenStructure);
 
         // Add the boiler plate text and add the chapter to the book
-        final String chapterString = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(chapter, elementName,
-                buildData.getEntityFileName(), getXMLFormatProperties());
+        final String chapterString = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(), chapter,
+                elementName, buildData.getEntityFileName(), getXMLFormatProperties());
         addToZip(buildData.getBookLocaleFolder() + chapterXMLName, chapterString, buildData);
 
         return xiInclude;
@@ -2248,8 +2325,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 flattenStructure);
 
         // Add the boiler plate text and add the chapter to the book
-        final String chapterString = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(chapter, elementName,
-                buildData.getEntityFileName(), getXMLFormatProperties());
+        final String chapterString = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(), chapter,
+                elementName, buildData.getEntityFileName(), getXMLFormatProperties());
         addToZip(buildData.getBookLocaleFolder() + chapterXMLName, chapterString, buildData);
 
         // Create the XIncludes that will get set in the book.xml
@@ -2274,7 +2351,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
             titleNode.setTextContent(DocBookUtilities.escapeForXML(level.getTitle()));
         }
         ele.appendChild(titleNode);
-        ele.setAttribute("id", level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(), buildData.isUseFixedUrls()));
+        DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), ele,
+                level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(), buildData.isUseFixedUrls()));
     }
 
     /**
@@ -2318,9 +2396,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 }
             } else if (node instanceof Level && ((Level) node).getLevelType() == LevelType.INITIAL_CONTENT) {
                 if (level.getLevelType() == LevelType.PART) {
-                    addLevelsInitialContent((InitialContent) node, chapter, intro);
+                    addLevelsInitialContent(buildData, (InitialContent) node, chapter, intro);
                 } else {
-                    addLevelsInitialContent((InitialContent) node, chapter, parentNode);
+                    addLevelsInitialContent(buildData, (InitialContent) node, chapter, parentNode);
                 }
             } else if (node instanceof Level) {
                 final Level childLevel = (Level) node;
@@ -2385,18 +2463,19 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
     }
 
-    protected void addLevelsInitialContent(final InitialContent initialContent, final Document chapter, final Element parentNode) {
-        addLevelsInitialContent(initialContent, chapter, parentNode, true);
+    protected void addLevelsInitialContent(final BuildData buildData, final InitialContent initialContent, final Document chapter,
+            final Element parentNode) {
+        addLevelsInitialContent(buildData, initialContent, chapter, parentNode, true);
     }
 
-    protected void addLevelsInitialContent(final InitialContent initialContent, final Document chapter, final Element parentNode,
-            final boolean includeInfo) {
+    protected void addLevelsInitialContent(final BuildData buildData, final InitialContent initialContent, final Document chapter,
+            final Element parentNode, final boolean includeInfo) {
         // Copy the body content of the topics to the level's front matter
         for (final SpecTopic initialContentTopic : initialContent.getSpecTopics()) {
-            addTopicContentsToLevelDocument(initialContent, initialContentTopic, parentNode, chapter, includeInfo);
+            addTopicContentsToLevelDocument(buildData.getDocBookVersion(), initialContent, initialContentTopic, parentNode, chapter,
+                    includeInfo);
         }
 
-        final BugLinkOptions bugOptions = buildData.getBugLinkOptions();
         final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
         final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(getConstants(), bugLinkStrategy);
 
@@ -2404,68 +2483,79 @@ public class DocBookBuilder implements ShutdownAbleApp {
         processLevelInjections(buildData, initialContent, chapter, parentNode, xmlPreProcessor);
 
         // Add the bug links for the front matter content
-        xmlPreProcessor.processInitialContentBugLink(initialContent, chapter, parentNode, bugOptions, buildData.getBuildOptions(),
-                buildData.getBuildDate());
+        xmlPreProcessor.processInitialContentBugLink(buildData, initialContent, chapter, parentNode);
     }
 
     /**
      * Adds a Topics contents as the introduction text for a Level.
      *
-     * @param level      The level the intro topic is being added for.
-     * @param specTopic  The Topic that contains the introduction content.
-     * @param parentNode The DOM parent node the intro content is to be appended to.
-     * @param doc        The DOM Document the content is to be added to.
+     * @param docBookVersion
+     * @param level          The level the intro topic is being added for.
+     * @param specTopic      The Topic that contains the introduction content.
+     * @param parentNode     The DOM parent node the intro content is to be appended to.
+     * @param doc            The DOM Document the content is to be added to.
      */
-    protected void addTopicContentsToLevelDocument(final Level level, final SpecTopic specTopic, final Element parentNode,
-            final Document doc) {
-        addTopicContentsToLevelDocument(level, specTopic, parentNode, doc, true);
+    protected void addTopicContentsToLevelDocument(final DocBookVersion docBookVersion, final Level level, final SpecTopic specTopic,
+            final Element parentNode, final Document doc) {
+        addTopicContentsToLevelDocument(docBookVersion, level, specTopic, parentNode, doc, true);
     }
 
     /**
      * Adds a Topics contents as the introduction text for a Level.
      *
-     * @param level      The level the intro topic is being added for.
-     * @param specTopic  The Topic that contains the introduction content.
-     * @param parentNode The DOM parent node the intro content is to be appended to.
-     * @param doc        The DOM Document the content is to be added to.
+     * @param docBookVersion
+     * @param level          The level the intro topic is being added for.
+     * @param specTopic      The Topic that contains the introduction content.
+     * @param parentNode     The DOM parent node the intro content is to be appended to.
+     * @param doc            The DOM Document the content is to be added to.
      */
-    protected void addTopicContentsToLevelDocument(final Level level, final SpecTopic specTopic, final Element parentNode,
-            final Document doc, final boolean includeInfo) {
+    protected void addTopicContentsToLevelDocument(final DocBookVersion docBookVersion, final Level level, final SpecTopic specTopic,
+            final Element parentNode, final Document doc, final boolean includeInfo) {
         final Node section = doc.importNode(specTopic.getXMLDocument().getDocumentElement(), true);
+
+        final String infoName;
+        if (docBookVersion == DocBookVersion.DOCBOOK_50) {
+            infoName = "info";
+        } else {
+            infoName = DocBookUtilities.TOPIC_ROOT_SECTIONINFO_NODE_NAME;
+        }
 
         if (includeInfo && level.getLevelType() != LevelType.PART) {
             // Reposition the sectioninfo
-            final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(section,
-                    DocBookUtilities.TOPIC_ROOT_SECTIONINFO_NODE_NAME);
+            final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(section, infoName);
             if (sectionInfoNodes.size() != 0) {
-                final String infoType = parentNode.getNodeName() + "info";
+                final String parentInfoName;
+                if (docBookVersion == DocBookVersion.DOCBOOK_50) {
+                    parentInfoName = "info";
+                } else {
+                    parentInfoName = parentNode.getNodeName() + "info";
+                }
 
                 // Check if the parent already has the intro text
-                final List<Node> intros = XMLUtilities.getDirectChildNodes(parentNode, infoType);
+                final List<Node> intros = XMLUtilities.getDirectChildNodes(parentNode, parentInfoName);
                 final Node introNode;
                 if (intros.size() == 0) {
-                    introNode = doc.createElement(infoType);
+                    introNode = doc.createElement(parentInfoName);
                     parentNode.insertBefore(introNode, parentNode.getFirstChild());
                 } else {
                     introNode = intros.get(0);
                 }
 
                 // Merge the info text
-                final NodeList sectionIntroChildren = sectionInfoNodes.get(0).getChildNodes();
+                final NodeList sectionInfoChildren = sectionInfoNodes.get(0).getChildNodes();
                 final Node firstNode = introNode.getFirstChild();
-                while (sectionIntroChildren.getLength() > 0) {
+                while (sectionInfoChildren.getLength() > 0) {
                     if (firstNode != null) {
-                        introNode.insertBefore(sectionIntroChildren.item(0), firstNode);
+                        introNode.insertBefore(sectionInfoChildren.item(0), firstNode);
                     } else {
-                        introNode.appendChild(sectionIntroChildren.item(0));
+                        introNode.appendChild(sectionInfoChildren.item(0));
                     }
                 }
             }
         }
 
         // Remove the title and sectioninfo
-        final List<Node> titleNodes = XMLUtilities.getDirectChildNodes(section, DocBookUtilities.TOPIC_ROOT_TITLE_NODE_NAME,
-                DocBookUtilities.TOPIC_ROOT_SECTIONINFO_NODE_NAME);
+        final List<Node> titleNodes = XMLUtilities.getDirectChildNodes(section, DocBookUtilities.TOPIC_ROOT_TITLE_NODE_NAME, infoName);
         for (final Node removeNode : titleNodes) {
             section.removeChild(removeNode);
         }
@@ -2499,8 +2589,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
             final String fixedEntityPath = fixedParentFileLocation.replace(buildData.getBookLocaleFolder(), "").replaceAll(
                     ".*?" + File.separator + "", "../");
 
-            final String topicXML = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(specTopic.getXMLDocument(),
-                    DocBookUtilities.TOPIC_ROOT_NODE_NAME, fixedEntityPath + buildData.getEntityFileName(), getXMLFormatProperties());
+            final String topicXML = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(),
+                    specTopic.getXMLDocument(), DocBookUtilities.TOPIC_ROOT_NODE_NAME, fixedEntityPath + buildData.getEntityFileName(),
+                    getXMLFormatProperties());
 
             addToZip(fixedParentFileLocation + topicFileName, topicXML, buildData);
 
@@ -2687,12 +2778,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
             return;
         }
 
+        boolean insertedAuthor = false;
+        // Clear the template data
+        XMLUtilities.emptyNode(authorDoc.getDocumentElement());
+
         // If one or more authors were found then remove the default and attempt to add them
         if (!authors.isEmpty()) {
-            // Clear the template data
-            XMLUtilities.emptyNode(authorDoc.getDocumentElement());
-            boolean insertedAuthor = false;
-
             // For each author attempt to find the author information records and populate Author_Group.xml.
             for (final AuthorInformation authorInfo : authors) {
                 // Check if the app should be shutdown
@@ -2704,10 +2795,20 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 final Element authorEle = authorDoc.createElement("author");
                 final Element firstNameEle = authorDoc.createElement("firstname");
                 firstNameEle.setTextContent(authorInfo.getFirstName());
-                authorEle.appendChild(firstNameEle);
                 final Element lastNameEle = authorDoc.createElement("surname");
                 lastNameEle.setTextContent(authorInfo.getLastName());
-                authorEle.appendChild(lastNameEle);
+
+                // Docbook 5 needs <firstname>/<surname> wrapped in <personname>
+                if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+                    final Element personnameEle = authorDoc.createElement("personname");
+                    authorEle.appendChild(personnameEle);
+
+                    personnameEle.appendChild(firstNameEle);
+                    personnameEle.appendChild(lastNameEle);
+                } else {
+                    authorEle.appendChild(firstNameEle);
+                    authorEle.appendChild(lastNameEle);
+                }
 
                 // Add the affiliation information
                 if (authorInfo.getOrganization() != null) {
@@ -2732,37 +2833,46 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 authorDoc.getDocumentElement().appendChild(authorEle);
                 insertedAuthor = true;
             }
+        }
 
-            // If no authors were inserted then use a default value
-            // Note: This should never happen but is used as a safety measure
-            if (!insertedAuthor) {
-                // Use the author "Staff Writer"
-                final Element authorEle = authorDoc.createElement("author");
+        // If no authors were inserted then use a default value
+        if (!insertedAuthor) {
+            // Use the author "PressGang CCMS Build System"
+            final Element authorEle = authorDoc.createElement("author");
+            authorDoc.getDocumentElement().appendChild(authorEle);
 
-                // Use the author "PressGang Alpha Build System"
-                final Element firstNameEle = authorDoc.createElement("firstname");
-                firstNameEle.setTextContent("");
+            // Use the author "PressGang Alpha Build System"
+            final Element firstNameEle = authorDoc.createElement("firstname");
+            firstNameEle.setTextContent("");
+            final Element lastNameEle = authorDoc.createElement("surname");
+            lastNameEle.setTextContent("PressGang CCMS Build System");
+
+            // Docbook 5 needs <firstname>/<surname> wrapped in <personname>
+            if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+                final Element personnameEle = authorDoc.createElement("personname");
+                authorEle.appendChild(personnameEle);
+
+                personnameEle.appendChild(firstNameEle);
+                personnameEle.appendChild(lastNameEle);
+            } else {
                 authorEle.appendChild(firstNameEle);
-                final Element lastNameEle = authorDoc.createElement("surname");
-                lastNameEle.setTextContent("PressGang Alpha Build System");
                 authorEle.appendChild(lastNameEle);
-                authorDoc.getDocumentElement().appendChild(authorEle);
-
-                // Add the affiliation
-                final Element affiliationEle = authorDoc.createElement("affiliation");
-                final Element orgEle = authorDoc.createElement("orgname");
-                orgEle.setTextContent("Red&nbsp;Hat");
-                affiliationEle.appendChild(orgEle);
-                final Element orgDivisionEle = authorDoc.createElement("orgdiv");
-                orgDivisionEle.setTextContent("Engineering Content Services");
-                affiliationEle.appendChild(orgDivisionEle);
-                authorEle.appendChild(affiliationEle);
             }
+
+            // Add the affiliation
+            final Element affiliationEle = authorDoc.createElement("affiliation");
+            final Element orgEle = authorDoc.createElement("orgname");
+            orgEle.setTextContent("Red&nbsp;Hat");
+            affiliationEle.appendChild(orgEle);
+            final Element orgDivisionEle = authorDoc.createElement("orgdiv");
+            orgDivisionEle.setTextContent("Engineering Content Services");
+            affiliationEle.appendChild(orgDivisionEle);
+            authorEle.appendChild(affiliationEle);
         }
 
         // Add the Author_Group.xml to the book
-        fixedAuthorGroupXml = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(authorDoc, "authorgroup",
-                buildData.getEntityFileName(), getXMLFormatProperties());
+        fixedAuthorGroupXml = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(), authorDoc,
+                "authorgroup", buildData.getEntityFileName(), getXMLFormatProperties());
         addToZip(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, fixedAuthorGroupXml, buildData);
     }
 
@@ -2783,8 +2893,15 @@ public class DocBookBuilder implements ShutdownAbleApp {
         // Replace the basic injection data inside the revision history
         final String revisionHistoryXml = stringConstantProvider.getStringConstant(
                 buildData.getServerEntities().getRevisionHistoryStringConstantId()).getValue();
-        final String fixedRevisionHistoryXml = revisionHistoryXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX,
-                buildData.getEscapedBookTitle());
+
+        // DocBook 5 shouldn't have the <revhistory> wrapped in a <simpara>
+        final String fixedRevisionHistoryXml;
+        if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+            fixedRevisionHistoryXml = revisionHistoryXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX,
+                    buildData.getEscapedBookTitle()).replace("<simpara>", "").replace("</simpara>", "");
+        } else {
+            fixedRevisionHistoryXml = revisionHistoryXml.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, buildData.getEscapedBookTitle());
+        }
 
         // Setup Revision_History.xml
         if (overrides.containsKey(CSConstants.REVISION_HISTORY_OVERRIDE) && buildData.getOverrideFiles().containsKey(
@@ -2824,7 +2941,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
             }
         } else if (contentSpec.getRevisionHistory() != null) {
             final TopicErrorData errorData = buildData.getErrorDatabase().getErrorData(contentSpec.getRevisionHistory().getTopic());
-            final String revisionHistoryXML = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(
+            final String revisionHistoryXML = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(),
                     contentSpec.getRevisionHistory().getXMLDocument(), "appendix", buildData.getEntityFileName(), getXMLFormatProperties());
             if (buildData.getBuildOptions().getRevisionMessages() != null && !buildData.getBuildOptions().getRevisionMessages().isEmpty()) {
                 buildRevisionHistoryFromTemplate(buildData, revisionHistoryXML);
@@ -2865,7 +2982,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     String.format(getMessages().getString("FAILED_CONVERTING_TEMPLATE"), REVISION_HISTORY_FILE_NAME));
         }
 
-        revHistoryDoc.getDocumentElement().setAttribute("id", "appe-" + buildData.getEscapedBookTitle() + "-Revision_History");
+        DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), revHistoryDoc.getDocumentElement(),
+                "appe-" + buildData.getEscapedBookTitle() + "-Revision_History");
 
         final String reportHistoryTitleTranslation = getConstants().getString("REVISION_HISTORY");
         if (reportHistoryTitleTranslation != null) {
@@ -2878,10 +2996,15 @@ public class DocBookBuilder implements ShutdownAbleApp {
         if (revHistories.getLength() > 0) {
             revHistory = (Element) revHistories.item(0);
         } else {
-            final Element simpara = revHistoryDoc.createElement("simpara");
             revHistory = revHistoryDoc.createElement("revhistory");
-            simpara.appendChild(revHistory);
-            revHistoryDoc.getDocumentElement().appendChild(simpara);
+            // <revhistory> should be a direct child of <appendix> in docbook 5
+            if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+                revHistoryDoc.getDocumentElement().appendChild(revHistory);
+            } else {
+                final Element simpara = revHistoryDoc.createElement("simpara");
+                simpara.appendChild(revHistory);
+                revHistoryDoc.getDocumentElement().appendChild(simpara);
+            }
         }
 
         final TagWrapper author = buildData.getRequester() == null ? null : tagProvider.getTagByName(buildData.getRequester());
@@ -2918,8 +3041,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         // Add the revision history to the book
-        final String fixedRevisionHistoryXml = DocBookBuildUtilities.convertDocumentToDocbook45FormattedString(revHistoryDoc, "appendix",
-                buildData.getEntityFileName(), getXMLFormatProperties());
+        final String fixedRevisionHistoryXml = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(),
+                revHistoryDoc, "appendix", buildData.getEntityFileName(), getXMLFormatProperties());
         addToZip(buildData.getBookLocaleFolder() + REVISION_HISTORY_FILE_NAME, fixedRevisionHistoryXml, buildData);
     }
 
@@ -2987,11 +3110,21 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         final Element firstName = xmlDoc.createElement("firstname");
         firstName.setTextContent(authorInfo.getFirstName());
-        author.appendChild(firstName);
 
         final Element lastName = xmlDoc.createElement("surname");
         lastName.setTextContent(authorInfo.getLastName());
-        author.appendChild(lastName);
+
+        // Docbook 5 needs <firstname>/<surname> wrapped in <personname>
+        if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+            final Element personname = xmlDoc.createElement("personname");
+            author.appendChild(personname);
+
+            personname.appendChild(firstName);
+            personname.appendChild(lastName);
+        } else {
+            author.appendChild(firstName);
+            author.appendChild(lastName);
+        }
 
         final Element email = xmlDoc.createElement("email");
         email.setTextContent(authorInfo.getEmail() == null ? BuilderConstants.DEFAULT_EMAIL : authorInfo.getEmail());
@@ -3099,7 +3232,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 if (tags != null && !tags.isEmpty()) {
                     topicErrorItems.add(DocBookUtilities.buildListItem("INFO: " + StringEscapeUtils.escapeXml(tags)));
                 }
-                topicErrorItems.add(DocBookUtilities.buildListItem("INFO: <ulink url=\"" + url + "\">Topic URL</ulink>"));
+
+                if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+                    topicErrorItems.add(DocBookUtilities.buildListItem("INFO: <link xlink:href=\"" + url + "\">Topic URL</link>"));
+                } else {
+                    topicErrorItems.add(DocBookUtilities.buildListItem("INFO: <ulink url=\"" + url + "\">Topic URL</ulink>"));
+                }
 
                 for (final String error : topicErrorData.getItemsOfType(ErrorLevel.ERROR)) {
                     topicErrorItems.add(DocBookUtilities.buildListItem("ERROR: " + error));
@@ -3123,7 +3261,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     }
                     final String id = topic.getErrorXRefId();
 
-                    errorItemizedLists += DocBookUtilities.wrapListItems(topicErrorItems, title, id);
+                    errorItemizedLists += DocBookUtilities.wrapListItems(buildData.getDocBookVersion(), topicErrorItems, title, id);
                 }
             }
 
@@ -3138,11 +3276,11 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         if (buildData.getContentSpec().getBookType() == BookType.ARTICLE || buildData.getContentSpec().getBookType() == BookType
                 .ARTICLE_DRAFT) {
-            return DocBookUtilities.addDocbook45XMLDoctype(DocBookUtilities.buildSection(errorItemizedLists, "Compiler Output"),
-                    buildData.getEscapedBookTitle() + ".ent", "section");
+            return DocBookBuildUtilities.addDocBookPreamble(buildData.getDocBookVersion(),
+                    DocBookUtilities.buildSection(errorItemizedLists, "Compiler Output"), "section", buildData.getEntityFileName());
         } else {
-            return DocBookUtilities.addDocbook45XMLDoctype(DocBookUtilities.buildChapter(errorItemizedLists, "Compiler Output"),
-                    buildData.getEscapedBookTitle() + ".ent", "chapter");
+            return DocBookBuildUtilities.addDocBookPreamble(buildData.getDocBookVersion(),
+                    DocBookUtilities.buildChapter(errorItemizedLists, "Compiler Output"), "chapter", buildData.getEntityFileName());
         }
     }
 
@@ -3327,11 +3465,11 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
-            return DocBookUtilities.addDocbook45XMLDoctype(DocBookUtilities.buildSection(reportChapter, "Status Report"),
-                    buildData.getEscapedBookTitle() + ".ent", "section");
+            return DocBookBuildUtilities.addDocBookPreamble(buildData.getDocBookVersion(),
+                    DocBookUtilities.buildSection(reportChapter, "Status Report"), "section", buildData.getEntityFileName());
         } else {
-            return DocBookUtilities.addDocbook45XMLDoctype(DocBookUtilities.buildChapter(reportChapter, "Status Report"),
-                    buildData.getEscapedBookTitle() + ".ent", "chapter");
+            return DocBookBuildUtilities.addDocBookPreamble(buildData.getDocBookVersion(),
+                    DocBookUtilities.buildChapter(reportChapter, "Status Report"), "chapter", buildData.getEntityFileName());
         }
     }
 
@@ -3447,36 +3585,39 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         final String fileRefValue = fileRefAttribute.getNodeValue();
                         if (BuilderConstants.IMAGE_FILE_REF_PATTERN.matcher(fileRefValue).matches()) {
                             // TODO Uncomment once image processing is fixed.
-    //                        if (specTopic.getRevision() == null)
-    //                        {
+                            //                        if (specTopic.getRevision() == null)
+                            //                        {
                             if (!fileRefValue.startsWith("images/")) {
                                 fileRefAttribute.setNodeValue("images/" + fileRefValue);
                             }
 
                             buildData.getImageLocations().add(new TopicImageData(topic, fileRefValue));
 
-    //                        } else {
-    //                            if (fileRefAttribute != null && !fileRefAttribute.getNodeValue().startsWith("images/")) {
-    //                                fileRefAttribute.setNodeValue("images/" + fileRefAttribute.getNodeValue());
-    //                            }
-    //
-    //                            // Add the revision number to the name
-    //                            final String imageFileRef = fileRefAttribute.getNodeValue();
-    //                            final int extensionIndex = imageFileRef.lastIndexOf(".");
-    //                            final String fixedImageFileRef;
-    //                            if (extensionIndex != -1) {
-    //                                fixedImageFileRef = imageFileRef.substring(0, extensionIndex) + "-" + specTopic.getRevision() +
-    // imageFileRef
-    //                                        .substring(extensionIndex);
-    //                            } else {
-    //                                fixedImageFileRef = imageFileRef + "-" + specTopic.getRevision();
-    //                            }
-    //
-    //                            fileRefAttribute.setNodeValue(fixedImageFileRef);
-    //
-    //                            buildData.getImageLocations().add(new TopicImageData(topic, fileRefAttribute.getNodeValue(),
-    // specTopic.getRevision()));
-    //                        }
+                            //                        } else {
+                            //                            if (fileRefAttribute != null && !fileRefAttribute.getNodeValue().startsWith
+                            // ("images/")) {
+                            //                                fileRefAttribute.setNodeValue("images/" + fileRefAttribute.getNodeValue());
+                            //                            }
+                            //
+                            //                            // Add the revision number to the name
+                            //                            final String imageFileRef = fileRefAttribute.getNodeValue();
+                            //                            final int extensionIndex = imageFileRef.lastIndexOf(".");
+                            //                            final String fixedImageFileRef;
+                            //                            if (extensionIndex != -1) {
+                            //                                fixedImageFileRef = imageFileRef.substring(0,
+                            // extensionIndex) + "-" + specTopic.getRevision() +
+                            // imageFileRef
+                            //                                        .substring(extensionIndex);
+                            //                            } else {
+                            //                                fixedImageFileRef = imageFileRef + "-" + specTopic.getRevision();
+                            //                            }
+                            //
+                            //                            fileRefAttribute.setNodeValue(fixedImageFileRef);
+                            //
+                            //                            buildData.getImageLocations().add(new TopicImageData(topic,
+                            // fileRefAttribute.getNodeValue(),
+                            // specTopic.getRevision()));
+                            //                        }
                         }
                     }
                 }
@@ -3496,33 +3637,40 @@ public class DocBookBuilder implements ShutdownAbleApp {
     @SuppressWarnings("unchecked")
     private boolean validateTopicXML(final BuildData buildData, final SpecTopic specTopic,
             final Document topicDoc) throws BuildProcessingException {
-        final SAXXMLValidator validator = new SAXXMLValidator();
+        final XMLValidator validator = new XMLValidator();
         final ContentSpec contentSpec = buildData.getContentSpec();
         final BaseTopicWrapper<?> topic = specTopic.getTopic();
 
-        byte[] entityData = new byte[0];
-        try {
-            final StringBuilder entity = new StringBuilder(CSConstants.DUMMY_CS_NAME_ENT_FILE);
-            // Add any custom entities
-            if (!isNullOrEmpty(contentSpec.getEntities())) {
-                entity.append(contentSpec.getEntities());
-            }
-            entityData = entity.toString().getBytes(ENCODING);
-        } catch (UnsupportedEncodingException e) {
-            // UTF-8 is a valid format so this should exception should never get thrown
-            throw new BuildProcessingException(e);
+        final StringBuilder entity = new StringBuilder(CSConstants.DUMMY_CS_NAME_ENT_FILE);
+        // Add any custom entities
+        if (!isNullOrEmpty(contentSpec.getEntities())) {
+            entity.append(contentSpec.getEntities());
+        }
+        String entityData = entity.toString();
+
+        final String docbookFileName;
+        final XMLValidator.ValidationMethod validationMethod;
+        final byte[] docbookSchema;
+        if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+            docbookFileName = BuilderConstants.DOCBOOK_50_RNG;
+            validationMethod = XMLValidator.ValidationMethod.RELAXNG;
+            docbookSchema = docbookRng.getValue();
+        } else {
+            docbookFileName = BuilderConstants.ROCBOOK_45_DTD;
+            validationMethod = XMLValidator.ValidationMethod.DTD;
+            docbookSchema = rocbookDtd.getValue();
         }
 
         // First check to see if the title is valid XML
         final String titleXML = "<title>" + topic.getTitle() + "</title>";
-        if (!validator.validateXML(titleXML, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue(), "Book.ent", entityData, "title")) {
+        if (!validator.validate(validationMethod, titleXML, docbookFileName, docbookSchema, entityData, "title")) {
             // The title is invalid so replace it with something that is valid
             topic.setTitle("Invalid Topic");
             DocBookUtilities.setSectionTitle(topic.getTitle(), topicDoc);
         }
 
         // Validate the topic against its DTD/Schema
-        if (!validator.validateXML(topicDoc, BuilderConstants.ROCBOOK_45_DTD, rocbookdtd.getValue(), "Book.ent", entityData)) {
+        if (!validator.validate(validationMethod, topicDoc, docbookFileName, rocbookDtd.getValue(), entityData)) {
             // Store the error message
             final String errorMsg = validator.getErrorText();
 
@@ -3560,11 +3708,19 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * Process a topic and add the section info information. This information consists of the keywordset information. The
      * keywords are populated using the tags assigned to the topic.
      *
-     * @param topic The Topic to create the sectioninfo for.
-     * @param doc   The XML Document DOM object for the topics XML.
+     * @param buildData Information and data structures for the build.
+     * @param topic     The Topic to create the sectioninfo for.
+     * @param doc       The XML Document DOM object for the topics XML.
      */
-    protected void processTopicSectionInfo(final BaseTopicWrapper<?> topic, final Document doc) {
+    protected void processTopicSectionInfo(final BuildData buildData, final BaseTopicWrapper<?> topic, final Document doc) {
         if (doc == null || topic == null) return;
+
+        final String infoName;
+        if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+            infoName = "info";
+        } else {
+            infoName = DocBookUtilities.TOPIC_ROOT_SECTIONINFO_NODE_NAME;
+        }
 
         final CollectionWrapper<TagWrapper> tags = topic.getTags();
         final List<Integer> seoCategoryIds = buildData.getServerSettings().getSEOCategoryIds();
@@ -3572,11 +3728,11 @@ public class DocBookBuilder implements ShutdownAbleApp {
         if (seoCategoryIds != null && !seoCategoryIds.isEmpty() && tags != null && tags.getItems() != null && tags.getItems().size() > 0) {
             // Find the sectioninfo node in the document, or create one if it doesn't exist
             final Element sectionInfo;
-            final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(doc.getDocumentElement(), "sectioninfo");
+            final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(doc.getDocumentElement(), infoName);
             if (sectionInfoNodes.size() == 1) {
                 sectionInfo = (Element) sectionInfoNodes.get(0);
             } else {
-                sectionInfo = doc.createElement("sectioninfo");
+                sectionInfo = doc.createElement(infoName);
             }
 
             // Build up the keywordset
@@ -3639,8 +3795,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     } else {
                         // Create the PropertyTagCollection to be used to update any data
                         final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
-                                .newPropertyTagInTopicCollection(
-                                topic);
+                                .newPropertyTagInTopicCollection(topic);
 
                         // Get a list of all property tag items that exist for the current topic
                         final List<PropertyTagInTopicWrapper> existingUniqueURLs = topic.getProperties(

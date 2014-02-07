@@ -15,6 +15,7 @@ import org.jboss.pressgang.ccms.contentspec.builder.utils.DocBookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
 import org.jboss.pressgang.ccms.contentspec.enums.LevelType;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
+import org.jboss.pressgang.ccms.utils.structures.DocBookVersion;
 import org.w3c.dom.Document;
 
 public class PublicanDocBookBuilder extends DocBookBuilder {
@@ -82,6 +83,11 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
 
         // Minor formatting cleanup
         publicanCfg = publicanCfg.trim() + "\n";
+
+        // Add the dtdver property
+        if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+            publicanCfg += "dtdver: \"5.0\"\n";
+        }
 
         if (contentSpec.getPublicanCfg() != null) {
             // If the user publican.cfg doesn't contain a chunk_section_depth, then add a calculated one

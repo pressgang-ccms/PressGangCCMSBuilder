@@ -1,7 +1,6 @@
 package org.jboss.pressgang.ccms.contentspec.builder;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -15,8 +14,8 @@ import org.jboss.pressgang.ccms.contentspec.SpecNode;
 import org.jboss.pressgang.ccms.contentspec.SpecNodeWithRelationships;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
-import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkOptions;
 import org.jboss.pressgang.ccms.contentspec.builder.sort.TopicTitleSorter;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.DocBookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionListData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionTopicData;
@@ -28,16 +27,15 @@ import org.jboss.pressgang.ccms.contentspec.enums.TopicType;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
 import org.jboss.pressgang.ccms.utils.sort.ExternalListSort;
+import org.jboss.pressgang.ccms.utils.structures.DocBookVersion;
 import org.jboss.pressgang.ccms.wrapper.TranslatedTopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.base.BaseTopicWrapper;
-import org.jboss.pressgang.ccms.zanata.ZanataDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import org.w3c.dom.Text;
 
 /**
  * This class takes the XML from a topic and modifies it to include and injected content.
@@ -233,65 +231,78 @@ public class DocBookXMLPreProcessor {
         return linkElement;
     }
 
-    public void processTopicBugLink(final SpecTopic specTopic, final Document document, final BugLinkOptions bugOptions,
-            final DocBookBuildingOptions docbookBuildingOptions, final Date buildDate) {
+    /**
+     * Creates an element that represents an external link.
+     *
+     * @param docBookVersion The DocBook Version the link should be created for.
+     * @param document       The document to create the link for.
+     * @param title
+     * @param url            The links url.  @return
+     */
+    protected Element createExternalLinkElement(final DocBookVersion docBookVersion, final Document document, String title,
+            final String url) {
+        final Element linkEle;
+        if (docBookVersion == DocBookVersion.DOCBOOK_50) {
+            linkEle = document.createElement("link");
+            linkEle.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", url);
+        } else {
+            linkEle = document.createElement("ulink");
+            linkEle.setAttribute("url", url);
+        }
+        linkEle.setTextContent(title);
+        return linkEle;
+    }
+
+    public void processTopicBugLink(final BuildData buildData, final SpecTopic specTopic, final Document document) {
         try {
             String specifiedBuildName = "";
-            if (docbookBuildingOptions != null && docbookBuildingOptions.getBuildName() != null)
-                specifiedBuildName = docbookBuildingOptions.getBuildName();
+            if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
 
             // build the bug link url with the base components
-            final String bugLinkUrl = bugLinkStrategy.generateUrl(bugOptions, specTopic, specifiedBuildName, buildDate);
-            processBugLink(bugLinkUrl, document, document.getDocumentElement());
+            final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), specTopic, specifiedBuildName,
+                    buildData.getBuildDate());
+            processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, document.getDocumentElement());
         } catch (final Exception ex) {
             LOG.error("Failed to insert Bug Links into the DOM Document", ex);
         }
     }
 
-    public void processInitialContentBugLink(final InitialContent initialContent, final Document document, final Node node,
-            final BugLinkOptions bugOptions, final DocBookBuildingOptions docbookBuildingOptions, final Date buildDate) {
+    public void processInitialContentBugLink(final BuildData buildData, final InitialContent initialContent, final Document document,
+            final Node node) {
         try {
             String specifiedBuildName = "";
-            if (docbookBuildingOptions != null && docbookBuildingOptions.getBuildName() != null)
-                specifiedBuildName = docbookBuildingOptions.getBuildName();
+            if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
 
             // build the bug link url with the base components
-            final String bugLinkUrl = bugLinkStrategy.generateUrl(bugOptions, initialContent, specifiedBuildName, buildDate);
-            processBugLink(bugLinkUrl, document, node);
+            final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), initialContent, specifiedBuildName,
+                    buildData.getBuildDate());
+            processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, node);
         } catch (final Exception ex) {
             LOG.error("Failed to insert Bug Links into the DOM Document", ex);
         }
     }
 
-    protected void processBugLink(final String bugLinkUrl, final Document document, final Node node) {
-        final Element bugzillaULink = document.createElement("ulink");
-
+    protected void processBugLink(final DocBookVersion docBookVersion, final String bugLinkUrl, final Document document, final Node node) {
         final String reportBugTranslation = translations.getString(REPORT_A_BUG_PROPERTY);
-        bugzillaULink.setTextContent(reportBugTranslation == null ? DEFAULT_REPORT_A_BUG : reportBugTranslation);
+        final String reportBugText = reportBugTranslation == null ? DEFAULT_REPORT_A_BUG : reportBugTranslation;
+        final Element bugzillaLink = createExternalLinkElement(docBookVersion, document, reportBugText, bugLinkUrl);
 
-        bugzillaULink.setAttribute("url", bugLinkUrl);
-
-        /*
-         * Add the elements to the XML DOM last incase there is an exception (not that there should be one
-         */
+        // Add the elements to the XML DOM last incase there is an exception (not that there should be one)
         final Element bugzillaSection = createLinkWrapperElement(document, node, ROLE_CREATE_BUG_PARA);
-        bugzillaSection.appendChild(bugzillaULink);
+        bugzillaSection.appendChild(bugzillaLink);
     }
 
-    public void processTopicEditorLinks(final SpecTopic specTopic, final Document document,
-            final DocBookBuildingOptions docbookBuildingOptions, final ZanataDetails zanataDetails) {
+    public void processTopicEditorLinks(final BuildData buildData, final SpecTopic specTopic, final Document document) {
         // EDITOR LINK
-        if (docbookBuildingOptions != null && docbookBuildingOptions.getInsertEditorLinks()) {
+        if (buildData.getBuildOptions().getInsertEditorLinks()) {
             final BaseTopicWrapper<?> topic = specTopic.getTopic();
-            final String editorUrl = topic.getEditorURL(zanataDetails);
+            final String editorUrl = topic.getEditorURL(buildData.getZanataDetails());
 
             final Element editorLinkPara = createLinkWrapperElement(document, document.getDocumentElement(), ROLE_CREATE_BUG_PARA);
 
             if (editorUrl != null) {
-                final Element editorULink = document.createElement("ulink");
-                editorLinkPara.appendChild(editorULink);
-                editorULink.setTextContent("Edit this topic");
-                editorULink.setAttribute("url", editorUrl);
+                final Element editorLink = createExternalLinkElement(buildData.getDocBookVersion(), document, "Edit this topic", editorUrl);
+                editorLinkPara.appendChild(editorLink);
             } else {
                 /*
                  * Since the getEditorURL method only returns null for translations we don't need to check the topic
@@ -309,10 +320,9 @@ public class DocBookXMLPreProcessor {
                     final Element additionalXMLEditorLinkPara = createLinkWrapperElement(document, document.getDocumentElement(),
                             ROLE_CREATE_BUG_PARA);
 
-                    final Element editorULink = document.createElement("ulink");
-                    additionalXMLEditorLinkPara.appendChild(editorULink);
-                    editorULink.setTextContent("Edit the Additional Translated XML");
-                    editorULink.setAttribute("url", additionalXMLEditorUrl);
+                    final Element editorLink = createExternalLinkElement(buildData.getDocBookVersion(), document,
+                            "Edit the Additional Translated XML", additionalXMLEditorUrl);
+                    additionalXMLEditorLinkPara.appendChild(editorLink);
                 }
             }
         }
@@ -321,40 +331,17 @@ public class DocBookXMLPreProcessor {
     /**
      * Adds some debug information and links to the end of the topic
      */
-    public void processTopicAdditionalInfo(final SpecTopic specTopic, final Document document, final BugLinkOptions bugOptions,
-            final DocBookBuildingOptions docbookBuildingOptions, final Date buildDate, final ZanataDetails zanataDetails) {
-        if ((docbookBuildingOptions != null && (docbookBuildingOptions.getInsertSurveyLink() || docbookBuildingOptions
-                .getInsertEditorLinks()))) {
-
-            // SURVEY LINK
-            if (docbookBuildingOptions != null && docbookBuildingOptions.getInsertSurveyLink()) {
-                final Element surveyPara = document.createElement("para");
-                surveyPara.setAttribute("role", ROLE_CREATE_BUG_PARA);
-                document.getDocumentElement().appendChild(surveyPara);
-
-                final Text startSurveyText = document.createTextNode(
-                        "Thank you for evaluating the new documentation format for JBoss Enterprise Application Platform. Let us know " +
-                                "what you think by taking a short ");
-                surveyPara.appendChild(startSurveyText);
-
-                final Element surveyULink = document.createElement("ulink");
-                surveyPara.appendChild(surveyULink);
-                surveyULink.setTextContent("survey");
-                surveyULink.setAttribute("url", "https://www.keysurvey.com/survey/380730/106f/");
-
-                final Text endSurveyText = document.createTextNode(".");
-                surveyPara.appendChild(endSurveyText);
-            }
-
+    public void processTopicAdditionalInfo(final BuildData buildData, final SpecTopic specTopic, final Document document) {
+        if (buildData.getBuildOptions().getInsertEditorLinks()) {
             if (specTopic.getTopicType() != TopicType.AUTHOR_GROUP) {
-                processTopicEditorLinks(specTopic, document, docbookBuildingOptions, zanataDetails);
+                processTopicEditorLinks(buildData, specTopic, document);
             }
         }
 
         // Only include a bugzilla link for normal topics
         if (specTopic.getTopicType() == TopicType.NORMAL) {
-            if (docbookBuildingOptions != null && docbookBuildingOptions.getInsertBugLinks()) {
-                processTopicBugLink(specTopic, document, bugOptions, docbookBuildingOptions, buildDate);
+            if (buildData.getBuildOptions().getInsertBugLinks()) {
+                processTopicBugLink(buildData, specTopic, document);
             }
         }
     }
@@ -476,31 +463,29 @@ public class DocBookXMLPreProcessor {
 
         if (xmlDocument == null) return retValue;
 
-        /* loop over all of the comments in the document */
+        // loop over all of the comments in the document
         for (final Node comment : XMLUtilities.getComments(xmlDocument)) {
             final String commentContent = comment.getNodeValue();
 
-            /* find any matches */
-            final Matcher injectionSequencematcher = regularExpression.matcher(commentContent);
+            // find any matches
+            final Matcher injectionSequenceMatcher = regularExpression.matcher(commentContent);
 
-            /* loop over the regular expression matches */
-            while (injectionSequencematcher.find()) {
-                /*
-                 * get the list of topics from the named group in the regular expression match
-                 */
-                final String reMatch = injectionSequencematcher.group(TOPICIDS_RE_NAMED_GROUP);
+            // loop over the regular expression matches
+            while (injectionSequenceMatcher.find()) {
+                // Get the list of topics from the named group in the regular expression match
+                final String reMatch = injectionSequenceMatcher.group(TOPICIDS_RE_NAMED_GROUP);
 
-                /* make sure we actually found a matching named group */
+                // make sure we actually found a matching named group
                 if (reMatch != null) {
-                    /* get the sequence of ids */
+                    // get the sequence of ids
                     final List<InjectionTopicData> sequenceIDs = processTopicIdList(reMatch);
 
-                    /* sort the InjectionTopicData list if required */
+                    // sort the InjectionTopicData list if required
                     if (sortComparator != null) {
                         sortComparator.sort(relatedTopicsDatabase.getTopics(), sequenceIDs);
                     }
 
-                    /* loop over all the topic ids in the injection point */
+                    // loop over all the topic ids in the injection point
                     for (final InjectionTopicData sequenceID : sequenceIDs) {
                         /*
                          * topics that are injected into custom injection points are excluded from the generic related topic
@@ -517,7 +502,7 @@ public class DocBookXMLPreProcessor {
                         /*
                          * See if the topic is also available in the main database (if the main database is available)
                          */
-                        final boolean isInDatabase = level == null ? true : level.isSpecTopicInLevelByTopicID(sequenceID.topicId);
+                        final boolean isInDatabase = level.isSpecTopicInLevelByTopicID(sequenceID.topicId);
 
                         /*
                          * It is possible that the topic id referenced in the injection point has not been related, or has not
@@ -537,26 +522,14 @@ public class DocBookXMLPreProcessor {
                              */
                             if (customInjections.containsKey(comment)) list = customInjections.get(comment).listItems;
 
-                            /* if the toc is null, we are building an internal page */
-                            if (level == null) {
-                                final String url = relatedTopic.getPressGangURL();
-                                if (sequenceID.optional) {
-                                    list.add(DocBookUtilities.buildEmphasisPrefixedULink(xmlDocument, OPTIONAL_LIST_PREFIX, url,
-                                            relatedTopic.getTitle()));
-                                } else {
-                                    list.add(DocBookUtilities.buildULink(xmlDocument, url, relatedTopic.getTitle()));
-                                }
+                            final Integer topicId = relatedTopic.getTopicId();
+                            final SpecTopic closestSpecTopic = topic.getClosestTopicByDBId(topicId, true);
+                            if (sequenceID.optional) {
+                                list.add(DocBookUtilities.buildEmphasisPrefixedXRef(xmlDocument, OPTIONAL_LIST_PREFIX,
+                                        closestSpecTopic.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
                             } else {
-                                final Integer topicId = relatedTopic.getTopicId();
-
-                                final SpecTopic closestSpecTopic = topic.getClosestTopicByDBId(topicId, true);
-                                if (sequenceID.optional) {
-                                    list.add(DocBookUtilities.buildEmphasisPrefixedXRef(xmlDocument, OPTIONAL_LIST_PREFIX,
-                                            closestSpecTopic.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
-                                } else {
-                                    list.add(DocBookUtilities.buildXRef(xmlDocument,
-                                            closestSpecTopic.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
-                                }
+                                list.add(DocBookUtilities.buildXRef(xmlDocument,
+                                        closestSpecTopic.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
                             }
 
                             /*

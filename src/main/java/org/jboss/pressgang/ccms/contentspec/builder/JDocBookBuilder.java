@@ -124,7 +124,8 @@ public class JDocBookBuilder extends DocBookBuilder {
 
                 // Fix the Doctype
                 final String entityFileName = "../" + buildData.getEscapedBookTitle() + ".ent";
-                final String fixedFile = DocBookUtilities.addDocbook45XMLDoctype(file, entityFileName, rootElementName);
+                final String fixedFile = DocBookBuildUtilities.addDocBookPreamble(buildData.getDocBookVersion(), file, rootElementName,
+                        entityFileName);
 
                 // Add the file to the book
                 addToZip(buildData.getBookLocaleFolder() + "Common_Content/" + fileName, fixedFile, buildData);
@@ -184,10 +185,11 @@ public class JDocBookBuilder extends DocBookBuilder {
     }
 
     @Override
-    protected String buildBookInfoFile(final BuildData buildData, final String bookInfoTemplate) {
-        final String bookInfo = super.buildBookInfoFile(buildData, bookInfoTemplate);
+    protected void buildBookInfoFile(final BuildData buildData, final String bookInfoTemplate) throws BuildProcessingException {
+        // Remove the corpauthor from the template
+        final String fixedBookInfoTemplate = bookInfoTemplate.replaceAll("<corpauthor>(.|\r|\n)*</corpauthor>", "");
 
-        // Remove the corpauthor from the book
-        return bookInfo.replaceAll("<corpauthor>(.|\r|\n)*</corpauthor>", "");
+        // Do the rest of the processing
+        super.buildBookInfoFile(buildData, fixedBookInfoTemplate);
     }
 }
