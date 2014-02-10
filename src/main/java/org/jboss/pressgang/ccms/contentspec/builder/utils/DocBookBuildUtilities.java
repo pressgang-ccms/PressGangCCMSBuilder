@@ -614,7 +614,7 @@ public class DocBookBuildUtilities {
             log.debug("Topic Error Template is not valid XML", ex);
             throw new BuildProcessingException("Failed to convert the Topic Error template into a DOM document");
         }
-        DocBookUtilities.setSectionTitle(topic.getTitle(), doc);
+        DocBookUtilities.setSectionTitle(buildData.getDocBookVersion(), topic.getTitle(), doc);
         processTopicID(buildData, topic, doc);
         return doc;
     }
@@ -641,7 +641,7 @@ public class DocBookBuildUtilities {
             throw new BuildProcessingException("Failed to convert the Topic Error template into a DOM document");
         }
         specTopic.setXMLDocument(doc);
-        DocBookUtilities.setSectionTitle(topic.getTitle(), doc);
+        DocBookUtilities.setSectionTitle(buildData.getDocBookVersion(), topic.getTitle(), doc);
         processTopicID(buildData, topic, doc);
     }
 

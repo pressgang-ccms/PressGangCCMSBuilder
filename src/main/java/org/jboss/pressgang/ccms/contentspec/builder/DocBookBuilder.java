@@ -1096,7 +1096,14 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 // Make sure we have valid XML
                 if (xmlValid) {
                     try {
-                        topicDoc = XMLUtilities.convertStringToDocument(topic.getXml());
+                        final String fixedTopicXML;
+                        if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+                            fixedTopicXML = DocBookUtilities.addDocBook50Namespace(topicXML);
+                        } else {
+                            fixedTopicXML = topicXML;
+                        }
+
+                        topicDoc = XMLUtilities.convertStringToDocument(fixedTopicXML);
 
                         if (topicDoc == null) {
                             final String xmlStringInCDATA = XMLUtilities.wrapStringInCDATA(topic.getXml());
@@ -1143,7 +1150,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 } else {
                     // Ensure the topic is wrapped in a section and the title matches the topic
                     DocBookUtilities.wrapDocumentInSection(topicDoc);
-                    DocBookUtilities.setSectionTitle(topic.getTitle(), topicDoc);
+                    DocBookUtilities.setSectionTitle(buildData.getDocBookVersion(), topic.getTitle(), topicDoc);
 
                     processTopicSectionInfo(buildData, topic, topicDoc);
                     DocBookBuildUtilities.processTopicID(buildData, topic, topicDoc);
@@ -2523,24 +2530,24 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     parentInfoName = parentNode.getNodeName() + "info";
                 }
 
-                // Check if the parent already has the intro text
-                final List<Node> intros = XMLUtilities.getDirectChildNodes(parentNode, parentInfoName);
-                final Node introNode;
-                if (intros.size() == 0) {
-                    introNode = doc.createElement(parentInfoName);
-                    parentNode.insertBefore(introNode, parentNode.getFirstChild());
+                // Check if the parent already has a info node
+                final List<Node> infoNodes = XMLUtilities.getDirectChildNodes(parentNode, parentInfoName);
+                final Node infoNode;
+                if (infoNodes.size() == 0) {
+                    infoNode = doc.createElement(parentInfoName);
+                    DocBookUtilities.setInfo(docBookVersion, (Element) infoNode, doc);
                 } else {
-                    introNode = intros.get(0);
+                    infoNode = infoNodes.get(0);
                 }
 
                 // Merge the info text
                 final NodeList sectionInfoChildren = sectionInfoNodes.get(0).getChildNodes();
-                final Node firstNode = introNode.getFirstChild();
+                final Node firstNode = infoNode.getFirstChild();
                 while (sectionInfoChildren.getLength() > 0) {
                     if (firstNode != null) {
-                        introNode.insertBefore(sectionInfoChildren.item(0), firstNode);
+                        infoNode.insertBefore(sectionInfoChildren.item(0), firstNode);
                     } else {
-                        introNode.appendChild(sectionInfoChildren.item(0));
+                        infoNode.appendChild(sectionInfoChildren.item(0));
                     }
                 }
             }
@@ -3640,6 +3647,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
         String entityData = entity.toString();
 
+        final String titleXML;
         final String docbookFileName;
         final XMLValidator.ValidationMethod validationMethod;
         final byte[] docbookSchema;
@@ -3647,22 +3655,24 @@ public class DocBookBuilder implements ShutdownAbleApp {
             docbookFileName = BuilderConstants.DOCBOOK_50_RNG;
             validationMethod = XMLValidator.ValidationMethod.RELAXNG;
             docbookSchema = docbookRng.getValue();
+            titleXML = DocBookUtilities.addDocBook50Namespace("<section><title>" + topic.getTitle() + "</title><para /></section>",
+                    "section");
         } else {
             docbookFileName = BuilderConstants.ROCBOOK_45_DTD;
             validationMethod = XMLValidator.ValidationMethod.DTD;
             docbookSchema = rocbookDtd.getValue();
+            titleXML = "<section><title>" + topic.getTitle() + "</title><para /></section>";
         }
 
         // First check to see if the title is valid XML
-        final String titleXML = "<title>" + topic.getTitle() + "</title>";
-        if (!validator.validate(validationMethod, titleXML, docbookFileName, docbookSchema, entityData, "title")) {
+        if (!validator.validate(validationMethod, titleXML, docbookFileName, docbookSchema, entityData, "section")) {
             // The title is invalid so replace it with something that is valid
             topic.setTitle("Invalid Topic");
-            DocBookUtilities.setSectionTitle(topic.getTitle(), topicDoc);
+            DocBookUtilities.setSectionTitle(buildData.getDocBookVersion(), topic.getTitle(), topicDoc);
         }
 
         // Validate the topic against its DTD/Schema
-        if (!validator.validate(validationMethod, topicDoc, docbookFileName, rocbookDtd.getValue(), entityData)) {
+        if (!validator.validate(validationMethod, topicDoc, docbookFileName, docbookSchema, entityData)) {
             // Store the error message
             final String errorMsg = validator.getErrorText();
 
@@ -3746,7 +3756,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
             if (keywordSet.hasChildNodes()) {
                 sectionInfo.appendChild(keywordSet);
 
-                DocBookUtilities.setSectionInfo(sectionInfo, doc);
+                DocBookUtilities.setInfo(buildData.getDocBookVersion(), sectionInfo, doc);
             }
         }
     }
