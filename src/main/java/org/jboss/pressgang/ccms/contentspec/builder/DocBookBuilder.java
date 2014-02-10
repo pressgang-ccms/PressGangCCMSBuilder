@@ -43,7 +43,6 @@ import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationExc
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.DocBookBuildingOptions;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionError;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.TocTopicDatabase;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorDatabase.ErrorLevel;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorDatabase.ErrorType;
@@ -1372,11 +1371,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
         float current = 0;
         int lastPercent = 0;
 
-        // Create the related topics database to be used for CSP builds
-        final TocTopicDatabase relatedTopicsDatabase = new TocTopicDatabase();
-        final List<T> topics = buildData.getBuildDatabase().getAllTopics(true);
-        relatedTopicsDatabase.setTopics(topics);
-
         final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
         final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(getConstants(), bugLinkStrategy);
 
@@ -1403,7 +1397,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
             assert topic != null;
 
             if (doc != null) {
-                final boolean valid = processSpecTopicInjections(buildData, specTopic, xmlPreProcessor, relatedTopicsDatabase);
+                final boolean valid = processSpecTopicInjections(buildData, specTopic, xmlPreProcessor);
 
                 // Check if the app should be shutdown
                 if (isShuttingDown.get()) {
@@ -1510,18 +1504,16 @@ public class DocBookBuilder implements ShutdownAbleApp {
     /**
      * Process the Injections for a SpecTopic and add any errors to the error database.
      *
-     * @param buildData             Information and data structures for the build.
-     * @param specTopic             The Build Topic to do injection processing on.
-     * @param xmlPreProcessor       The XML Processor to use for Injections.
-     * @param relatedTopicsDatabase The Database of Related Topics.
+     * @param buildData       Information and data structures for the build.
+     * @param specTopic       The Build Topic to do injection processing on.
+     * @param xmlPreProcessor The XML Processor to use for Injections.
      * @return True if no errors occurred or if the build is set to ignore missing injections, otherwise false.
      */
     @SuppressWarnings("unchecked")
     protected boolean processSpecTopicInjections(final BuildData buildData, final SpecTopic specTopic,
-            final DocBookXMLPreProcessor xmlPreProcessor, final TocTopicDatabase relatedTopicsDatabase) {
+            final DocBookXMLPreProcessor xmlPreProcessor) {
         final BaseTopicWrapper<?> topic = specTopic.getTopic();
         final Document doc = specTopic.getXMLDocument();
-        final Level baseLevel = buildData.getContentSpec().getBaseLevel();
         final boolean useFixedUrls = buildData.isUseFixedUrls();
         final Integer fixedUrlPropertyTagId = buildData.getServerEntities().getFixedUrlPropertyTagId();
         boolean valid = true;
@@ -1529,7 +1521,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         // Process the injection points
         if (buildData.getInjectionOptions().isInjectionAllowed()) {
 
-            final ArrayList<Integer> customInjectionIds = new ArrayList<Integer>();
+            final ArrayList<String> customInjectionIds = new ArrayList<String>();
 
             xmlPreProcessor.processPrevRelationshipInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
             xmlPreProcessor.processNextRelationshipInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
@@ -1542,8 +1534,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
             }
 
             // Process the topics XML and insert the injection links
-            final List<Integer> customInjectionErrors = xmlPreProcessor.processInjections(baseLevel, specTopic, customInjectionIds, doc,
-                    buildData.getBuildOptions(), relatedTopicsDatabase, useFixedUrls, fixedUrlPropertyTagId);
+            final List<String> customInjectionErrors = xmlPreProcessor.processInjections(buildData.getContentSpec(), specTopic,
+                    customInjectionIds, doc, buildData.getBuildOptions(), buildData.getBuildDatabase(), useFixedUrls,
+                    fixedUrlPropertyTagId);
 
             // Check if the app should be shutdown
             if (isShuttingDown.get()) {
@@ -1587,13 +1580,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @return True if no errors were processed or if the build is set to ignore missing injections, otherwise false.
      */
     protected boolean processSpecTopicInjectionErrors(final BuildData buildData, final BaseTopicWrapper<?> topic,
-            final List<Integer> customInjectionErrors) {
+            final List<String> customInjectionErrors) {
         boolean valid = true;
 
         if (!customInjectionErrors.isEmpty()) {
-            final String message = "Topic has referenced Topic(s) " + CollectionUtilities.toSeperatedString(
-                    customInjectionErrors) + " in a custom injection point that was either not related, " +
-                    "or not included in the filter used to build this book.";
+            final String message = "Topic has referenced Topic/Level(s) " + CollectionUtilities.toSeperatedString(
+                    customInjectionErrors) + " in a custom injection point that was not included this book.";
             if (buildData.getBuildOptions().getIgnoreMissingCustomInjections()) {
                 buildData.getErrorDatabase().addWarning(topic, ErrorType.INVALID_INJECTION, message);
             } else {
@@ -1967,7 +1959,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
             bookInfo = bookInfo.replaceAll("<(/)?bookinfo", "<$1info").replaceAll("<(/)?articleinfo", "<$1info");
 
             // Change the corpauthor element to orgname
-            bookInfo = bookInfo.replaceAll("<(/)?corpauthor>","<$1orgname>");
+            bookInfo = bookInfo.replaceAll("<(/)?corpauthor>", "<$1orgname>");
 
             // change the "id" attribute to "xml:id"
             bookInfo = bookInfo.replace("id=\"", "xml:id=\"");
@@ -2083,8 +2075,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
         prefaceDoc.getDocumentElement().appendChild(conventions);
 
         // Add the Feedback.xml
-        if (overrides.containsKey(CSConstants.FEEDBACK_OVERRIDE) && overrideFiles.containsKey(CSConstants.FEEDBACK_OVERRIDE) ||
-            contentSpec.getFeedback() != null) {
+        if (overrides.containsKey(CSConstants.FEEDBACK_OVERRIDE) && overrideFiles.containsKey(
+                CSConstants.FEEDBACK_OVERRIDE) || contentSpec.getFeedback() != null) {
             final Element xinclude = XMLUtilities.createXIInclude(prefaceDoc, "Feedback.xml");
             prefaceDoc.getDocumentElement().appendChild(xinclude);
         } else {

@@ -8,18 +8,20 @@ import java.util.ResourceBundle;
 
 import com.google.code.regexp.Matcher;
 import com.google.code.regexp.Pattern;
+import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.InitialContent;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecNode;
 import org.jboss.pressgang.ccms.contentspec.SpecNodeWithRelationships;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
-import org.jboss.pressgang.ccms.contentspec.builder.sort.TopicTitleSorter;
+import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
+import org.jboss.pressgang.ccms.contentspec.builder.sort.NodeTitleSorter;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.DocBookBuildingOptions;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionListData;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionTopicData;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.TocTopicDatabase;
 import org.jboss.pressgang.ccms.contentspec.entities.Relationship;
 import org.jboss.pressgang.ccms.contentspec.entities.TargetRelationship;
 import org.jboss.pressgang.ccms.contentspec.entities.TopicRelationship;
@@ -61,7 +63,7 @@ public class DocBookXMLPreProcessor {
     /**
      * Identifies a named regular expression group
      */
-    protected static final String TOPICIDS_RE_NAMED_GROUP = "TopicIDs";
+    protected static final String IDS_RE_NAMED_GROUP = "TopicIDs";
     /**
      * This text identifies an option task in a list
      */
@@ -70,14 +72,11 @@ public class DocBookXMLPreProcessor {
      * The text to be prefixed to a list item if a topic is optional
      */
     protected static final String OPTIONAL_LIST_PREFIX = "Optional: ";
+
     /**
      * A regular expression that identifies a topic id
      */
-    protected static final String OPTIONAL_TOPIC_ID_RE = "(" + OPTIONAL_MARKER + "\\s*)?\\d+";
-    /**
-     * A regular expression that identifies a topic id
-     */
-    protected static final String TOPIC_ID_RE = "\\d+";
+    protected static final String OPTIONAL_ID_RE = "(" + OPTIONAL_MARKER + "\\s*)?" + BuilderConstants.INJECT_ID_RE;
 
     /**
      * A regular expression that matches an InjectSequence custom injection point
@@ -90,7 +89,7 @@ public class DocBookXMLPreProcessor {
     /*
      * an optional comma separated list of digit blocks, and at least one digit block with an optional comma
      */
-                    "(?<" + TOPICIDS_RE_NAMED_GROUP + ">(\\s*" + OPTIONAL_TOPIC_ID_RE + "\\s*,)*(\\s*" + OPTIONAL_TOPIC_ID_RE + ",?))" +
+                    "(?<" + IDS_RE_NAMED_GROUP + ">(\\s*" + OPTIONAL_ID_RE + "\\s*,)*(\\s*" + OPTIONAL_ID_RE + ",?))" +
     /* xml comment end */
                     "\\s*$");
 
@@ -103,7 +102,7 @@ public class DocBookXMLPreProcessor {
     /*
      * an optional comma separated list of digit blocks, and at least one digit block with an optional comma
      */
-                    "(?<" + TOPICIDS_RE_NAMED_GROUP + ">(\\s*" + OPTIONAL_TOPIC_ID_RE + "\\s*,)*(\\s*" + OPTIONAL_TOPIC_ID_RE + ",?))" +
+                    "(?<" + IDS_RE_NAMED_GROUP + ">(\\s*" + OPTIONAL_ID_RE + "\\s*,)*(\\s*" + OPTIONAL_ID_RE + ",?))" +
     /* xml comment end */
                     "\\s*$");
 
@@ -113,7 +112,7 @@ public class DocBookXMLPreProcessor {
     /*
      * an optional comma separated list of digit blocks, and at least one digit block with an optional comma
      */
-                    "(?<" + TOPICIDS_RE_NAMED_GROUP + ">(\\s*" + OPTIONAL_TOPIC_ID_RE + "\\s*,)*(\\s*" + OPTIONAL_TOPIC_ID_RE + ",?))" +
+                    "(?<" + IDS_RE_NAMED_GROUP + ">(\\s*" + OPTIONAL_ID_RE + "\\s*,)*(\\s*" + OPTIONAL_ID_RE + ",?))" +
     /* xml comment end */
                     "\\s*$");
 
@@ -125,7 +124,7 @@ public class DocBookXMLPreProcessor {
     /*
      * an optional comma separated list of digit blocks, and at least one digit block with an optional comma
      */
-                    "(?<" + TOPICIDS_RE_NAMED_GROUP + ">(\\s*" + OPTIONAL_TOPIC_ID_RE + "\\s*,)*(\\s*" + OPTIONAL_TOPIC_ID_RE + ",?))" +
+                    "(?<" + IDS_RE_NAMED_GROUP + ">(\\s*" + OPTIONAL_ID_RE + "\\s*,)*(\\s*" + OPTIONAL_ID_RE + ",?))" +
     /* xml comment end */
                     "\\s*$");
 
@@ -136,7 +135,7 @@ public class DocBookXMLPreProcessor {
     /* start xml comment and 'Inject:' surrounded by optional white space */
             Pattern.compile("^\\s*Inject:\\s*" +
     /* one digit block */
-                    "(?<" + TOPICIDS_RE_NAMED_GROUP + ">(" + OPTIONAL_TOPIC_ID_RE + "))" +
+                    "(?<" + IDS_RE_NAMED_GROUP + ">(" + OPTIONAL_ID_RE + "))" +
     /* xml comment end */
                     "\\s*$");
 
@@ -350,26 +349,26 @@ public class DocBookXMLPreProcessor {
      * Takes a comma separated list of ints, and returns an array of Integers. This is used when processing custom injection
      * points.
      */
-    private static List<InjectionTopicData> processTopicIdList(final String list) {
+    private static List<InjectionData> processIdList(final String list) {
         /* find the individual topic ids */
-        final String[] topicIDs = list.split(",");
+        final String[] ids = list.split(",");
 
-        List<InjectionTopicData> retValue = new ArrayList<InjectionTopicData>(topicIDs.length);
+        List<InjectionData> retValue = new ArrayList<InjectionData>(ids.length);
 
         /* clean the topic ids */
-        for (final String topicID : topicIDs) {
-            final String topicId = topicID.replaceAll(OPTIONAL_MARKER, "").trim();
-            final boolean optional = topicID.contains(OPTIONAL_MARKER);
+        for (final String id : ids) {
+            final String topicId = id.replaceAll(OPTIONAL_MARKER, "").trim();
+            final boolean optional = id.contains(OPTIONAL_MARKER);
 
             try {
-                final InjectionTopicData topicData = new InjectionTopicData(Integer.parseInt(topicId), optional);
+                final InjectionData topicData = new InjectionData(topicId, optional);
                 retValue.add(topicData);
             } catch (final NumberFormatException ex) {
                 /*
                  * these lists are discovered by a regular expression so we shouldn't have any trouble here with Integer.parse
                  */
                 LOG.debug("Unable to convert Injection Point ID into a Number", ex);
-                retValue.add(new InjectionTopicData(-1, false));
+                retValue.add(new InjectionData("-1", false));
             }
         }
 
@@ -377,45 +376,27 @@ public class DocBookXMLPreProcessor {
     }
 
     @SuppressWarnings("unchecked")
-    public List<Integer> processInjections(final Level level, final SpecTopic topic, final ArrayList<Integer> customInjectionIds,
-            final Document xmlDocument, final DocBookBuildingOptions docbookBuildingOptions, final TocTopicDatabase relatedTopicsDatabase,
+    public List<String> processInjections(final ContentSpec contentSpec, final SpecTopic topic, final ArrayList<String> customInjectionIds,
+            final Document xmlDocument, final DocBookBuildingOptions docbookBuildingOptions, final BuildDatabase buildDatabase,
             final boolean usedFixedUrls, final Integer fixedUrlPropertyTagId) {
-        TocTopicDatabase relatedTopicDatabase = relatedTopicsDatabase;
-        if (relatedTopicDatabase == null) {
-            /*
-             * get the outgoing relationships
-             */
-            final BaseTopicWrapper<?> topicWrapper = topic.getTopic();
-            if (topicWrapper.getOutgoingRelationships() != null) {
-                final List<? extends BaseTopicWrapper<?>> relatedTopics = topicWrapper.getOutgoingRelationships().getItems();
-
-                /*
-                 * Create a TocTopicDatabase to hold the related topics. The TocTopicDatabase provides a convenient way to access
-                 * these topics
-                 */
-                relatedTopicDatabase = new TocTopicDatabase();
-                relatedTopicDatabase.setTopics(relatedTopics);
-            }
-        }
-
         /*
          * this collection keeps a track of the injection point markers and the docbook lists that we will be replacing them
          * with
          */
         final HashMap<Node, InjectionListData> customInjections = new HashMap<Node, InjectionListData>();
 
-        final List<Integer> errorTopics = new ArrayList<Integer>();
+        final List<String> errorTopics = new ArrayList<String>();
 
-        errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, ORDEREDLIST_INJECTION_POINT, xmlDocument,
-                CUSTOM_INJECTION_SEQUENCE_RE, null, relatedTopicDatabase, usedFixedUrls, fixedUrlPropertyTagId));
-        errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, XREF_INJECTION_POINT, xmlDocument,
-                CUSTOM_INJECTION_SINGLE_RE, null, relatedTopicDatabase, usedFixedUrls, fixedUrlPropertyTagId));
-        errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument,
-                CUSTOM_INJECTION_LIST_RE, null, relatedTopicDatabase, usedFixedUrls, fixedUrlPropertyTagId));
-        errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument,
-                CUSTOM_ALPHA_SORT_INJECTION_LIST_RE, new TopicTitleSorter(), relatedTopicDatabase, usedFixedUrls, fixedUrlPropertyTagId));
-        errorTopics.addAll(processInjections(level, topic, customInjectionIds, customInjections, LIST_INJECTION_POINT, xmlDocument,
-                CUSTOM_INJECTION_LISTITEMS_RE, null, relatedTopicDatabase, usedFixedUrls, fixedUrlPropertyTagId));
+        errorTopics.addAll(processInjections(contentSpec, topic, customInjectionIds, customInjections, ORDEREDLIST_INJECTION_POINT, xmlDocument,
+                CUSTOM_INJECTION_SEQUENCE_RE, null, buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
+        errorTopics.addAll(processInjections(contentSpec, topic, customInjectionIds, customInjections, XREF_INJECTION_POINT, xmlDocument,
+                CUSTOM_INJECTION_SINGLE_RE, null, buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
+        errorTopics.addAll(processInjections(contentSpec, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument,
+                CUSTOM_INJECTION_LIST_RE, null, buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
+        errorTopics.addAll(processInjections(contentSpec, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument,
+                CUSTOM_ALPHA_SORT_INJECTION_LIST_RE, new NodeTitleSorter(), buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
+        errorTopics.addAll(processInjections(contentSpec, topic, customInjectionIds, customInjections, LIST_INJECTION_POINT, xmlDocument,
+                CUSTOM_INJECTION_LISTITEMS_RE, null, buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
 
         /*
          * If we are not ignoring errors, return the list of topics that could not be injected
@@ -455,11 +436,12 @@ public class DocBookXMLPreProcessor {
         return errorTopics;
     }
 
-    public List<Integer> processInjections(final Level level, final SpecTopic topic, final ArrayList<Integer> customInjectionIds,
+    public List<String> processInjections(final ContentSpec contentSpec, final SpecTopic topic, final ArrayList<String> customInjectionIds,
             final HashMap<Node, InjectionListData> customInjections, final int injectionPointType, final Document xmlDocument,
-            final Pattern regularExpression, final ExternalListSort<Integer, BaseTopicWrapper<?>, InjectionTopicData> sortComparator,
-            final TocTopicDatabase relatedTopicsDatabase, final boolean usedFixedUrls, final Integer fixedUrlPropertyTagId) {
-        final List<Integer> retValue = new ArrayList<Integer>();
+            final Pattern regularExpression, final ExternalListSort<Integer, SpecNode, InjectionData> sortComparator,
+            final BuildDatabase buildDatabase,
+            final boolean usedFixedUrls, final Integer fixedUrlPropertyTagId) {
+        final List<String> retValue = new ArrayList<String>();
 
         if (xmlDocument == null) return retValue;
 
@@ -473,42 +455,43 @@ public class DocBookXMLPreProcessor {
             // loop over the regular expression matches
             while (injectionSequenceMatcher.find()) {
                 // Get the list of topics from the named group in the regular expression match
-                final String reMatch = injectionSequenceMatcher.group(TOPICIDS_RE_NAMED_GROUP);
+                final String reMatch = injectionSequenceMatcher.group(IDS_RE_NAMED_GROUP);
 
                 // make sure we actually found a matching named group
                 if (reMatch != null) {
                     // get the sequence of ids
-                    final List<InjectionTopicData> sequenceIDs = processTopicIdList(reMatch);
+                    final List<InjectionData> sequenceIDs = processIdList(reMatch);
 
-                    // sort the InjectionTopicData list if required
+                    // sort the InjectionData list if required
                     if (sortComparator != null) {
-                        sortComparator.sort(relatedTopicsDatabase.getTopics(), sequenceIDs);
+                        sortComparator.sort(buildDatabase.getAllSpecNodes(), sequenceIDs);
                     }
 
                     // loop over all the topic ids in the injection point
-                    for (final InjectionTopicData sequenceID : sequenceIDs) {
+                    for (final InjectionData sequenceID : sequenceIDs) {
                         /*
                          * topics that are injected into custom injection points are excluded from the generic related topic
                          * lists at the beginning and end of a topic. adding the topic id here means that when it comes time to
                          * generate the generic related topic lists, we can skip this topic
                          */
-                        customInjectionIds.add(sequenceID.topicId);
+                        customInjectionIds.add(sequenceID.id);
 
                         /*
-                         * Pull the topic out of the list of related topics
+                         * See if the topic/target is available in the content spec
                          */
-                        final BaseTopicWrapper<?> relatedTopic = relatedTopicsDatabase.getTopic(sequenceID.topicId);
-
-                        /*
-                         * See if the topic is also available in the main database (if the main database is available)
-                         */
-                        final boolean isInDatabase = level.isSpecTopicInLevelByTopicID(sequenceID.topicId);
+                        final boolean isTopicId = BuilderConstants.TOPIC_ID_PATTERN.matcher(sequenceID.id).matches();
+                        final boolean isInContentSpec;
+                        if (isTopicId) {
+                            isInContentSpec = contentSpec.getBaseLevel().isSpecTopicInLevelByTopicID(Integer.parseInt(sequenceID.id));
+                        } else {
+                            isInContentSpec = contentSpec.getBaseLevel().isSpecNodeInLevelByTargetID(sequenceID.id);
+                        }
 
                         /*
                          * It is possible that the topic id referenced in the injection point has not been related, or has not
                          * been included in the list of topics to process. This is a validity error
                          */
-                        if (relatedTopic != null && isInDatabase) {
+                        if (isInContentSpec) {
                             /*
                              * build our list
                              */
@@ -522,14 +505,18 @@ public class DocBookXMLPreProcessor {
                              */
                             if (customInjections.containsKey(comment)) list = customInjections.get(comment).listItems;
 
-                            final Integer topicId = relatedTopic.getTopicId();
-                            final SpecTopic closestSpecTopic = topic.getClosestTopicByDBId(topicId, true);
+                            final SpecNode closestSpecNode;
+                            if (isTopicId) {
+                                closestSpecNode = topic.getClosestTopicByDBId(Integer.parseInt(sequenceID.id), true);
+                            } else {
+                                closestSpecNode = topic.getClosestSpecNodeByTargetId(sequenceID.id, true);
+                            }
                             if (sequenceID.optional) {
                                 list.add(DocBookUtilities.buildEmphasisPrefixedXRef(xmlDocument, OPTIONAL_LIST_PREFIX,
-                                        closestSpecTopic.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
+                                        closestSpecNode.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
                             } else {
                                 list.add(DocBookUtilities.buildXRef(xmlDocument,
-                                        closestSpecTopic.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
+                                        closestSpecNode.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
                             }
 
                             /*
@@ -537,7 +524,7 @@ public class DocBookXMLPreProcessor {
                              */
                             customInjections.put(comment, new InjectionListData(list, injectionPointType));
                         } else {
-                            retValue.add(sequenceID.topicId);
+                            retValue.add(sequenceID.id);
                         }
                     }
                 }

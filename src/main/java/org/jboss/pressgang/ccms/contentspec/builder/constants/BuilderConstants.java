@@ -21,6 +21,12 @@ public class BuilderConstants {
 
     public static final Pattern IMAGE_FILE_REF_PATTERN = Pattern.compile("^(images/)?\\d+(-\\d+)?\\.\\w+$");
 
+    /**
+     * A regular expression that identifies a topic id
+     */
+    public static final String INJECT_ID_RE = "(\\d+|T(\\d+|(\\-[ ]*[A-Za-z][A-Za-z\\d\\-_]*)))";
+    public static final Pattern TOPIC_ID_PATTERN = Pattern.compile("^\\d+$");
+
     // Regex strings used to replace content
     public static final String ESCAPED_TITLE_REGEX = "<<contentSpec\\.escapedTitle>>";
     public static final String TITLE_REGEX = "<<contentSpec\\.title>>";

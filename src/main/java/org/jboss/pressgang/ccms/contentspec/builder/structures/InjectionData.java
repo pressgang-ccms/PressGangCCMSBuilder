@@ -3,18 +3,18 @@ package org.jboss.pressgang.ccms.contentspec.builder.structures;
 /**
  * This class represents a topic that was included in a custom injection point.
  */
-public class InjectionTopicData {
+public class InjectionData {
     /**
-     * The topic ID
+     * The topic/target ID
      */
-    public Integer topicId;
+    public String id;
     /**
      * whether this topic was marked as optional
      */
     public boolean optional;
 
-    public InjectionTopicData(final Integer topicId, final boolean optional) {
-        this.topicId = topicId;
+    public InjectionData(final String id, final boolean optional) {
+        this.id = id;
         this.optional = optional;
     }
 }

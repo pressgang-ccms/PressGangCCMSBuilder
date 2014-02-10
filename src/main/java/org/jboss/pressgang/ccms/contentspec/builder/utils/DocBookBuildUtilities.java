@@ -26,7 +26,6 @@ import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
-import org.jboss.pressgang.ccms.utils.structures.DocBookVersion;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionError;
 import org.jboss.pressgang.ccms.contentspec.sort.RevisionNodeSort;
 import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
@@ -34,6 +33,7 @@ import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.StringUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
+import org.jboss.pressgang.ccms.utils.structures.DocBookVersion;
 import org.jboss.pressgang.ccms.utils.structures.Pair;
 import org.jboss.pressgang.ccms.wrapper.TopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.TranslatedCSNodeWrapper;
@@ -63,7 +63,8 @@ public class DocBookBuildUtilities {
     private static final Pattern THURSDAY_DATE_RE = Pattern.compile("Thurs?(?!s?day)", java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final Pattern TUESDAY_DATE_RE = Pattern.compile("Tues(?!day)", java.util.regex.Pattern.CASE_INSENSITIVE);
 
-    private static final Pattern INJECT_RE = Pattern.compile("^\\s*(?<TYPE>Inject\\w*)(?<COLON>:?)\\s*(?<IDS>\\d+.*)\\s*$",
+    private static final Pattern INJECT_RE = Pattern.compile(
+            "^\\s*(?<TYPE>Inject\\w*)(?<COLON>:?)\\s*(?<IDS>" + BuilderConstants.INJECT_ID_RE + ".*)\\s*$",
             java.util.regex.Pattern.CASE_INSENSITIVE);
     private static final Pattern INJECT_ID_RE = Pattern.compile("^[\\d ,]+$");
     private static final Pattern INJECT_SINGLE_ID_RE = Pattern.compile("^[\\d]+$");
@@ -469,15 +470,15 @@ public class DocBookBuildUtilities {
     /**
      * Convert a DOM Document to a DocBook Formatted String representation including the XML preamble and DOCTYPE/namespaces.
      *
-     * @param docBookVersion The DocBook version to add the preamble content for.
+     * @param docBookVersion      The DocBook version to add the preamble content for.
      * @param doc                 The DOM Document to be converted and formatted.
      * @param elementName         The name that the root element should be.
      * @param entityName          The name of the local entity file, if one exists.
      * @param xmlFormatProperties The XML Formatting Properties.
      * @return The converted XML String representation.
      */
-    public static String convertDocumentToDocBookFormattedString(final DocBookVersion docBookVersion, final Document doc, final String elementName,
-            final String entityName, final XMLFormatProperties xmlFormatProperties) {
+    public static String convertDocumentToDocBookFormattedString(final DocBookVersion docBookVersion, final Document doc,
+            final String elementName, final String entityName, final XMLFormatProperties xmlFormatProperties) {
         final String formattedXML = convertDocumentToFormattedString(doc, xmlFormatProperties);
         return addDocBookPreamble(docBookVersion, formattedXML, elementName, entityName);
     }
@@ -651,7 +652,7 @@ public class DocBookBuildUtilities {
      * @param docBookVersion
      * @param topic            The topic that we are collecting attribute ID's for.
      * @param node             The current node being processed (will be the document root to start with, and then all the children as this
- *                         function is recursively called)
+     *                         function is recursively called)
      * @param usedIdAttributes The set of Used ID Attributes that should be added to.
      */
     public static void collectIdAttributes(final DocBookVersion docBookVersion, final SpecTopic topic, final Node node,

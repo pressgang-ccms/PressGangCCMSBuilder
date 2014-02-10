@@ -10,6 +10,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.jboss.pressgang.ccms.contentspec.Level;
+import org.jboss.pressgang.ccms.contentspec.SpecNode;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.wrapper.base.BaseTopicWrapper;
@@ -180,6 +181,27 @@ public class BuildDatabase {
         }
 
         return levels;
+    }
+
+    /**
+     * Get a List of all the SpecNodes in the Database.
+     *
+     * @return A list of Level objects.
+     */
+    public List<SpecNode> getAllSpecNodes() {
+        final ArrayList<SpecNode> retValue = new ArrayList<SpecNode>();
+
+        // Add all the levels
+        for (final Entry<String, List<Level>> levelTitleEntry : levelTitles.entrySet()) {
+            retValue.addAll(levelTitleEntry.getValue());
+        }
+
+        // Add all the topics
+        for (final Entry<Integer, List<SpecTopic>> topicEntry : topics.entrySet()) {
+            retValue.addAll(topicEntry.getValue());
+        }
+
+        return retValue;
     }
 
     /**
