@@ -157,6 +157,11 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
             // Add the custom content
             publicanCfg.append(DocBookBuildUtilities.cleanUserPublicanCfg(entry.getValue()));
 
+            // Add the dtdver property
+            if (publicanCfg.indexOf("dtdver:") == -1 && buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+                publicanCfg.append("dtdver: \"5.0\"\n");
+            }
+
             // Add docname if it wasn't specified
             if (publicanCfg.indexOf("docname:") == -1) {
                 publicanCfg.append("docname: ").append(buildData.getEscapedBookTitle().replaceAll("_", " ")).append("\n");
