@@ -18,6 +18,7 @@ import org.jboss.pressgang.ccms.contentspec.constants.CSConstants;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.FileUtilities;
+import org.jboss.pressgang.ccms.utils.structures.DocBookVersion;
 
 public class JDocBookBuilder extends DocBookBuilder {
     private static final String SNAPSHOT_SUFFIX = "-SNAPSHOT";
@@ -76,14 +77,16 @@ public class JDocBookBuilder extends DocBookBuilder {
         final String commonContentDirectory = buildData.getBuildOptions().getCommonContentDirectory() == null ? BuilderConstants
                 .LINUX_PUBLICAN_COMMON_CONTENT : buildData.getBuildOptions().getCommonContentDirectory();
 
-        final String brand = contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND : contentSpec.getBrand();
+        final String defaultBrand = buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50 ? BuilderConstants.DEFAULT_DB50_BRAND :
+                BuilderConstants.DEFAULT_DB45_BRAND;
+        final String brand = contentSpec.getBrand() == null ? defaultBrand : contentSpec.getBrand();
 
         final String brandDir = commonContentDirectory + (commonContentDirectory.endsWith(
                 "/") ? "" : "/") + brand + File.separator + commonContentLocale + File.separator;
         final String commonBrandDir = commonContentDirectory + (commonContentDirectory.endsWith(
-                "/") ? "" : "/") + BuilderConstants.DEFAULT_BRAND + File.separator + commonContentLocale + File.separator;
+                "/") ? "" : "/") + BuilderConstants.DEFAULT_DB45_BRAND + File.separator + commonContentLocale + File.separator;
         final String commonEnglishBrandDir = commonContentDirectory + (commonContentDirectory.endsWith(
-                "/") ? "" : "/") + BuilderConstants.DEFAULT_BRAND + File.separator + "en-US" + File.separator;
+                "/") ? "" : "/") + BuilderConstants.DEFAULT_DB45_BRAND + File.separator + "en-US" + File.separator;
 
         /*
          * We need to pull the Conventions.xml, Feedback.xml & Legal_Notice.xml from the publican Common_Content directory.

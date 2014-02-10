@@ -68,8 +68,8 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
         final String brandOverride = overrides.containsKey(CSConstants.BRAND_OVERRIDE) ? overrides.get(
                 CSConstants.BRAND_OVERRIDE) : (overrides.containsKey(CSConstants.BRAND_ALT_OVERRIDE) ? overrides.get(
                 CSConstants.BRAND_ALT_OVERRIDE) : null);
-        final String brand = brandOverride != null ? brandOverride : (contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND :
-                contentSpec.getBrand());
+        final String brand = brandOverride != null ? brandOverride : (contentSpec.getBrand() == null ? getDefaultBrand(
+                buildData) : contentSpec.getBrand());
 
         // Setup publican.cfg
         String publicanCfg = publicanCfgTemplate.replaceAll(BuilderConstants.BRAND_REGEX, brand);
@@ -146,8 +146,8 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
             final String brandOverride = overrides.containsKey(CSConstants.BRAND_OVERRIDE) ? overrides.get(
                     CSConstants.BRAND_OVERRIDE) : (overrides.containsKey(CSConstants.BRAND_ALT_OVERRIDE) ? overrides.get(
                     CSConstants.BRAND_ALT_OVERRIDE) : null);
-            final String brand = brandOverride != null ? brandOverride : (contentSpec.getBrand() == null ? BuilderConstants.DEFAULT_BRAND
-                    : contentSpec.getBrand());
+            final String brand = brandOverride != null ? brandOverride : (contentSpec.getBrand() == null ? getDefaultBrand(
+                    buildData) : contentSpec.getBrand());
 
             // Setup publican.cfg
             final StringBuilder publicanCfg = new StringBuilder("xml_lang: ").append(buildData.getOutputLocale()).append("\n");
@@ -199,6 +199,11 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
 
     private String escapeVersion(final String version) {
         return version == null ? null : version.replaceAll("\\s+", "-");
+    }
+
+    private String getDefaultBrand(final BuildData buildData) {
+        return buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50 ? BuilderConstants.DEFAULT_DB50_BRAND : BuilderConstants
+                .DEFAULT_DB45_BRAND;
     }
 
     /**

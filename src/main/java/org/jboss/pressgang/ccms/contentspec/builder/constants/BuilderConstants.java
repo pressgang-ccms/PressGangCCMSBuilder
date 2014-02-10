@@ -75,7 +75,8 @@ public class BuilderConstants {
     // Defaults
     public static final String DEFAULT_BZCOMPONENT = "documentation";
     public static final String DEFAULT_CONDITION = "default";
-    public static final String DEFAULT_BRAND = "common";
+    public static final String DEFAULT_DB45_BRAND = "common";
+    public static final String DEFAULT_DB50_BRAND = "common-db5";
     public static final String SUBTITLE_DEFAULT = "Subtitle goes here";
     public static final String DEFAULT_EDITION = "1";
     public static final String DEFAULT_PUBSNUMBER = "1";
