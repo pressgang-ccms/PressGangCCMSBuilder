@@ -13,7 +13,6 @@ import java.net.URLEncoder;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -2104,126 +2103,22 @@ public class DocBookBuilder implements ShutdownAbleApp {
      */
     protected String buildBookEntityFile(final BuildData buildData) throws BuildProcessingException {
         final ContentSpec contentSpec = buildData.getContentSpec();
-        Document doc = null;
-        if (!isNullOrEmpty(contentSpec.getEntities())) {
-            try {
-                final String wrappedEntities = "<!DOCTYPE section [" + contentSpec.getEntities() + "]><section></section>";
-                doc = XMLUtilities.convertStringToDocument(wrappedEntities);
-            } catch (Exception e) {
-                log.debug(e);
-            }
-        }
 
-        // Find what entities have already been defined
-        final StringBuilder retValue = new StringBuilder(100);
-        final List<String> definedEntities = new ArrayList<String>();
-        if (doc != null) {
-            final NamedNodeMap entityNodes = doc.getDoctype().getEntities();
-            for (int i = 0; i < entityNodes.getLength(); i++) {
-                final org.w3c.dom.Node entityNode = entityNodes.item(i);
-                definedEntities.add(entityNode.getNodeName());
-            }
-        }
-
-        // Add the default entities
-        // BOOKID
-        if (!definedEntities.contains("BOOKID")) {
-            retValue.append("<!ENTITY BOOKID \"").append(buildData.getEscapedBookTitle()).append("\">\n");
-        }
-
-        // PRODUCT
-        if (!definedEntities.contains("PRODUCT")) {
-            final String escapedProduct = DocBookBuildUtilities.escapeForXMLEntity(contentSpec.getProduct());
-            retValue.append("<!ENTITY PRODUCT \"").append(escapedProduct).append("\">\n");
-        }
-
-        // TITLE
-        if (!definedEntities.contains("TITLE")) {
-            final String escapedTitle = DocBookBuildUtilities.escapeTitleForXMLEntity(buildData.getOriginalBookTitle());
-            retValue.append("<!ENTITY TITLE \"").append(escapedTitle).append("\">\n");
-        }
-
-        // YEAR
-        if (!definedEntities.contains("YEAR")) {
-            final String year = contentSpec.getCopyrightYear() == null ? Integer.toString(
-                    Calendar.getInstance().get(Calendar.YEAR)) : contentSpec.getCopyrightYear();
-            retValue.append("<!ENTITY YEAR \"").append(year).append("\">\n");
-        }
-
-        // HOLDER
-        if (!definedEntities.contains("HOLDER")) {
-            final String escapedHolder = DocBookBuildUtilities.escapeForXMLEntity(contentSpec.getCopyrightHolder());
-            retValue.append("<!ENTITY HOLDER \"").append(escapedHolder).append("\">\n");
-        }
-
-        // BZPRODUCT
-        if (!definedEntities.contains("BZPRODUCT")) {
-            final String escapedBZProduct = DocBookBuildUtilities.escapeForXMLEntity(
-                    contentSpec.getBugzillaProduct() == null ? buildData.getOriginalBookProduct() : contentSpec.getBugzillaProduct());
-            retValue.append("<!ENTITY BZPRODUCT \"").append(escapedBZProduct).append("\">\n");
-        }
-
-        // BZCOMPONENT
-        if (!definedEntities.contains("BZCOMPONENT")) {
-            final String escapedBZComponent = DocBookBuildUtilities.escapeForXMLEntity(
-                    contentSpec.getBugzillaComponent() == null ? BuilderConstants.DEFAULT_BZCOMPONENT : contentSpec.getBugzillaComponent());
-            retValue.append("<!ENTITY BZCOMPONENT \"").append(escapedBZComponent).append("\">\n");
-        }
-
-        // BZURL
-        if (!definedEntities.contains("BZURL")) {
-            try {
-                final StringBuilder fixedBZURL = new StringBuilder();
-                if (contentSpec.getBugzillaURL() == null) {
-                    if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
-                        fixedBZURL.append("<link xlink:href='");
-                    } else {
-                        fixedBZURL.append("<ulink url='");
-                    }
-                    fixedBZURL.append(BuilderConstants.DEFAULT_BUGZILLA_URL);
-                    fixedBZURL.append("enter_bug.cgi");
-                    // Add in the product specific link details
-                    if (contentSpec.getBugzillaProduct() != null) {
-                        final String encodedProduct = URLEncoder.encode(contentSpec.getBugzillaProduct(), ENCODING);
-                        fixedBZURL.append("?product=").append(encodedProduct.replace("%", "&percnt;"));
-                        if (contentSpec.getBugzillaComponent() != null) {
-                            final String encodedComponent = URLEncoder.encode(contentSpec.getBugzillaComponent(), ENCODING);
-                            fixedBZURL.append("&amp;component=").append(encodedComponent.replace("%", "&percnt;"));
-                        }
-                        if (contentSpec.getBugzillaVersion() != null) {
-                            final String encodedVersion = URLEncoder.encode(contentSpec.getBugzillaVersion(), ENCODING);
-                            fixedBZURL.append("&amp;version=").append(encodedVersion.replace("&", "&percnt;"));
-                        }
-                    }
-                    fixedBZURL.append("'>").append(BuilderConstants.DEFAULT_BUGZILLA_URL);
-                    if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
-                        fixedBZURL.append("</link>");
-                    } else {
-                        fixedBZURL.append("</ulink>");
-                    }
-                } else {
-                    fixedBZURL.append(contentSpec.getBugzillaURL().replace("&", "&percnt;"));
-                }
-
-                retValue.append("<!ENTITY BZURL \"").append(fixedBZURL).append("\">\n");
-            } catch (UnsupportedEncodingException e) {
-                throw new BuildProcessingException(e);
-            }
-        }
-
-        // Add the custom entities if any exist
-        if (doc != null) {
-            retValue.append(contentSpec.getEntities().trim());
-        }
+        final String entities = ContentSpecUtilities.generateEntitiesForContentSpec(contentSpec, buildData.getDocBookVersion(),
+                buildData.getEscapedBookTitle(), buildData.getOriginalBookTitle(), buildData.getOriginalBookProduct());
 
         // Add the docbook.ent file for DocBook 5 builds
         if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+            final StringBuilder retValue = new StringBuilder(entities);
+
             final String docBookEnt = ResourceUtilities.resourceFileToString("/", "docbook.ent");
             retValue.append("<!-- START DOCBOOK ENTITIES -->\n");
             retValue.append(docBookEnt);
-        }
 
-        return retValue.toString();
+            return retValue.toString();
+        } else {
+            return entities;
+        }
     }
 
     /**

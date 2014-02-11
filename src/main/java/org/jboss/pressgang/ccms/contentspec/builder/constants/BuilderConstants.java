@@ -73,7 +73,6 @@ public class BuilderConstants {
     public static final String BUILT_FILE_MSG = "Content Specification built from file";
 
     // Defaults
-    public static final String DEFAULT_BZCOMPONENT = "documentation";
     public static final String DEFAULT_CONDITION = "default";
     public static final String DEFAULT_DB45_BRAND = "common";
     public static final String DEFAULT_DB50_BRAND = "common-db5";
@@ -81,7 +80,6 @@ public class BuilderConstants {
     public static final String DEFAULT_EDITION = "1";
     public static final String DEFAULT_PUBSNUMBER = "1";
     public static final String DEFAULT_VERSION = "1.0";
-    public static final String DEFAULT_BUGZILLA_URL = "https://bugzilla.redhat.com/";
 
     public static final String DEFAULT_AUTHOR_FIRSTNAME = "CS Builder";
     public static final String DEFAULT_AUTHOR_LASTNAME = "Robot";
