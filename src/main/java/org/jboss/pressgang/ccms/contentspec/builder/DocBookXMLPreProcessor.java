@@ -206,26 +206,7 @@ public class DocBookXMLPreProcessor {
             linkElement.setAttribute("role", cssClass);
         }
 
-        /* Create the wrapper if needed.
-         *
-         * refentry's or nested sections will make the XML invalid if we just use a para, so we need to wrap the para in a simplesect.
-         *
-         * This does mean though that the XML could be invalid for inner level topics.
-         */
-        final NodeList refEntries = document.getDocumentElement().getElementsByTagName("refentry");
-        final NodeList sections = document.getDocumentElement().getElementsByTagName("section");
-        if (refEntries.getLength() > 0 || sections.getLength() > 0) {
-            final Element bugzillaSection = document.createElement("simplesect");
-            node.appendChild(bugzillaSection);
-
-            final Element bugzillaSectionTitle = document.createElement("title");
-            bugzillaSectionTitle.setTextContent("");
-            bugzillaSection.appendChild(bugzillaSectionTitle);
-
-            bugzillaSection.appendChild(linkElement);
-        } else {
-            node.appendChild(linkElement);
-        }
+        node.appendChild(linkElement);
 
         return linkElement;
     }
@@ -331,16 +312,22 @@ public class DocBookXMLPreProcessor {
      * Adds some debug information and links to the end of the topic
      */
     public void processTopicAdditionalInfo(final BuildData buildData, final SpecTopic specTopic, final Document document) {
-        if (buildData.getBuildOptions().getInsertEditorLinks()) {
-            if (specTopic.getTopicType() != TopicType.AUTHOR_GROUP) {
-                processTopicEditorLinks(buildData, specTopic, document);
-            }
-        }
+        final List<Node> invalidNodes = XMLUtilities.getChildNodes(document.getDocumentElement(), "refentry", "section");
 
-        // Only include a bugzilla link for normal topics
-        if (specTopic.getTopicType() == TopicType.NORMAL) {
-            if (buildData.getBuildOptions().getInsertBugLinks()) {
-                processTopicBugLink(buildData, specTopic, document);
+        // Only add injections if the topic doesn't contain any invalid nodes. The reason for this is that adding any links to topics
+        // that contain <refentry> or <section> will cause the XML to become invalid. Unfortunately there isn't any way around this.
+        if (invalidNodes == null || invalidNodes.size() == 0) {
+            if (buildData.getBuildOptions().getInsertEditorLinks()) {
+                if (specTopic.getTopicType() != TopicType.AUTHOR_GROUP) {
+                    processTopicEditorLinks(buildData, specTopic, document);
+                }
+            }
+
+            // Only include a bugzilla link for normal topics
+            if (specTopic.getTopicType() == TopicType.NORMAL) {
+                if (buildData.getBuildOptions().getInsertBugLinks()) {
+                    processTopicBugLink(buildData, specTopic, document);
+                }
             }
         }
     }
