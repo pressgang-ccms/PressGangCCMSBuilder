@@ -165,6 +165,7 @@ public class DocBookXMLPreProcessor {
      * The Docbook role (which becomes a CSS class) for the bug link para
      */
     protected static final String ROLE_CREATE_BUG_PARA = "RoleCreateBugPara";
+    protected static final String ROLE_ADDITIONAL_INFO_REFSECTION = "RoleAdditionalInfoRefSection";
     protected static final String ROLE_PREREQUISITE_LIST = "prereqs-list";
     protected static final String ROLE_PREREQUISITE = "prereq";
     protected static final String ROLE_SEE_ALSO_LIST = "see-also-list";
@@ -233,7 +234,7 @@ public class DocBookXMLPreProcessor {
         return linkEle;
     }
 
-    public void processTopicBugLink(final BuildData buildData, final SpecTopic specTopic, final Document document) {
+    public void processTopicBugLink(final BuildData buildData, final SpecTopic specTopic, final Document document, final Element rootEle) {
         try {
             String specifiedBuildName = "";
             if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
@@ -241,22 +242,24 @@ public class DocBookXMLPreProcessor {
             // build the bug link url with the base components
             final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), specTopic, specifiedBuildName,
                     buildData.getBuildDate());
-            processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, document.getDocumentElement());
+            processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, rootEle);
         } catch (final Exception ex) {
             LOG.error("Failed to insert Bug Links into the DOM Document", ex);
         }
     }
 
     public void processInitialContentBugLink(final BuildData buildData, final InitialContent initialContent, final Document document,
-            final Node node) {
+            final Element rootNode) {
         try {
+            final Element rootEle = getRootAdditionalInfoElement(document, rootNode);
+
             String specifiedBuildName = "";
             if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
 
             // build the bug link url with the base components
             final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), initialContent, specifiedBuildName,
                     buildData.getBuildDate());
-            processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, node);
+            processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, rootEle);
         } catch (final Exception ex) {
             LOG.error("Failed to insert Bug Links into the DOM Document", ex);
         }
@@ -272,13 +275,14 @@ public class DocBookXMLPreProcessor {
         bugzillaSection.appendChild(bugzillaLink);
     }
 
-    public void processTopicEditorLinks(final BuildData buildData, final SpecTopic specTopic, final Document document) {
+    public void processTopicEditorLinks(final BuildData buildData, final SpecTopic specTopic, final Document document,
+            final Element rootEle) {
         // EDITOR LINK
         if (buildData.getBuildOptions().getInsertEditorLinks()) {
             final BaseTopicWrapper<?> topic = specTopic.getTopic();
             final String editorUrl = topic.getEditorURL(buildData.getZanataDetails());
 
-            final Element editorLinkPara = createLinkWrapperElement(document, document.getDocumentElement(), ROLE_CREATE_BUG_PARA);
+            final Element editorLinkPara = createLinkWrapperElement(document, rootEle, ROLE_CREATE_BUG_PARA);
 
             if (editorUrl != null) {
                 final Element editorLink = createExternalLinkElement(buildData.getDocBookVersion(), document, "Edit this topic", editorUrl);
@@ -297,8 +301,7 @@ public class DocBookXMLPreProcessor {
                 final String additionalXMLEditorUrl = topic.getPressGangURL();
 
                 if (additionalXMLEditorUrl != null) {
-                    final Element additionalXMLEditorLinkPara = createLinkWrapperElement(document, document.getDocumentElement(),
-                            ROLE_CREATE_BUG_PARA);
+                    final Element additionalXMLEditorLinkPara = createLinkWrapperElement(document, rootEle, ROLE_CREATE_BUG_PARA);
 
                     final Element editorLink = createExternalLinkElement(buildData.getDocBookVersion(), document,
                             "Edit the Additional Translated XML", additionalXMLEditorUrl);
@@ -312,24 +315,69 @@ public class DocBookXMLPreProcessor {
      * Adds some debug information and links to the end of the topic
      */
     public void processTopicAdditionalInfo(final BuildData buildData, final SpecTopic specTopic, final Document document) {
-        final List<Node> invalidNodes = XMLUtilities.getChildNodes(document.getDocumentElement(), "refentry", "section");
+        // First check if we should even bother processing any additional info based on build data
+        if (!shouldAddAdditionalInfo(buildData, specTopic)) return;
+
+        final List<Node> invalidNodes = XMLUtilities.getChildNodes(document.getDocumentElement(), "section");
 
         // Only add injections if the topic doesn't contain any invalid nodes. The reason for this is that adding any links to topics
-        // that contain <refentry> or <section> will cause the XML to become invalid. Unfortunately there isn't any way around this.
+        // that contain <section> will cause the XML to become invalid. Unfortunately there isn't any way around this.
         if (invalidNodes == null || invalidNodes.size() == 0) {
-            if (buildData.getBuildOptions().getInsertEditorLinks()) {
-                if (specTopic.getTopicType() != TopicType.AUTHOR_GROUP) {
-                    processTopicEditorLinks(buildData, specTopic, document);
-                }
+            final Element rootEle = getRootAdditionalInfoElement(document, document.getDocumentElement());
+
+            if (buildData.getBuildOptions().getInsertEditorLinks() && specTopic.getTopicType() != TopicType.AUTHOR_GROUP) {
+                processTopicEditorLinks(buildData, specTopic, document, rootEle);
             }
 
             // Only include a bugzilla link for normal topics
-            if (specTopic.getTopicType() == TopicType.NORMAL) {
-                if (buildData.getBuildOptions().getInsertBugLinks()) {
-                    processTopicBugLink(buildData, specTopic, document);
-                }
+            if (buildData.getBuildOptions().getInsertBugLinks() && specTopic.getTopicType() == TopicType.NORMAL) {
+                processTopicBugLink(buildData, specTopic, document, rootEle);
             }
         }
+    }
+
+    /**
+     * Checks to see if additional info should be added based on the build options and the spec topic type.
+     *
+     * @param buildData
+     * @param specTopic
+     * @return
+     */
+    protected static boolean shouldAddAdditionalInfo(final BuildData buildData, final SpecTopic specTopic) {
+        return (buildData.getBuildOptions().getInsertEditorLinks() && specTopic.getTopicType() != TopicType.AUTHOR_GROUP)
+                || (buildData.getBuildOptions().getInsertBugLinks() && specTopic.getTopicType() == TopicType.NORMAL);
+    }
+
+    protected Element getRootAdditionalInfoElement(final Document document, final Element rootNode) {
+        Element rootEle = rootNode;
+
+        // For refentries inject the links into the last <refentry>
+        final NodeList refEntryNodes = rootNode.getElementsByTagName("refentry");
+        if (refEntryNodes.getLength() > 0) {
+            final Element lastRefentry = (Element) refEntryNodes.item(refEntryNodes.getLength() - 1);
+
+            // check if a <refsection> or a <refsect1> should be used
+            Node lastEle = lastRefentry.getLastChild();
+            while (lastEle != null && !(lastEle instanceof Element)) {
+                lastEle = lastEle.getPreviousSibling();
+            }
+
+            // Check if it was created by the PreProcessor
+            final String roleAttribute = lastEle == null ? null : ((Element) lastEle).getAttribute("role");
+            if (roleAttribute != null && roleAttribute.contains(ROLE_ADDITIONAL_INFO_REFSECTION)) {
+                rootEle = (Element) lastEle;
+            } else {
+                final String nodeName = lastEle == null ? "refsection" : lastEle.getNodeName();
+
+                // Create the node with a blank title
+                rootEle = document.createElement(nodeName);
+                rootEle.setAttribute("role", ROLE_ADDITIONAL_INFO_REFSECTION);
+                rootEle.appendChild(document.createElement("title"));
+                lastRefentry.appendChild(rootEle);
+            }
+        }
+
+        return rootEle;
     }
 
     /**
