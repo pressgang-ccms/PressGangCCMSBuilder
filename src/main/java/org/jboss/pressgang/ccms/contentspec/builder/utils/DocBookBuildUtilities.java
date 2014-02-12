@@ -333,6 +333,11 @@ public class DocBookBuildUtilities {
             topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll("(?<=<(/)?)section(?=>)", "abstract");
         }
 
+        // Add the namespaces for docbook 5
+        if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+            topicXMLErrorTemplate = DocBookUtilities.addDocBook50Namespace(topicXMLErrorTemplate);
+        }
+
         return topicXMLErrorTemplate;
     }
 
