@@ -3605,7 +3605,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
             String xml = XMLUtilities.convertDocumentToString(doc, ENCODING);
             if (docBookVersion == DocBookVersion.DOCBOOK_50) {
                 final String rootEleName = doc.getDocumentElement().getNodeName();
-                if (rootEleName.equals("abstract") || rootEleName.equals("legalnotice") || rootEleName.equals("abstract")) {
+                if (rootEleName.equals("abstract") || rootEleName.equals("legalnotice") || rootEleName.equals("authorgroup")) {
                     final String preamble = XMLUtilities.findPreamble(xml);
 
                     final StringBuilder buffer = new StringBuilder("<book><info><title />");
