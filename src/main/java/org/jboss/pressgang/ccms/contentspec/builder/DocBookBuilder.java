@@ -201,8 +201,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
     /**
      * The set of Messages to use when building
      */
-    private final ResourceBundle messagesResourceBundle = ResourceBundle.getBundle("org.jboss.pressgang.ccms.contentspec.builder" +
-            ".Messages");
+    private final ResourceBundle messagesResourceBundle = ResourceBundle.getBundle(
+            "org.jboss.pressgang.ccms.contentspec.builder" + ".Messages");
     /**
      * The StringConstant that holds the error template for a topic with no content.
      */
@@ -1285,7 +1285,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(specTopic.getRevision())) {
+                            .equals(
+                            specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             buildData.getErrorDatabase().addWarning(topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -3519,6 +3520,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
         String entityData = entity.toString();
 
+        // Wrap the document so it can be validated.
+        final Pair<String, String> wrappedTopicDoc = wrapDocumentForValidation(buildData.getDocBookVersion(), topicDoc);
+        final String fixedTopicXml = wrappedTopicDoc.getSecond();
+        final String rootElementName = wrappedTopicDoc.getFirst();
+
+        // Get the schema/dtd as well as any additional content required for validation
         final String titleXML;
         final String docbookFileName;
         final XMLValidator.ValidationMethod validationMethod;
@@ -3544,7 +3551,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         // Validate the topic against its DTD/Schema
-        if (!validator.validate(validationMethod, topicDoc, docbookFileName, docbookSchema, entityData)) {
+        if (!validator.validate(validationMethod, fixedTopicXml, docbookFileName, docbookSchema, entityData, rootElementName)) {
             // Store the error message
             final String errorMsg = validator.getErrorText();
 
@@ -3576,6 +3583,42 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         return true;
+    }
+
+    /**
+     * Wraps the Document if required so that validation can be performed. An example of where this is required is if you are validating
+     * against Abstracts, Author Groups or Legal Notices for DocBook 5.0.
+     *
+     * @param docBookVersion The DocBook version the document will be validated against.
+     * @param doc            The document that needs to be validated.
+     * @return The string representation of the Document, wrapped in an required elements.
+     * @throws BuildProcessingException
+     */
+    protected Pair<String, String> wrapDocumentForValidation(final DocBookVersion docBookVersion,
+            final Document doc) throws BuildProcessingException {
+        try {
+            String xml = XMLUtilities.convertDocumentToString(doc, ENCODING);
+            if (docBookVersion == DocBookVersion.DOCBOOK_50) {
+                final String rootEleName = doc.getDocumentElement().getNodeName();
+                if (rootEleName.equals("abstract") || rootEleName.equals("legalnotice") || rootEleName.equals("abstract")) {
+                    final String preamble = XMLUtilities.findPreamble(xml);
+
+                    final StringBuilder buffer = new StringBuilder("<book><info><title />");
+                    if (preamble != null) {
+                        buffer.append(xml.replace(preamble, ""));
+                    } else {
+                        buffer.append(xml);
+                    }
+                    buffer.append("</info></book>");
+
+                    return new Pair<String, String>("book", DocBookUtilities.addDocBook50Namespace(buffer.toString()));
+                }
+            }
+
+            return new Pair<String, String>(doc.getDocumentElement().getNodeName(), xml);
+        } catch (Exception e) {
+            throw new BuildProcessingException(e);
+        }
     }
 
     /**
@@ -3669,7 +3712,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     } else {
                         // Create the PropertyTagCollection to be used to update any data
                         final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
-                                .newPropertyTagInTopicCollection(topic);
+                                .newPropertyTagInTopicCollection(
+                                topic);
 
                         // Get a list of all property tag items that exist for the current topic
                         final List<PropertyTagInTopicWrapper> existingUniqueURLs = topic.getProperties(

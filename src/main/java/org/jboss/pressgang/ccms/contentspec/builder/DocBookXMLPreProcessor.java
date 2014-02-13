@@ -250,6 +250,8 @@ public class DocBookXMLPreProcessor {
 
     public void processInitialContentBugLink(final BuildData buildData, final InitialContent initialContent, final Document document,
             final Element rootNode) {
+        if (!buildData.getBuildOptions().getInsertBugLinks()) return;
+
         try {
             final Element rootEle = getRootAdditionalInfoElement(document, rootNode);
 
