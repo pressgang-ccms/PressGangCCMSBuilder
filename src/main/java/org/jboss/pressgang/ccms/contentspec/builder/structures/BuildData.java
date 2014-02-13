@@ -4,12 +4,15 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkOptions;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkStrategyFactory;
+import org.jboss.pressgang.ccms.contentspec.builder.UTF8ResourceBundleControl;
 import org.jboss.pressgang.ccms.contentspec.entities.InjectionOptions;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
 import org.jboss.pressgang.ccms.contentspec.enums.BugLinkType;
@@ -23,6 +26,20 @@ import org.jboss.pressgang.ccms.wrapper.ServerSettingsWrapper;
 import org.jboss.pressgang.ccms.zanata.ZanataDetails;
 
 public class BuildData {
+    protected static final Map<String, Locale> LOCALE_MAP = new HashMap<String, Locale>();
+    static {
+        LOCALE_MAP.put("ja", new Locale("ja", "JP"));
+        LOCALE_MAP.put("es", new Locale("es", "ES"));
+        LOCALE_MAP.put("zh-Hans", new Locale("zh", "CH"));
+        LOCALE_MAP.put("zh-TW", new Locale("zh", "TW"));
+        LOCALE_MAP.put("pt-BR", new Locale("pt", "BR"));
+        LOCALE_MAP.put("de", new Locale("de", "DE"));
+        LOCALE_MAP.put("fr", new Locale("fr", "FR"));
+        LOCALE_MAP.put("ko", new Locale("ko", "KR"));
+        LOCALE_MAP.put("it", new Locale("it", "IT"));
+        LOCALE_MAP.put("ru", new Locale("ru", "RU"));
+    }
+
     private final ServerSettingsWrapper serverSettings;
     /**
      * Holds the SpecTopics and their XML that exist within the content specification.
@@ -87,6 +104,11 @@ public class BuildData {
      */
     private final String requester;
     /**
+     * The set of Constants to use when building
+     */
+    private ResourceBundle constantsResourceBundle;
+
+    /**
      * The Mapping of file names to file contents to be used to build the ZIP archive.
      */
     private final HashMap<String, byte[]> files = new HashMap<String, byte[]>();
@@ -116,6 +138,15 @@ public class BuildData {
 
         applyBuildOptionsFromSpec(contentSpec, buildOptions);
         applyInjectionOptionsFromSpec(contentSpec, buildOptions);
+
+        final String defaultBuildLocale = serverSettings.getDefaultLocale();
+        if (getBuildLocale().equals(defaultBuildLocale) || !LOCALE_MAP.containsKey(getBuildLocale())) {
+            constantsResourceBundle = ResourceBundle.getBundle("org.jboss.pressgang.ccms.contentspec.builder.Constants",
+                    new UTF8ResourceBundleControl());
+        } else {
+            constantsResourceBundle = ResourceBundle.getBundle("org.jboss.pressgang.ccms.contentspec.builder.Constants",
+                    LOCALE_MAP.get(getBuildLocale()), new UTF8ResourceBundleControl());
+        }
     }
 
     public ZanataDetails getZanataDetails() {
@@ -345,5 +376,9 @@ public class BuildData {
         } else {
             return DocBookVersion.DOCBOOK_45;
         }
+    }
+
+    public ResourceBundle getConstants() {
+        return constantsResourceBundle;
     }
 }

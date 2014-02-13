@@ -180,16 +180,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
     protected static final String AUTHOR_GROUP_FILE_NAME = "Author_Group.xml";
     protected static final String PREFACE_FILE_NAME = "Preface.xml";
     protected static final String LEGAL_NOTICE_FILE_NAME = "Legal_Notice.xml";
-    protected static final Map<String, Locale> LOCALE_MAP = new HashMap<String, Locale>();
-
-    static {
-        LOCALE_MAP.put("ja", new Locale("ja", "JP"));
-        LOCALE_MAP.put("es", new Locale("es", "ES"));
-        LOCALE_MAP.put("zh-Hans", new Locale("zh", "CH"));
-        LOCALE_MAP.put("pt-BR", new Locale("pt", "BR"));
-        LOCALE_MAP.put("de", new Locale("de", "DE"));
-        LOCALE_MAP.put("fr", new Locale("fr", "FR"));
-    }
 
     protected final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
     protected final AtomicBoolean shutdown = new AtomicBoolean(false);
@@ -209,13 +199,10 @@ public class DocBookBuilder implements ShutdownAbleApp {
     private final BlobConstantWrapper rocbookDtd;
     private final BlobConstantWrapper docbookRng;
     /**
-     * The set of Constants to use when building
-     */
-    private ResourceBundle constantsResourceBundle;
-    /**
      * The set of Messages to use when building
      */
-    private final ResourceBundle messagesResourceBundle = ResourceBundle.getBundle("Messages");
+    private final ResourceBundle messagesResourceBundle = ResourceBundle.getBundle("org.jboss.pressgang.ccms.contentspec.builder" +
+            ".Messages");
     /**
      * The StringConstant that holds the error template for a topic with no content.
      */
@@ -287,10 +274,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
     protected StringConstantWrapper getErrorInvalidValidationTopicTemplate() {
         return errorInvalidValidationTopicTemplate;
-    }
-
-    protected ResourceBundle getConstants() {
-        return constantsResourceBundle;
     }
 
     protected ResourceBundle getMessages() {
@@ -444,12 +427,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         // Get the Build Locale
         final String defaultBuildLocale = buildData.getServerSettings().getDefaultLocale();
-        if (buildData.getBuildLocale().equals(defaultBuildLocale) || !LOCALE_MAP.containsKey(buildData.getBuildLocale())) {
-            constantsResourceBundle = ResourceBundle.getBundle("Constants", new UTF8ResourceBundleControl());
-        } else {
-            constantsResourceBundle = ResourceBundle.getBundle("Constants", LOCALE_MAP.get(buildData.getBuildLocale()),
-                    new UTF8ResourceBundleControl());
-        }
 
         // Set the override files if any were passed
         if (overrideFiles != null) {
@@ -1378,7 +1355,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         int lastPercent = 0;
 
         final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
-        final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(getConstants(), bugLinkStrategy);
+        final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(buildData.getConstants(), bugLinkStrategy);
 
         for (final SpecTopic specTopic : specTopics) {
             // Check if the app should be shutdown
@@ -2071,7 +2048,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         // Add the title
-        final String prefaceTitleTranslation = getConstants().getString("PREFACE");
+        final String prefaceTitleTranslation = buildData.getConstants().getString("PREFACE");
         final Element titleEle = prefaceDoc.createElement("title");
         titleEle.setTextContent(prefaceTitleTranslation);
         prefaceDoc.getDocumentElement().appendChild(titleEle);
@@ -2371,7 +2348,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
-        final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(getConstants(), bugLinkStrategy);
+        final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(buildData.getConstants(), bugLinkStrategy);
 
         // Process the see also/prereq injections for the level
         processLevelInjections(buildData, initialContent, chapter, parentNode, xmlPreProcessor);
@@ -2879,7 +2856,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), revHistoryDoc.getDocumentElement(),
                 "appe-" + buildData.getEscapedBookTitle() + "-Revision_History");
 
-        final String reportHistoryTitleTranslation = getConstants().getString("REVISION_HISTORY");
+        final String reportHistoryTitleTranslation = buildData.getConstants().getString("REVISION_HISTORY");
         if (reportHistoryTitleTranslation != null) {
             DocBookUtilities.setRootElementTitle(reportHistoryTitleTranslation, revHistoryDoc);
         }
