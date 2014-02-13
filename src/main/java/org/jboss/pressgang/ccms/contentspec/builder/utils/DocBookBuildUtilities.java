@@ -999,7 +999,7 @@ public class DocBookBuildUtilities {
 
     public static String getStaticFixedURLForTopic(final BuildData buildData, final BaseTopicWrapper<?> topic) {
         if (topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId())) {
-            return "Revision_History";
+            return "appe-" + buildData.getEscapedBookTitle() + "-Revision_History";
         } else if (topic.hasTag(buildData.getServerEntities().getLegalNoticeTagId())) {
             return "Legal_Notice";
         } else if (topic.hasTag(buildData.getServerEntities().getAuthorGroupTagId())) {

@@ -1119,10 +1119,13 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     }
 
                     DocBookUtilities.wrapDocumentInAuthorGroup(topicDoc);
+                    DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), topicDoc.getDocumentElement(), "Author_Group");
                 } else if (legalNoticeTopic) {
                     DocBookUtilities.wrapDocumentInLegalNotice(topicDoc);
+                    DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), topicDoc.getDocumentElement(), "Legal_Notice");
                 } else if (abstractTopic) {
                     DocBookUtilities.wrapDocument(topicDoc, "abstract");
+                    DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), topicDoc.getDocumentElement(), "Abstract");
                 } else {
                     // Ensure the topic is wrapped in a section and the title matches the topic
                     DocBookUtilities.wrapDocumentInSection(topicDoc);
@@ -2616,6 +2619,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
         if (isShuttingDown.get()) {
             return;
         }
+
+        DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), authorDoc.getDocumentElement(), "Author_Group");
 
         // Get the mapping of authors using the topics inside the content spec
         for (final Integer topicId : buildData.getBuildDatabase().getTopicIds()) {

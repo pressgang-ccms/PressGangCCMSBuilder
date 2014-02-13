@@ -252,18 +252,24 @@ public class DocBookXMLPreProcessor {
             final Element rootNode) {
         if (!buildData.getBuildOptions().getInsertBugLinks()) return;
 
-        try {
-            final Element rootEle = getRootAdditionalInfoElement(document, rootNode);
+        final List<Node> invalidNodes = XMLUtilities.getChildNodes(document.getDocumentElement(), "section");
 
-            String specifiedBuildName = "";
-            if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
+        // Only add injections if the topic doesn't contain any invalid nodes. The reason for this is that adding any links to topics
+        // that contain <section> will cause the XML to become invalid. Unfortunately there isn't any way around this.
+        if (invalidNodes == null || invalidNodes.size() == 0) {
+            try {
+                final Element rootEle = getRootAdditionalInfoElement(document, rootNode);
 
-            // build the bug link url with the base components
-            final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), initialContent, specifiedBuildName,
-                    buildData.getBuildDate());
-            processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, rootEle);
-        } catch (final Exception ex) {
-            LOG.error("Failed to insert Bug Links into the DOM Document", ex);
+                String specifiedBuildName = "";
+                if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
+
+                // build the bug link url with the base components
+                final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), initialContent, specifiedBuildName,
+                        buildData.getBuildDate());
+                processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, rootEle);
+            } catch (final Exception ex) {
+                LOG.error("Failed to insert Bug Links into the DOM Document", ex);
+            }
         }
     }
 
