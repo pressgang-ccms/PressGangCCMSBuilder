@@ -10,6 +10,7 @@ public class DocBookBuildingOptions implements Serializable {
     private static final long serialVersionUID = -3481034970109486054L;
     private Boolean suppressContentSpecPage = false;
     private Boolean insertBugLinks = true;
+    private Boolean useOldBugLinks = false;
     private Boolean publicanShowRemarks = false;
     private Boolean ignoreMissingCustomInjections = true;
     private Boolean suppressErrorsPage = false;
@@ -236,5 +237,13 @@ public class DocBookBuildingOptions implements Serializable {
 
     public void setCalculateChunkDepth(Boolean calculateChunkDepth) {
         this.calculateChunkDepth = calculateChunkDepth;
+    }
+
+    public Boolean getUseOldBugLinks() {
+        return useOldBugLinks;
+    }
+
+    public void setUseOldBugLinks(Boolean useOldBugLinks) {
+        this.useOldBugLinks = useOldBugLinks;
     }
 }

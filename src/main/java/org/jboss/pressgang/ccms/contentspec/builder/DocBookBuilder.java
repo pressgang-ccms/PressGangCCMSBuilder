@@ -36,6 +36,7 @@ import org.jboss.pressgang.ccms.contentspec.InitialContent;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
+import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkOptions;
 import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
@@ -2099,15 +2100,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         final StringBuilder retValue = new StringBuilder();
 
-        // Add the build name/date
+        // Add the bug link entities
         retValue.append("<!-- BUG LINK ENTITIES -->\n");
         try {
-            final String urlEncodedBuildDate = URLEncoder.encode(DATE_FORMATTER.format(buildData.getBuildDate()), ENCODING);
-            final String urlEncodedBuildName = URLEncoder.encode(buildData.getBuildName(), ENCODING);
-            retValue.append("<!ENTITY BUILD_DATE \"").append(DocBookBuildUtilities.escapeForXMLEntity(urlEncodedBuildDate)).append
-                    ("\">\n");
-            retValue.append("<!ENTITY BUILD_NAME \"").append(DocBookBuildUtilities.escapeForXMLEntity(urlEncodedBuildName)).append(
-                    "\">\n");
+            final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
+            final BugLinkOptions bugLinkOptions = buildData.getBugLinkOptions();
+            retValue.append(bugLinkStrategy.generateEntities(bugLinkOptions, buildData.getBuildName(), buildData.getBuildDate()));
         } catch (UnsupportedEncodingException e) {
             throw new BuildProcessingException(e);
         }

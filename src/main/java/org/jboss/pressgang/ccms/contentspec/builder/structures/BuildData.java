@@ -350,13 +350,20 @@ public class BuildData {
     }
 
     public BugLinkOptions getBugLinkOptions() {
+        final BugLinkOptions bugLinkOptions;
         if (getContentSpec().getBugLinks().equals(BugLinkType.JIRA)) {
-            return getContentSpec().getJIRABugLinkOptions();
+            bugLinkOptions = getContentSpec().getJIRABugLinkOptions();
         } else if (getContentSpec().getBugLinks().equals(BugLinkType.BUGZILLA)) {
-            return getContentSpec().getBugzillaBugLinkOptions();
+            bugLinkOptions = getContentSpec().getBugzillaBugLinkOptions();
         } else {
-            return null;
+            bugLinkOptions = null;
         }
+
+        if (bugLinkOptions != null) {
+            bugLinkOptions.setUseEntities(!buildOptions.getUseOldBugLinks());
+        }
+
+        return bugLinkOptions;
     }
 
     public BaseBugLinkStrategy getBugLinkStrategy() {

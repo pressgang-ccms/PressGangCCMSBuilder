@@ -240,7 +240,8 @@ public class DocBookXMLPreProcessor {
             if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
 
             // build the bug link url with the base components
-            final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), specTopic);
+            final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), specTopic, buildData.getBuildName(),
+                    buildData.getBuildDate());
             processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, rootEle);
         } catch (final Exception ex) {
             LOG.error("Failed to insert Bug Links into the DOM Document", ex);
@@ -263,7 +264,8 @@ public class DocBookXMLPreProcessor {
                 if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
 
                 // build the bug link url with the base components
-                final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), initialContent);
+                final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), initialContent,
+                        buildData.getBuildName(), buildData.getBuildDate());
                 processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, rootEle);
             } catch (final Exception ex) {
                 LOG.error("Failed to insert Bug Links into the DOM Document", ex);
@@ -350,8 +352,8 @@ public class DocBookXMLPreProcessor {
      * @return
      */
     protected static boolean shouldAddAdditionalInfo(final BuildData buildData, final SpecTopic specTopic) {
-        return (buildData.getBuildOptions().getInsertEditorLinks() && specTopic.getTopicType() != TopicType.AUTHOR_GROUP)
-                || (buildData.getBuildOptions().getInsertBugLinks() && specTopic.getTopicType() == TopicType.NORMAL);
+        return (buildData.getBuildOptions().getInsertEditorLinks() && specTopic.getTopicType() != TopicType.AUTHOR_GROUP) || (buildData
+                .getBuildOptions().getInsertBugLinks() && specTopic.getTopicType() == TopicType.NORMAL);
     }
 
     protected Element getRootAdditionalInfoElement(final Document document, final Element rootNode) {
@@ -428,14 +430,17 @@ public class DocBookXMLPreProcessor {
 
         final List<String> errorTopics = new ArrayList<String>();
 
-        errorTopics.addAll(processInjections(contentSpec, topic, customInjectionIds, customInjections, ORDEREDLIST_INJECTION_POINT, xmlDocument,
-                CUSTOM_INJECTION_SEQUENCE_RE, null, buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
+        errorTopics.addAll(
+                processInjections(contentSpec, topic, customInjectionIds, customInjections, ORDEREDLIST_INJECTION_POINT, xmlDocument,
+                        CUSTOM_INJECTION_SEQUENCE_RE, null, buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
         errorTopics.addAll(processInjections(contentSpec, topic, customInjectionIds, customInjections, XREF_INJECTION_POINT, xmlDocument,
                 CUSTOM_INJECTION_SINGLE_RE, null, buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
-        errorTopics.addAll(processInjections(contentSpec, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument,
-                CUSTOM_INJECTION_LIST_RE, null, buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
-        errorTopics.addAll(processInjections(contentSpec, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument,
-                CUSTOM_ALPHA_SORT_INJECTION_LIST_RE, new NodeTitleSorter(), buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
+        errorTopics.addAll(
+                processInjections(contentSpec, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument,
+                        CUSTOM_INJECTION_LIST_RE, null, buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
+        errorTopics.addAll(
+                processInjections(contentSpec, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument,
+                        CUSTOM_ALPHA_SORT_INJECTION_LIST_RE, new NodeTitleSorter(), buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
         errorTopics.addAll(processInjections(contentSpec, topic, customInjectionIds, customInjections, LIST_INJECTION_POINT, xmlDocument,
                 CUSTOM_INJECTION_LISTITEMS_RE, null, buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
 
@@ -480,8 +485,7 @@ public class DocBookXMLPreProcessor {
     public List<String> processInjections(final ContentSpec contentSpec, final SpecTopic topic, final ArrayList<String> customInjectionIds,
             final HashMap<Node, InjectionListData> customInjections, final int injectionPointType, final Document xmlDocument,
             final Pattern regularExpression, final ExternalListSort<Integer, SpecNode, InjectionData> sortComparator,
-            final BuildDatabase buildDatabase,
-            final boolean usedFixedUrls, final Integer fixedUrlPropertyTagId) {
+            final BuildDatabase buildDatabase, final boolean usedFixedUrls, final Integer fixedUrlPropertyTagId) {
         final List<String> retValue = new ArrayList<String>();
 
         if (xmlDocument == null) return retValue;
