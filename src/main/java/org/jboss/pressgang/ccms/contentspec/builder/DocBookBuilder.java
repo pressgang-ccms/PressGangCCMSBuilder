@@ -1874,57 +1874,71 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * Build up the pressgang_website.js file to be used in help overlays from the topics used in the build.
      */
     protected String buildPressGangWebsiteJS(final BuildData buildData) throws BuildProcessingException {
-        final StringBuilder retValue = new StringBuilder("pressgang_website_callback([\n");
+        try {
+            final ContentSpec contentSpec = buildData.getContentSpec();
+            final StringBuilder retValue = new StringBuilder("pressgang_website_callback([\n");
 
-        final JsonStringEncoder encoder = JsonStringEncoder.getInstance();
+            final JsonStringEncoder encoder = JsonStringEncoder.getInstance();
 
-        final List<? extends BaseTopicWrapper<?>> topics = buildData.getBuildDatabase().getAllTopics();
-        boolean initial = true;
-        for (final BaseTopicWrapper<?> topic : topics) {
-            // Insert a newline and comma to separate each array variable only after the first variable has been set
-            if (!initial) {
-                retValue.append(",\n");
-            } else {
-                initial = false;
-            }
-
-            // Find the fixed url to use
-            final Integer topicId = topic.getTopicId();
-            final List<SpecTopic> specTopics = buildData.getBuildDatabase().getSpecTopicsForTopicID(topicId);
-            final String fixedUrl = specTopics.get(0).getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
-                    buildData.isUseFixedUrls());
-
-            // Find the new since value to use
-            final List<PropertyTagInTopicWrapper> newSinceProperties = topic.getProperties(
-                    buildData.getServerEntities().getPressGangWebsitePropertyTagId());
-            final List<String> values = new ArrayList<String>();
-            if (newSinceProperties != null) {
-                for (final PropertyTagInTopicWrapper newSinceProperty : newSinceProperties) {
-                    values.add(newSinceProperty.getValue());
+            final List<? extends BaseTopicWrapper<?>> topics = buildData.getBuildDatabase().getAllTopics();
+            boolean initial = true;
+            for (final BaseTopicWrapper<?> topic : topics) {
+                // Insert a newline and comma to separate each array variable only after the first variable has been set
+                if (!initial) {
+                    retValue.append(",\n");
+                } else {
+                    initial = false;
                 }
-                Collections.sort(values);
-            }
 
-            // Opening brace
-            retValue.append("\t{");
+                // Find the fixed url to use
+                final Integer topicId = topic.getTopicId();
+                final List<SpecTopic> specTopics = buildData.getBuildDatabase().getSpecTopicsForTopicID(topicId);
+                final String fixedUrl = specTopics.get(0).getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
+                        buildData.isUseFixedUrls());
 
-            // Data
-            try {
+                // Find the new since value to use
+                final List<PropertyTagInTopicWrapper> newSinceProperties = topic.getProperties(
+                        buildData.getServerEntities().getPressGangWebsitePropertyTagId());
+                final List<String> values = new ArrayList<String>();
+                if (newSinceProperties != null) {
+                    for (final PropertyTagInTopicWrapper newSinceProperty : newSinceProperties) {
+                        values.add(newSinceProperty.getValue());
+                    }
+                    Collections.sort(values);
+                }
+
+                // Opening brace
+                retValue.append("\t{");
+
+                // Data
+
                 retValue.append("\"topicId\":").append(topicId);
                 retValue.append(",\"target\":\"").append(new String(encoder.quoteAsUTF8(fixedUrl), ENCODING)).append("\"");
                 retValue.append(",\"title\":\"").append(new String(encoder.quoteAsUTF8(topic.getTitle()), ENCODING)).append("\"");
                 retValue.append(",\"newSince\":\"").append(
                         values.isEmpty() ? "" : new String(encoder.quoteAsUTF8(values.get(values.size() - 1)), ENCODING)).append("\"");
-            } catch (UnsupportedEncodingException e) {
-                throw new BuildProcessingException(e);
+
+
+                // Closing brace
+                retValue.append("}");
             }
 
-            // Closing brace
-            retValue.append("}");
-        }
+            retValue.append("]");
 
-        retValue.append("]);");
-        return retValue.toString();
+            // Add the product
+            retValue.append(", \"").append(new String(encoder.quoteAsUTF8(contentSpec.getProduct()), ENCODING)).append("\"");
+
+            // Add the title
+            retValue.append(", \"").append(new String(encoder.quoteAsUTF8(contentSpec.getTitle()), ENCODING)).append("\"");
+
+            // Add the version
+            retValue.append(", \"").append(new String(encoder.quoteAsUTF8(contentSpec.getVersion()), ENCODING)).append("\"");
+
+            retValue.append(");");
+            return retValue.toString();
+        } catch (UnsupportedEncodingException e) {
+            throw new BuildProcessingException(e);
+        }
     }
 
     /**
