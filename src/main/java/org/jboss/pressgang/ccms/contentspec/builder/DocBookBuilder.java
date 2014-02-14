@@ -73,6 +73,7 @@ import org.jboss.pressgang.ccms.provider.TranslatedCSNodeProvider;
 import org.jboss.pressgang.ccms.provider.TranslatedContentSpecProvider;
 import org.jboss.pressgang.ccms.provider.TranslatedTopicProvider;
 import org.jboss.pressgang.ccms.provider.exception.NotFoundException;
+import org.jboss.pressgang.ccms.provider.exception.ProviderException;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.ResourceUtilities;
@@ -1109,8 +1110,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     }
 
                     DocBookUtilities.wrapDocumentInAppendix(topicDoc);
-                    DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), topicDoc.getDocumentElement(),
-                            "appe-" + buildData.getEscapedBookTitle() + "-Revision_History");
                 } else if (authorGroupTopic) {
                     // If it is a translated build then check if we have anything more to merge together
                     if (buildData.isTranslationBuild()) {
@@ -1119,21 +1118,20 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     }
 
                     DocBookUtilities.wrapDocumentInAuthorGroup(topicDoc);
-                    DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), topicDoc.getDocumentElement(), "Author_Group");
                 } else if (legalNoticeTopic) {
                     DocBookUtilities.wrapDocumentInLegalNotice(topicDoc);
-                    DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), topicDoc.getDocumentElement(), "Legal_Notice");
                 } else if (abstractTopic) {
                     DocBookUtilities.wrapDocument(topicDoc, "abstract");
-                    DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), topicDoc.getDocumentElement(), "Abstract");
                 } else {
                     // Ensure the topic is wrapped in a section and the title matches the topic
                     DocBookUtilities.wrapDocumentInSection(topicDoc);
                     DocBookUtilities.setSectionTitle(buildData.getDocBookVersion(), topic.getTitle(), topicDoc);
 
                     processTopicSectionInfo(buildData, topic, topicDoc);
-                    DocBookBuildUtilities.processTopicID(buildData, topic, topicDoc);
                 }
+
+                // Set the root element ID
+                DocBookBuildUtilities.processTopicID(buildData, topic, topicDoc);
 
                 // Add the document & topic to the database spec topics
                 final List<SpecTopic> specTopics = buildData.getBuildDatabase().getSpecTopicsForKey(key);
@@ -1288,8 +1286,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(
-                            specTopic.getRevision())) {
+                            .equals(specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             buildData.getErrorDatabase().addWarning(topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -1814,11 +1811,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     buildData);
         } else if (contentSpec.getAuthorGroup() != null) {
             final TopicErrorData errorData = buildData.getErrorDatabase().getErrorData(contentSpec.getAuthorGroup().getTopic());
-            final String authorGroupXML = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(),
-                    contentSpec.getAuthorGroup().getXMLDocument(), "authorgroup", buildData.getEntityFileName(), getXMLFormatProperties());
             if (errorData != null && errorData.hasFatalErrors()) {
-                buildAuthorGroup(buildData);
+                buildAuthorGroup(buildData, contentSpec.getAuthorGroup());
             } else {
+                final String authorGroupXML = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(),
+                        contentSpec.getAuthorGroup().getXMLDocument(), "authorgroup", buildData.getEntityFileName(), getXMLFormatProperties());
+
                 addToZip(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, authorGroupXML, buildData);
             }
         } else {
@@ -2625,6 +2623,17 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException
      */
     private void buildAuthorGroup(final BuildData buildData) throws BuildProcessingException {
+        buildAuthorGroup(buildData, null);
+    }
+
+    /**
+     * Builds the Author_Group.xml using the assigned writers for topics inside of the content specification.
+     *
+     * @param buildData Information and data structures for the build.
+     * @param specTopic The topic to build the Author Group in place of.
+     * @throws BuildProcessingException
+     */
+    private void buildAuthorGroup(final BuildData buildData, final SpecTopic specTopic) throws BuildProcessingException {
         log.info("\tBuilding " + AUTHOR_GROUP_FILE_NAME);
 
         // Setup Author_Group.xml
@@ -2647,7 +2656,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
             return;
         }
 
-        DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), authorDoc.getDocumentElement(), "Author_Group");
+        // Set the id
+        if (specTopic != null) {
+            DocBookBuildUtilities.processTopicID(buildData, specTopic.getTopic(), authorDoc);
+        } else {
+            DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), authorDoc.getDocumentElement(), "Author_Group");
+        }
 
         // Get the mapping of authors using the topics inside the content spec
         for (final Integer topicId : buildData.getBuildDatabase().getTopicIds()) {
@@ -2885,9 +2899,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
             throw new BuildProcessingException(
                     String.format(getMessages().getString("FAILED_CONVERTING_TEMPLATE"), REVISION_HISTORY_FILE_NAME));
         }
-
-        DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), revHistoryDoc.getDocumentElement(),
-                "appe-" + buildData.getEscapedBookTitle() + "-Revision_History");
 
         final String reportHistoryTitleTranslation = buildData.getConstants().getString("REVISION_HISTORY");
         if (reportHistoryTitleTranslation != null) {
@@ -3721,27 +3732,25 @@ public class DocBookBuilder implements ShutdownAbleApp {
         log.info("Doing Fixed URL Pass");
 
         int tries = 0;
-        boolean success = false;
+        boolean success = true;
 
         try {
-            // This first pass will update or correct the fixed url property tags on the current revision
-            while (tries < BuilderConstants.MAXIMUM_SET_PROP_TAGS_RETRY && !success) {
-                ++tries;
-                final CollectionWrapper<TopicWrapper> updateTopics = topicProvider.newTopicCollection();
+            final CollectionWrapper<TopicWrapper> updateTopics = topicProvider.newTopicCollection();
 
-                for (final TopicWrapper topic : topics) {
+            for (final TopicWrapper topic : topics) {
 
-                    // Check if the app should be shutdown
-                    if (isShuttingDown.get()) {
-                        return false;
-                    }
+                // Check if the app should be shutdown
+                if (isShuttingDown.get()) {
+                    return false;
+                }
 
-                    // Ignore certain topics as those are unique per book and should have a static name
-                    if (DocBookBuildUtilities.useStaticFixedURLForTopic(buildData, topic)) {
-                        // Update the Topic Fixed URL to the set value
-                        final String value = DocBookBuildUtilities.getStaticFixedURLForTopic(buildData, topic);
-                        setFixedURLPropertyTag(buildData, topic, value);
-                    } else {
+                // Ignore certain topics as those are unique per book and should have a static name
+                if (DocBookBuildUtilities.useStaticFixedURLForTopic(buildData, topic)) {
+                    // Update the Topic Fixed URL to the set value
+                    final String value = DocBookBuildUtilities.getStaticFixedURLForTopic(buildData, topic);
+                    setFixedURLPropertyTag(buildData, topic, value);
+                } else {
+                    try {
                         // Create the PropertyTagCollection to be used to update any data
                         final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
                                 .newPropertyTagInTopicCollection(
@@ -3831,26 +3840,29 @@ public class DocBookBuilder implements ShutdownAbleApp {
                             updateTopic.setProperties(updatePropertyTags);
                             updateTopics.addItem(updateTopic);
                         }
+                    } catch (ProviderException e) {
+                        success = false;
                     }
                 }
-
-                if (updateTopics.getItems() != null && updateTopics.getItems().size() != 0) {
-                    topicProvider.updateTopics(updateTopics);
-                }
-
-                // Check if the app should be shutdown
-                if (isShuttingDown.get()) {
-                    return false;
-                }
-
-                // If we got here, then the REST update went ok
-                success = true;
-
-                updateFixedURLsForTopics(buildData, updateTopics, topics);
             }
+
+            if (updateTopics.getItems() != null && updateTopics.getItems().size() != 0) {
+                topicProvider.updateTopics(updateTopics);
+            }
+
+            // Check if the app should be shutdown
+            if (isShuttingDown.get()) {
+                return false;
+            }
+
+            updateFixedURLsForTopics(buildData, updateTopics, topics);
         } catch (final Exception ex) {
-            log.error("\tFailed to update the Fixed URLs for the topic");
             log.debug(ex);
+            success = false;
+        }
+
+        if (!success) {
+            log.error("\tFailed to update the Fixed URLs for the topics");
         }
 
         // did we blow the try count?

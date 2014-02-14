@@ -10,7 +10,6 @@ public class BuilderConstants {
     /**
      * Number of times to try setting the property tags on the topics
      */
-    public static final Integer MAXIMUM_SET_PROP_TAGS_RETRY = 5;
     public static final Integer MAXIMUM_SET_PROP_TAG_NAME_RETRY = 50;
 
     public static final String DOCBOOK_45_DTD = "docbookx.dtd";
