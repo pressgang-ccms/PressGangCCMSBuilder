@@ -240,8 +240,7 @@ public class DocBookXMLPreProcessor {
             if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
 
             // build the bug link url with the base components
-            final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), specTopic, specifiedBuildName,
-                    buildData.getBuildDate());
+            final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), specTopic);
             processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, rootEle);
         } catch (final Exception ex) {
             LOG.error("Failed to insert Bug Links into the DOM Document", ex);
@@ -264,8 +263,7 @@ public class DocBookXMLPreProcessor {
                 if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
 
                 // build the bug link url with the base components
-                final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), initialContent, specifiedBuildName,
-                        buildData.getBuildDate());
+                final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), initialContent);
                 processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, rootEle);
             } catch (final Exception ex) {
                 LOG.error("Failed to insert Bug Links into the DOM Document", ex);

@@ -172,6 +172,7 @@ import org.w3c.dom.NodeList;
  */
 public class DocBookBuilder implements ShutdownAbleApp {
     protected static final Logger log = Logger.getLogger(DocBookBuilder.class);
+    protected static final DateFormat DATE_FORMATTER = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
     protected static final boolean INCLUDE_CHECKSUMS = false;
     protected static final Integer MAX_URL_LENGTH = 4000;
     protected static final String ENCODING = "UTF-8";
@@ -201,8 +202,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
     /**
      * The set of Messages to use when building
      */
-    private final ResourceBundle messagesResourceBundle = ResourceBundle.getBundle(
-            "org.jboss.pressgang.ccms.contentspec.builder" + ".Messages");
+    private final ResourceBundle messagesResourceBundle = ResourceBundle.getBundle("org.jboss.pressgang.ccms.contentspec.builder.Messages");
     /**
      * The StringConstant that holds the error template for a topic with no content.
      */
@@ -2099,21 +2099,34 @@ public class DocBookBuilder implements ShutdownAbleApp {
     protected String buildBookEntityFile(final BuildData buildData) throws BuildProcessingException {
         final ContentSpec contentSpec = buildData.getContentSpec();
 
+        final StringBuilder retValue = new StringBuilder();
+
+        // Add the build name/date
+        retValue.append("<!-- BUG LINK ENTITIES -->\n");
+        try {
+            final String urlEncodedBuildDate = URLEncoder.encode(DATE_FORMATTER.format(buildData.getBuildDate()), ENCODING);
+            final String urlEncodedBuildName = URLEncoder.encode(buildData.getBuildName(), ENCODING);
+            retValue.append("<!ENTITY BUILD_DATE \"").append(DocBookBuildUtilities.escapeForXMLEntity(urlEncodedBuildDate)).append
+                    ("\">\n");
+            retValue.append("<!ENTITY BUILD_NAME \"").append(DocBookBuildUtilities.escapeForXMLEntity(urlEncodedBuildName)).append(
+                    "\">\n");
+        } catch (UnsupportedEncodingException e) {
+            throw new BuildProcessingException(e);
+        }
+
+        retValue.append("<!-- DEFAULT CS ENTITIES -->\n");
         final String entities = ContentSpecUtilities.generateEntitiesForContentSpec(contentSpec, buildData.getDocBookVersion(),
                 buildData.getEscapedBookTitle(), buildData.getOriginalBookTitle(), buildData.getOriginalBookProduct());
+        retValue.append(entities);
 
         // Add the docbook.ent file for DocBook 5 builds
         if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
-            final StringBuilder retValue = new StringBuilder(entities);
-
             final String docBookEnt = ResourceUtilities.resourceFileToString("/", "docbook.ent");
             retValue.append("<!-- START DOCBOOK ENTITIES -->\n");
             retValue.append(docBookEnt);
-
-            return retValue.toString();
-        } else {
-            return entities;
         }
+
+        return retValue.toString();
     }
 
     /**
