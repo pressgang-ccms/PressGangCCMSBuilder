@@ -2100,17 +2100,19 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         final StringBuilder retValue = new StringBuilder();
 
-        // Add the bug link entities
-        retValue.append("<!-- BUG LINK ENTITIES -->\n");
-        try {
-            final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
-            final BugLinkOptions bugLinkOptions = buildData.getBugLinkOptions();
-            retValue.append(bugLinkStrategy.generateEntities(bugLinkOptions, buildData.getBuildName(), buildData.getBuildDate()));
-        } catch (UnsupportedEncodingException e) {
-            throw new BuildProcessingException(e);
+        if (!buildData.getBuildOptions().getUseOldBugLinks()) {
+            // Add the bug link entities
+            retValue.append("<!-- BUG LINK ENTITIES -->\n");
+            try {
+                final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
+                final BugLinkOptions bugLinkOptions = buildData.getBugLinkOptions();
+                retValue.append(bugLinkStrategy.generateEntities(bugLinkOptions, buildData.getBuildName(), buildData.getBuildDate()));
+            } catch (UnsupportedEncodingException e) {
+                throw new BuildProcessingException(e);
+            }
         }
 
-        retValue.append("<!-- DEFAULT CS ENTITIES -->\n");
+        retValue.append("<!-- CS ENTITIES -->\n");
         final String entities = ContentSpecUtilities.generateEntitiesForContentSpec(contentSpec, buildData.getDocBookVersion(),
                 buildData.getEscapedBookTitle(), buildData.getOriginalBookTitle(), buildData.getOriginalBookProduct());
         retValue.append(entities);
