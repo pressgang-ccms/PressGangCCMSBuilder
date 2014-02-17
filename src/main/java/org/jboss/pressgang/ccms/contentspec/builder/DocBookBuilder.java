@@ -1924,6 +1924,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
             retValue.append("]");
 
+            // Add the content spec id
+            retValue.append(", ").append(contentSpec.getId());
+
             // Add the product
             retValue.append(", \"").append(new String(encoder.quoteAsUTF8(contentSpec.getProduct()), ENCODING)).append("\"");
 
