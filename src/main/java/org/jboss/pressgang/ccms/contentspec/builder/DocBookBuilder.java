@@ -1934,7 +1934,11 @@ public class DocBookBuilder implements ShutdownAbleApp {
             retValue.append(", \"").append(new String(encoder.quoteAsUTF8(contentSpec.getTitle()), ENCODING)).append("\"");
 
             // Add the version
-            retValue.append(", \"").append(new String(encoder.quoteAsUTF8(contentSpec.getVersion()), ENCODING)).append("\"");
+            if (contentSpec.getVersion() != null) {
+                retValue.append(", \"").append(new String(encoder.quoteAsUTF8(contentSpec.getVersion()), ENCODING)).append("\"");
+            } else {
+                retValue.append(", null");
+            }
 
             retValue.append(");");
             return retValue.toString();
