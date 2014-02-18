@@ -201,6 +201,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
     private final BlobConstantWrapper rocbookDtd;
     private final BlobConstantWrapper docbookRng;
+    private final String docbook45Entities;
     /**
      * The set of Messages to use when building
      */
@@ -264,6 +265,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
         xmlFormatProperties.setVerbatimElements(CollectionUtilities.toArrayList(verbatimElementsString.split("[\\s]*,[\\s]*")));
         xmlFormatProperties.setInlineElements(CollectionUtilities.toArrayList(inlineElementsString.split("[\\s]*,[\\s]*")));
         xmlFormatProperties.setContentsInlineElements(CollectionUtilities.toArrayList(contentsInlineElementsString.split("[\\s]*,[\\s]*")));
+
+        docbook45Entities = ResourceUtilities.resourceFileToString("/", "docbook.ent");
     }
 
     protected StringConstantWrapper getErrorEmptyTopicTemplate() {
@@ -2126,9 +2129,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         // Add the docbook.ent file for DocBook 5 builds
         if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
-            final String docBookEnt = ResourceUtilities.resourceFileToString("/", "docbook.ent");
             retValue.append("<!-- START DOCBOOK ENTITIES -->\n");
-            retValue.append(docBookEnt);
+            retValue.append(docbook45Entities);
         }
 
         return retValue.toString();
@@ -3568,7 +3570,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
         if (!isNullOrEmpty(contentSpec.getEntities())) {
             entity.append(contentSpec.getEntities());
         }
-        String entityData = entity.toString();
 
         // Wrap the document so it can be validated.
         final Pair<String, String> wrappedTopicDoc = wrapDocumentForValidation(buildData.getDocBookVersion(), topicDoc);
@@ -3586,12 +3587,14 @@ public class DocBookBuilder implements ShutdownAbleApp {
             docbookSchema = docbookRng.getValue();
             titleXML = DocBookUtilities.addDocBook50Namespace("<section><title>" + topic.getTitle() + "</title><para /></section>",
                     "section");
+            entity.append(docbook45Entities);
         } else {
             docbookFileName = BuilderConstants.ROCBOOK_45_DTD;
             validationMethod = XMLValidator.ValidationMethod.DTD;
             docbookSchema = rocbookDtd.getValue();
             titleXML = "<section><title>" + topic.getTitle() + "</title><para /></section>";
         }
+        final String entityData = entity.toString();
 
         // First check to see if the title is valid XML
         if (!validator.validate(validationMethod, titleXML, docbookFileName, docbookSchema, entityData, "section")) {
