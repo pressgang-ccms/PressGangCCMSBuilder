@@ -2445,7 +2445,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 final Node infoNode;
                 if (infoNodes.size() == 0) {
                     infoNode = doc.createElement(parentInfoName);
-                    DocBookUtilities.setInfo(docBookVersion, (Element) infoNode, doc);
+                    DocBookUtilities.setInfo(docBookVersion, (Element) infoNode, parentNode);
                 } else {
                     infoNode = infoNodes.get(0);
                 }
@@ -3724,7 +3724,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
             if (keywordSet.hasChildNodes()) {
                 sectionInfo.appendChild(keywordSet);
 
-                DocBookUtilities.setInfo(buildData.getDocBookVersion(), sectionInfo, doc);
+                DocBookUtilities.setInfo(buildData.getDocBookVersion(), sectionInfo, doc.getDocumentElement());
             }
         }
     }
