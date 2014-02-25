@@ -2295,7 +2295,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
             }
 
             if (node instanceof Level && node.getParent() != null && (((Level) node).getParent().getLevelType() == LevelType.BASE || (
-                    (Level) node).getParent().getLevelType() == LevelType.PART)) {
+                    (Level) node).getParent().getLevelType() == LevelType.PART) && ((Level) node).getLevelType() != LevelType
+                    .INITIAL_CONTENT) {
                 final Level childLevel = (Level) node;
 
                 // Create a new file for the Chapter/Appendix
@@ -2305,7 +2306,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 }
             } else if (node instanceof Level && ((Level) node).getLevelType() == LevelType.INITIAL_CONTENT) {
                 if (level.getLevelType() == LevelType.PART) {
-                    addLevelsInitialContent(buildData, (InitialContent) node, chapter, intro);
+                    addLevelsInitialContent(buildData, (InitialContent) node, chapter, intro, false);
                 } else {
                     addLevelsInitialContent(buildData, (InitialContent) node, chapter, parentNode);
                 }
@@ -2429,7 +2430,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
             infoName = DocBookUtilities.TOPIC_ROOT_SECTIONINFO_NODE_NAME;
         }
 
-        if (includeInfo && level.getLevelType() != LevelType.PART) {
+        if (includeInfo && (level.getLevelType() != LevelType.PART)) {
             // Reposition the sectioninfo
             final List<Node> sectionInfoNodes = XMLUtilities.getDirectChildNodes(section, infoName);
             if (sectionInfoNodes.size() != 0) {
