@@ -680,37 +680,9 @@ public class DocBookBuildUtilities {
         }
     }
 
-    /**
-     * Validates that the Languages for all {@code<programlisting>} elements has a valid Publican language attribute.
-     *
-     * @param doc The DOM XML Document to be validated.
-     * @return True if the document is valid, otherwise false.
-     */
-    public static boolean validateProgramListingLanguages(final Document doc) {
-        assert doc != null;
-        boolean valid = true;
-
-        final NodeList programListings = doc.getElementsByTagName("programlisting");
-        for (int i = 0; i < programListings.getLength(); i++) {
-            final Element programListing = (Element) programListings.item(i);
-            if (programListing.hasAttribute("language")) {
-                if (!BuilderConstants.VALID_PROGRAM_LISTING_LANGS_LOWERCASE.contains(
-                        programListing.getAttribute("language").toLowerCase())) {
-                    valid = false;
-                }
-            }
-        }
-
-        return valid;
-    }
-
     public static List<String> checkTopicForInvalidContent(final BaseTopicWrapper<?> topic, final Document topicDoc,
             final BuildData buildData) {
         final List<String> xmlErrors = new ArrayList<String>();
-        // Check to ensure that if the topic has programlisting elements, that the language is a valid Publican value
-        if (!DocBookBuildUtilities.validateProgramListingLanguages(topicDoc)) {
-            xmlErrors.add("The Program Listing language is not a valid Publican language.");
-        }
         // Check to ensure that if the topic has a table, that the table isn't missing any entries
         if (!DocBookBuildUtilities.validateTopicTables(topicDoc)) {
             xmlErrors.add("Table column declaration doesn't match the number of entry elements.");
