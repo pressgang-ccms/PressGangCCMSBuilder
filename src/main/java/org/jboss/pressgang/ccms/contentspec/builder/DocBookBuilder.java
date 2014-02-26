@@ -2110,7 +2110,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         final StringBuilder retValue = new StringBuilder();
 
-        if (!buildData.getBuildOptions().getUseOldBugLinks()) {
+        if (!buildData.getBuildOptions().getUseOldBugLinks() && buildData.getBuildOptions().getInsertBugLinks()) {
             // Add the bug link entities
             retValue.append("<!-- BUG LINK ENTITIES -->\n");
             try {
@@ -2393,7 +2393,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
         processLevelInjections(buildData, initialContent, chapter, parentNode, xmlPreProcessor);
 
         // Add the bug links for the front matter content
-        xmlPreProcessor.processInitialContentBugLink(buildData, initialContent, chapter, parentNode);
+        if (buildData.getBuildOptions().getInsertBugLinks()) {
+            xmlPreProcessor.processInitialContentBugLink(buildData, initialContent, chapter, parentNode);
+        }
     }
 
     /**
