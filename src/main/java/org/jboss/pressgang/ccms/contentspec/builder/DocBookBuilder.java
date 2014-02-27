@@ -975,9 +975,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         translatedTopic.setSourceURLs(topic.getSourceURLs());
         translatedTopic.setProperties(topic.getProperties());
         translatedTopic.setLocale(locale);
-
-        // Prefix the locale to show that it is missing the related translated topic
-        translatedTopic.setTitle("[" + topic.getLocale() + "] " + topic.getTitle());
+        translatedTopic.setTitle(topic.getTitle());
 
         return translatedTopic;
     }
@@ -1001,10 +999,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         // Negate the ID to show it isn't a proper translated topic
         defaultLocaleTranslatedTopic.setId(translatedTopic.getTopicId() * -1);
-
-        // Prefix the locale to show that it is missing the related translated topic
-        defaultLocaleTranslatedTopic.setTitle(
-                "[" + defaultLocaleTranslatedTopic.getLocale() + "] " + defaultLocaleTranslatedTopic.getTitle());
 
         // Change the locale since the default locale translation is being transformed into a dummy translation
         defaultLocaleTranslatedTopic.setLocale(locale);
