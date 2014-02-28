@@ -357,9 +357,27 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
      *                                  converted to a DOM Document.
      */
-    public Map<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
+    public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
             final DocBookBuildingOptions buildingOptions) throws BuilderCreationException, BuildProcessingException {
-        return buildBook(contentSpec, requester, buildingOptions, new ZanataDetails());
+        return buildBook(contentSpec, requester, buildingOptions, new HashMap<String, byte[]>());
+    }
+
+    /**
+     * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.
+     *
+     * @param contentSpec     The content specification to build from.
+     * @param requester       The user who requested the build.
+     * @param buildingOptions The options to be used when building.
+     * @param zanataDetails   The Zanata server details to be used when populating links
+     * @return Returns a mapping of file names/locations to files. This HashMap can be used to build a ZIP archive.
+     * @throws BuilderCreationException Thrown if the builder is unable to start due to incorrect passed variables.
+     * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
+     *                                  converted to a DOM Document.
+     */
+    public HashMap<String, byte[]> buildTranslatedBook(final ContentSpec contentSpec, final String requester,
+            final DocBookBuildingOptions buildingOptions, final ZanataDetails zanataDetails)
+            throws BuilderCreationException, BuildProcessingException {
+        return buildTranslatedBook(contentSpec, requester, buildingOptions, new HashMap<String, byte[]>(), zanataDetails);
     }
 
     /**
@@ -377,27 +395,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
     public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
             final DocBookBuildingOptions buildingOptions,
             final Map<String, byte[]> overrideFiles) throws BuilderCreationException, BuildProcessingException {
-        return buildBook(contentSpec, requester, buildingOptions, overrideFiles, new ZanataDetails());
+        return buildBook(contentSpec, requester, buildingOptions, overrideFiles, null, false);
     }
 
-    /**
-     * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.
-     *
-     * @param contentSpec     The content specification to build from.
-     * @param requester       The user who requested the build.
-     * @param buildingOptions The options to be used when building.
-     * @param zanataDetails   The Zanata server details to be used when populating links
-     * @return Returns a mapping of file names/locations to files. This HashMap can be used to build a ZIP archive.
-     * @throws BuilderCreationException Thrown if the builder is unable to start due to incorrect passed variables.
-     * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
-     *                                  converted to a DOM Document.
-     */
-    @SuppressWarnings("unchecked")
-    public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
-            final DocBookBuildingOptions buildingOptions,
-            final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
-        return buildBook(contentSpec, requester, buildingOptions, new HashMap<String, byte[]>(), zanataDetails);
-    }
 
     /**
      * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.
@@ -412,10 +412,16 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
      *                                  converted to a DOM Document.
      */
-    @SuppressWarnings("unchecked")
-    public HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
+    public HashMap<String, byte[]> buildTranslatedBook(final ContentSpec contentSpec, final String requester,
             final DocBookBuildingOptions buildingOptions, final Map<String, byte[]> overrideFiles,
             final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
+        return buildBook(contentSpec, requester, buildingOptions, overrideFiles, zanataDetails, true);
+    }
+
+    @SuppressWarnings("unchecked")
+    protected HashMap<String, byte[]> buildBook(final ContentSpec contentSpec, final String requester,
+            final DocBookBuildingOptions buildingOptions, final Map<String, byte[]> overrideFiles, final ZanataDetails zanataDetails,
+            final boolean translationBuild) throws BuilderCreationException, BuildProcessingException {
         if (contentSpec == null) {
             throw new BuilderCreationException("No content specification specified. Unable to build from nothing!");
         }
@@ -430,20 +436,13 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final BuildData buildData = new BuildData(fixedRequester, contentSpec, buildingOptions, zanataDetails, providerFactory);
         setBuildData(buildData);
 
-        // Get the Build Locale
-        final String defaultBuildLocale = buildData.getServerSettings().getDefaultLocale();
-
         // Set the override files if any were passed
         if (overrideFiles != null) {
             buildData.getOverrideFiles().putAll(overrideFiles);
         }
 
-        // Determine if this is a translation build
-        if (contentSpec.getLocale() == null || contentSpec.getLocale().equals(defaultBuildLocale)) {
-            buildData.setTranslationBuild(false);
-        } else {
-            buildData.setTranslationBuild(true);
-        }
+        // Set whether this is a translation build
+        buildData.setTranslationBuild(translationBuild);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -452,8 +451,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         // Get the translations
-        if (buildingOptions.getLocale() != null) {
-            pullTranslations(contentSpec, buildingOptions.getLocale());
+        if (translationBuild) {
+            pullTranslations(contentSpec, buildData.getBuildLocale());
         }
 
         // Check if the app should be shutdown
@@ -666,12 +665,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final ContentSpec contentSpec = buildData.getContentSpec();
         final Map<String, BaseTopicWrapper<?>> topics = new HashMap<String, BaseTopicWrapper<?>>();
         final boolean fixedUrlsSuccess;
-        if (buildData.getBuildLocale() == null || buildData.getBuildLocale().equals(buildData.getServerSettings().getDefaultLocale())) {
-            fixedUrlsSuccess = populateDatabaseTopics(buildData, topics);
-        } else {
+        if (buildData.isTranslationBuild()) {
             //Translations should reference an existing historical topic with the fixed urls set, so we assume this to be the case
             fixedUrlsSuccess = true;
             populateTranslatedTopicDatabase(buildData, topics);
+        } else {
+            fixedUrlsSuccess = populateDatabaseTopics(buildData, topics);
         }
         buildData.setUseFixedUrls(fixedUrlsSuccess);
 
@@ -1284,7 +1283,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(specTopic.getRevision())) {
+                            .equals(
+                                    specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             buildData.getErrorDatabase().addWarning(topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -1813,7 +1813,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 buildAuthorGroup(buildData, contentSpec.getAuthorGroup());
             } else {
                 final String authorGroupXML = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(),
-                        contentSpec.getAuthorGroup().getXMLDocument(), "authorgroup", buildData.getEntityFileName(), getXMLFormatProperties());
+                        contentSpec.getAuthorGroup().getXMLDocument(), "authorgroup", buildData.getEntityFileName(),
+                        getXMLFormatProperties());
 
                 addToZip(buildData.getBookLocaleFolder() + AUTHOR_GROUP_FILE_NAME, authorGroupXML, buildData);
             }
@@ -2340,7 +2341,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         // Remove the initial file location as we only want where it lives in the topics directory
                         final String fixedParentFileLocation = buildData.getBuildOptions().getFlattenTopics() ? "topics/" :
                                 parentFileLocation.replace(
-                                buildData.getBookLocaleFolder(), "");
+                                        buildData.getBookLocaleFolder(), "");
 
                         topicNode = XMLUtilities.createXIInclude(chapter, fixedParentFileLocation + topicFileName);
                     }
@@ -3761,7 +3762,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         // Create the PropertyTagCollection to be used to update any data
                         final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
                                 .newPropertyTagInTopicCollection(
-                                topic);
+                                        topic);
 
                         // Get a list of all property tag items that exist for the current topic
                         final List<PropertyTagInTopicWrapper> existingUniqueURLs = topic.getProperties(
@@ -3782,6 +3783,11 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         if (existingUniqueURL == null || !existingUniqueURL.isValid()) {
                             // generate the base url
                             String baseUrlName = DocBookBuildUtilities.createURLTitle(topic.getTitle());
+
+                            // deal with topics that have no valid characters
+                            if (isNullOrEmpty(baseUrlName)) {
+                                baseUrlName = "TopicID" + topic.getTopicId();
+                            }
 
                             // generate a unique fixed url
                             String postFix = "";
@@ -3906,12 +3912,18 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
                 // Check if a new value needs to be calculated
                 if (value == null || value.isEmpty() || processedFileNames.contains(value)) {
-                    final String baseUrlName;
+                    String baseUrlName;
                     if (topic instanceof TranslatedTopicWrapper) {
                         baseUrlName = DocBookBuildUtilities.createURLTitle(((TranslatedTopicWrapper) topic).getTopic().getTitle());
                     } else {
                         baseUrlName = DocBookBuildUtilities.createURLTitle(topic.getTitle());
                     }
+
+                    // If the title has no characters that can be used in a url, then just use a generic one
+                    if (isNullOrEmpty(baseUrlName) || baseUrlName.matches("^\\d+$")) {
+                        baseUrlName = "TopicID" + topic.getTopicId();
+                    }
+
                     String postFix = "";
                     for (int uniqueCount = 1; ; ++uniqueCount) {
                         if (!processedFileNames.contains(baseUrlName + postFix)) {

@@ -133,14 +133,14 @@ public class BuildData {
 
         serverSettings = providerFactory.getProvider(ServerSettingsProvider.class).getServerSettings();
 
-        locale = buildOptions.getLocale() == null ? serverSettings.getDefaultLocale() : buildOptions.getLocale();
+        locale = buildOptions.getLocale() == null ? (contentSpec.getLocale() == null ? serverSettings.getDefaultLocale() : contentSpec
+                .getLocale()) : buildOptions.getLocale();
         outputLocale = buildOptions.getOutputLocale() == null ? locale : buildOptions.getOutputLocale();
 
         applyBuildOptionsFromSpec(contentSpec, buildOptions);
         applyInjectionOptionsFromSpec(contentSpec, buildOptions);
 
-        final String defaultBuildLocale = serverSettings.getDefaultLocale();
-        if (getBuildLocale().equals(defaultBuildLocale) || !LOCALE_MAP.containsKey(getBuildLocale())) {
+        if (getBuildLocale().equals("en-US") || !LOCALE_MAP.containsKey(getBuildLocale())) {
             constantsResourceBundle = ResourceBundle.getBundle("org.jboss.pressgang.ccms.contentspec.builder.Constants",
                     new UTF8ResourceBundleControl());
         } else {

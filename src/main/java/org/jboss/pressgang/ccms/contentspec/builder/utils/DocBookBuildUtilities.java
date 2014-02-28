@@ -54,7 +54,9 @@ import org.w3c.dom.NodeList;
 public class DocBookBuildUtilities {
     private static final Logger log = LoggerFactory.getLogger(DocBookBuildUtilities.class);
     private static final String STARTS_WITH_NUMBER_RE = "^(?<Numbers>\\d+)(?<EverythingElse>.*)$";
-    private static final String STARTS_WITH_INVALID_SEQUENCE_RE = "^(?<InvalidSeq>[^\\w\\d]+)(?<EverythingElse>.*)$";
+    // See http://stackoverflow.com/a/4307261/1330640
+    private static String UNICODE_WORD = "\\pL\\pM\\p{Nd}\\p{Nl}\\p{Pc}[\\p{InEnclosedAlphanumerics}&&\\p{So}]";
+    private static final String STARTS_WITH_INVALID_SEQUENCE_RE = "^(?<InvalidSeq>[^" + UNICODE_WORD + "]+)(?<EverythingElse>.*)$";
     private static final String[] DATE_FORMATS = new String[]{"MM-dd-yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "yyyy/MM/dd", "EEE MMM dd yyyy",
             "EEE, MMM dd yyyy", "EEE MMM dd yyyy Z", "EEE dd MMM yyyy", "EEE, dd MMM yyyy", "EEE dd MMM yyyy Z", "yyyyMMdd",
             "yyyyMMdd'T'HHmmss.SSSZ"};
@@ -268,12 +270,14 @@ public class DocBookBuildUtilities {
         }
 
         // Escape the title
-        String escapedTitle = DocBookUtilities.escapeTitle(baseTitle);
-        while (escapedTitle.indexOf("__") != -1) {
-            escapedTitle = escapedTitle.replaceAll("__", "_");
-        }
+        final String escapedTitle = DocBookUtilities.escapeTitle(baseTitle);
 
-        return escapedTitle;
+        // We don't want only numeric fixed urls, as that is completely meaningless.
+        if (escapedTitle.matches("^\\d+$")) {
+            return "";
+        } else {
+            return escapedTitle;
+        }
     }
 
     /**

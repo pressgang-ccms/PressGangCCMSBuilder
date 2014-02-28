@@ -151,7 +151,7 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
             docbookBuilder = new DocBookBuilder(providerFactory);
         }
 
-        final HashMap<String, byte[]> files = docbookBuilder.buildBook(contentSpec, requester, builderOptions, overrideFiles,
+        final HashMap<String, byte[]> files = docbookBuilder.buildTranslatedBook(contentSpec, requester, builderOptions, overrideFiles,
                 zanataDetails);
 
         // Create the zip file

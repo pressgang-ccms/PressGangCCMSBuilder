@@ -73,9 +73,9 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
 
         // Setup publican.cfg
         String publicanCfg = publicanCfgTemplate.replaceAll(BuilderConstants.BRAND_REGEX, brand);
-        publicanCfg = publicanCfg.replaceFirst("type\\:\\s*.*($|\\r\\n|\\n)",
+        publicanCfg = publicanCfg.replaceFirst("type:\\s*.*($|\\r\\n|\\n)",
                 "type: " + contentSpec.getBookType().toString().replaceAll("-Draft", "") + "\n");
-        publicanCfg = publicanCfg.replaceAll("xml_lang\\:\\s*.*?($|\\r\\n|\\n)", "xml_lang: " + buildData.getOutputLocale() + "\n");
+        publicanCfg = publicanCfg.replaceAll("xml_lang:\\s*.*?($|\\r\\n|\\n)", "xml_lang: " + buildData.getOutputLocale() + "\n");
 
         // Remove the image width
         publicanCfg = publicanCfg.replaceFirst("max_image_width:\\s*\\d+\\s*(\\r)?\\n", "");
