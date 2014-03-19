@@ -12,6 +12,7 @@ import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkOptions;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkStrategyFactory;
+import org.jboss.pressgang.ccms.contentspec.builder.DocBookXMLPreProcessor;
 import org.jboss.pressgang.ccms.contentspec.builder.UTF8ResourceBundleControl;
 import org.jboss.pressgang.ccms.contentspec.entities.InjectionOptions;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
@@ -116,6 +117,7 @@ public class BuildData {
 
     private boolean useFixedUrls = false;
     private BaseBugLinkStrategy bugLinkStrategy = null;
+    private DocBookXMLPreProcessor xmlPreProcessor = null;
 
     public BuildData(final String requester, final ContentSpec contentSpec, final DocBookBuildingOptions buildOptions, final DataProviderFactory providerFactory) {
         this(requester, contentSpec, buildOptions, new ZanataDetails(), providerFactory);
@@ -387,5 +389,12 @@ public class BuildData {
 
     public ResourceBundle getConstants() {
         return constantsResourceBundle;
+    }
+
+    public DocBookXMLPreProcessor getXMLPreProcessor() {
+        if (xmlPreProcessor == null) {
+            xmlPreProcessor = new DocBookXMLPreProcessor(getConstants(), getBugLinkStrategy());
+        }
+        return xmlPreProcessor;
     }
 }

@@ -1353,8 +1353,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         float current = 0;
         int lastPercent = 0;
 
-        final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
-        final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(buildData.getConstants(), bugLinkStrategy);
+        final DocBookXMLPreProcessor xmlPreProcessor = buildData.getXMLPreProcessor();
 
         for (final SpecTopic specTopic : specTopics) {
             // Check if the app should be shutdown
@@ -1411,11 +1410,11 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         }
                     }
 
-                    // Add the standard boilerplate xml
-                    xmlPreProcessor.processTopicAdditionalInfo(buildData, specTopic, doc);
-
                     // Make sure the XML is valid docbook after the standard processing has been done
                     validateTopicXML(buildData, specTopic, doc);
+
+                    // Add the editor/report a bug links (these should always be valid)
+                    xmlPreProcessor.processTopicAdditionalInfo(buildData, specTopic, doc);
                 }
 
                 // Ensure that all of the id attributes are valid by setting any duplicates with a post fixed number.
@@ -2329,10 +2328,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 childNodes.add(sectionNode);
             } else if (node instanceof SpecTopic) {
                 final SpecTopic specTopic = (SpecTopic) node;
+                final Document topicDoc = specTopic.getXMLDocument();
+
                 Node topicNode = null;
                 if (flattenStructure) {
                     // Include the topic as is, into the chapter
-                    topicNode = chapter.importNode(specTopic.getXMLDocument().getDocumentElement(), true);
+                    topicNode = chapter.importNode(topicDoc.getDocumentElement(), true);
                 } else {
                     // Create the topic file and add the reference to the chapter
                     final String topicFileName = createTopicXMLFile(buildData, specTopic, parentFileLocation);
@@ -2377,20 +2378,18 @@ public class DocBookBuilder implements ShutdownAbleApp {
             final Element parentNode, final boolean includeInfo) {
         // Copy the body content of the topics to the level's front matter
         for (final SpecTopic initialContentTopic : initialContent.getSpecTopics()) {
+            // Insert the topic DOM document into the parent document
             addTopicContentsToLevelDocument(buildData.getDocBookVersion(), initialContent, initialContentTopic, parentNode, chapter,
                     includeInfo);
         }
 
-        final BaseBugLinkStrategy bugLinkStrategy = buildData.getBugLinkStrategy();
-        final DocBookXMLPreProcessor xmlPreProcessor = new DocBookXMLPreProcessor(buildData.getConstants(), bugLinkStrategy);
+        final DocBookXMLPreProcessor xmlPreProcessor = buildData.getXMLPreProcessor();
 
         // Process the see also/prereq injections for the level
         processLevelInjections(buildData, initialContent, chapter, parentNode, xmlPreProcessor);
 
         // Add the bug links for the front matter content
-        if (buildData.getBuildOptions().getInsertBugLinks()) {
-            xmlPreProcessor.processInitialContentBugLink(buildData, initialContent, chapter, parentNode);
-        }
+        xmlPreProcessor.processInitialContentBugLink(buildData, initialContent, chapter, parentNode);
     }
 
     /**
