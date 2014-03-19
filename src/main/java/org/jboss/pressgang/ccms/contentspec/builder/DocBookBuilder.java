@@ -1411,10 +1411,10 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     }
 
                     // Make sure the XML is valid docbook after the standard processing has been done
-                    validateTopicXML(buildData, specTopic, doc);
-
-                    // Add the editor/report a bug links (these should always be valid)
-                    xmlPreProcessor.processTopicAdditionalInfo(buildData, specTopic, doc);
+                    if (validateTopicXML(buildData, specTopic, doc)) {
+                        // Add the editor/report a bug links (these should always be valid)
+                        xmlPreProcessor.processTopicAdditionalInfo(buildData, specTopic, doc);
+                    }
                 }
 
                 // Ensure that all of the id attributes are valid by setting any duplicates with a post fixed number.
