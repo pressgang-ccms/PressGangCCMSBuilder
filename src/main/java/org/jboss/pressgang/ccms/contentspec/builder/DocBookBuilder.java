@@ -3604,12 +3604,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
         if (!validator.validate(validationMethod, fixedTopicXml, docbookFileName, docbookSchema, entityData, rootElementName)) {
             // Store the error message
             final String errorMsg = validator.getErrorText();
+            final String cleanedErrorMsg = errorMsg.replace("|", " | ").replace(",", ", ").replaceFirst("\\.$", "");
 
             final String xmlStringInCDATA = DocBookBuildUtilities.convertDocumentToCDATAFormattedString(topicDoc, getXMLFormatProperties());
             buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
-                    BuilderConstants.ERROR_INVALID_TOPIC_XML + " The error is <emphasis>" + StringEscapeUtils.escapeXml(
-                            errorMsg) + "</emphasis>. The " +
-                            "processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+                    BuilderConstants.ERROR_INVALID_TOPIC_XML + " The error is <emphasis>" + StringEscapeUtils.escapeXml(cleanedErrorMsg)
+                            + "</emphasis>. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
             DocBookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidValidationTopicTemplate().getValue());
 
             return false;
