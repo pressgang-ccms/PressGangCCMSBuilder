@@ -359,8 +359,11 @@ public class DocBookXMLPreProcessor {
     protected Element getRootAdditionalInfoElement(final Document document, final Element rootNode) {
         Element rootEle = rootNode;
 
-        // For refentries inject the links into the last <refentry>
+        // Find if the document contains elements where the bug links would need to be injected as a child.
         final NodeList refEntryNodes = rootNode.getElementsByTagName("refentry");
+        final NodeList simpleSectNodes = rootNode.getElementsByTagName("simplesect");
+
+        // For refentries inject the links into the last <refentry>
         if (refEntryNodes.getLength() > 0) {
             final Element lastRefentry = (Element) refEntryNodes.item(refEntryNodes.getLength() - 1);
 
@@ -383,6 +386,11 @@ public class DocBookXMLPreProcessor {
                 rootEle.appendChild(document.createElement("title"));
                 lastRefentry.appendChild(rootEle);
             }
+        }
+
+        // For simplesects inject the links into the last <simplesect>
+        if (simpleSectNodes.getLength() > 0) {
+            rootEle = (Element) refEntryNodes.item(refEntryNodes.getLength() - 1);
         }
 
         return rootEle;
