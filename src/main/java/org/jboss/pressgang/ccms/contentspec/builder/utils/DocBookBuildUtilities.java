@@ -40,6 +40,7 @@ import org.jboss.pressgang.ccms.wrapper.TranslatedTopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.base.BaseTopicWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
@@ -106,16 +107,20 @@ public class DocBookBuildUtilities {
      * Sets the "id" attributes in the supplied XML node so that they will be
      * unique within the book.
      *
+     * @param buildData
      * @param specTopic        The topic the node belongs to.
      * @param node             The node to process for id attributes.
      * @param usedIdAttributes The list of usedIdAttributes.
      */
-    public static void setUniqueIds(final DocBookVersion docBookVersion, final SpecTopic specTopic, final Node node, final Document doc,
+    public static void setUniqueIds(final BuildData buildData, final SpecTopic specTopic, final Node node, final Document doc,
             final Map<SpecTopic, Set<String>> usedIdAttributes) {
+        // The root node needs to be handled slightly differently
+        boolean isRootNode = doc.getDocumentElement() == node;
+
         final NamedNodeMap attributes = node.getAttributes();
         if (attributes != null) {
             final Node idAttribute;
-            if (docBookVersion == DocBookVersion.DOCBOOK_50) {
+            if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
                 idAttribute = attributes.getNamedItem("xml:id");
             } else {
                 idAttribute = attributes.getNamedItem("id");
@@ -124,12 +129,16 @@ public class DocBookBuildUtilities {
                 final String idAttributeValue = idAttribute.getNodeValue();
                 String fixedIdAttributeValue = idAttributeValue;
 
+                // Set the duplicate id incase the topic has been included twice
                 if (specTopic.getDuplicateId() != null) {
                     fixedIdAttributeValue += "-" + specTopic.getDuplicateId();
                 }
 
-                if (!DocBookBuildUtilities.isUniqueAttributeId(fixedIdAttributeValue, specTopic.getDBId(), usedIdAttributes)) {
-                    fixedIdAttributeValue += "-" + specTopic.getStep();
+                if (!isRootNode) {
+                    // The same id may be used across multiple topics, so add the step/line number to make it unique
+                    if (!DocBookBuildUtilities.isUniqueAttributeId(buildData, fixedIdAttributeValue, specTopic, usedIdAttributes)) {
+                        fixedIdAttributeValue += "-" + specTopic.getStep();
+                    }
                 }
 
                 setUniqueIdReferences(doc.getDocumentElement(), idAttributeValue, fixedIdAttributeValue);
@@ -140,7 +149,7 @@ public class DocBookBuildUtilities {
 
         final NodeList elements = node.getChildNodes();
         for (int i = 0; i < elements.getLength(); ++i) {
-            setUniqueIds(docBookVersion, specTopic, elements.item(i), doc, usedIdAttributes);
+            setUniqueIds(buildData, specTopic, elements.item(i), doc, usedIdAttributes);
         }
     }
 
@@ -157,9 +166,13 @@ public class DocBookBuildUtilities {
         final NamedNodeMap attributes = node.getAttributes();
         if (attributes != null) {
             for (int i = 0; i < attributes.getLength(); ++i) {
-                final String attributeValue = attributes.item(i).getNodeValue();
-                if (attributeValue.equals(id)) {
-                    attributes.item(i).setNodeValue(fixedId);
+                final Attr attr = (Attr) attributes.item(i);
+                // Ignore id attributes, as we only care about references (ie linkend)
+                if (!(attr.getName().equalsIgnoreCase("id") || attr.getName().equalsIgnoreCase("xml:id"))) {
+                    final String attributeValue = attr.getValue();
+                    if (attributeValue.equals(id)) {
+                        attributes.item(i).setNodeValue(fixedId);
+                    }
                 }
             }
         }
@@ -174,29 +187,33 @@ public class DocBookBuildUtilities {
      * Checks to see if a supplied attribute id is unique within this book, based
      * upon the used id attributes that were calculated earlier.
      *
+     * @param buildData
      * @param id               The Attribute id to be checked
-     * @param topicId          The id of the topic the attribute id was found in
-     * @param usedIdAttributes The set of used ids calculated earlier
-     * @return True if the id is unique otherwise false.
+     * @param specTopic        The id of the topic the attribute id was found in
+     * @param usedIdAttributes The set of used ids calculated earlier   @return True if the id is unique otherwise false.
      */
-    public static boolean isUniqueAttributeId(final String id, final Integer topicId, final Map<SpecTopic, Set<String>> usedIdAttributes) {
-        boolean retValue = true;
+    public static boolean isUniqueAttributeId(final BuildData buildData, final String id, final SpecTopic specTopic,
+            final Map<SpecTopic, Set<String>> usedIdAttributes) {
+        // Make sure the id doesn't match the spec topic's unique link
+        if (id.equals(specTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(), buildData.isUseFixedUrls()))) {
+            return false;
+        }
 
+        // Make sure the id isn't used else where in another topic
         for (final Entry<SpecTopic, Set<String>> entry : usedIdAttributes.entrySet()) {
             final SpecTopic topic2 = entry.getKey();
             final Integer topicId2 = topic2.getDBId();
-            if (topicId2.equals(topicId)) {
+            if (topicId2.equals(specTopic.getDBId())) {
                 continue;
             }
 
             final Set<String> ids2 = entry.getValue();
-
             if (ids2.contains(id)) {
-                retValue = false;
+                return false;
             }
         }
 
-        return retValue;
+        return true;
     }
 
     /**

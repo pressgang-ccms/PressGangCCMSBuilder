@@ -375,8 +375,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
      *                                  converted to a DOM Document.
      */
     public HashMap<String, byte[]> buildTranslatedBook(final ContentSpec contentSpec, final String requester,
-            final DocBookBuildingOptions buildingOptions, final ZanataDetails zanataDetails)
-            throws BuilderCreationException, BuildProcessingException {
+            final DocBookBuildingOptions buildingOptions,
+            final ZanataDetails zanataDetails) throws BuilderCreationException, BuildProcessingException {
         return buildTranslatedBook(contentSpec, requester, buildingOptions, new HashMap<String, byte[]>(), zanataDetails);
     }
 
@@ -1284,7 +1284,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
                             .equals(
-                                    specTopic.getRevision())) {
+                            specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             buildData.getErrorDatabase().addWarning(topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -1409,17 +1409,17 @@ public class DocBookBuilder implements ShutdownAbleApp {
                             buildData.getErrorDatabase().addWarning(topic, ErrorType.POSSIBLE_INVALID_INJECTION, errorMsg);
                         }
                     }
-
-                    // Make sure the XML is valid docbook after the standard processing has been done
-                    if (validateTopicXML(buildData, specTopic, doc)) {
-                        // Add the editor/report a bug links (these should always be valid)
-                        xmlPreProcessor.processTopicAdditionalInfo(buildData, specTopic, doc);
-                    }
                 }
 
                 // Ensure that all of the id attributes are valid by setting any duplicates with a post fixed number.
-                DocBookBuildUtilities.setUniqueIds(buildData.getDocBookVersion(), specTopic, specTopic.getXMLDocument(),
+                DocBookBuildUtilities.setUniqueIds(buildData, specTopic, specTopic.getXMLDocument().getDocumentElement(),
                         specTopic.getXMLDocument(), usedIdAttributes);
+
+                // Make sure the XML is valid docbook after the standard processing has been done
+                if (validateTopicXML(buildData, specTopic, doc)) {
+                    // Add the editor/report a bug links (these should always be valid)
+                    xmlPreProcessor.processTopicAdditionalInfo(buildData, specTopic, doc);
+                }
             }
         }
     }
@@ -2342,7 +2342,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         // Remove the initial file location as we only want where it lives in the topics directory
                         final String fixedParentFileLocation = buildData.getBuildOptions().getFlattenTopics() ? "topics/" :
                                 parentFileLocation.replace(
-                                        buildData.getBookLocaleFolder(), "");
+                                buildData.getBookLocaleFolder(), "");
 
                         topicNode = XMLUtilities.createXIInclude(chapter, fixedParentFileLocation + topicFileName);
                     }
@@ -3610,8 +3610,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
             final String xmlStringInCDATA = DocBookBuildUtilities.convertDocumentToCDATAFormattedString(topicDoc, getXMLFormatProperties());
             buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
-                    BuilderConstants.ERROR_INVALID_TOPIC_XML + " The error is <emphasis>" + StringEscapeUtils.escapeXml(cleanedErrorMsg)
-                            + "</emphasis>. The processed XML is <programlisting>" + xmlStringInCDATA + "</programlisting>");
+                    BuilderConstants.ERROR_INVALID_TOPIC_XML + " The error is <emphasis>" + StringEscapeUtils.escapeXml(
+                            cleanedErrorMsg) + "</emphasis>. The processed XML is <programlisting>" + xmlStringInCDATA +
+                            "</programlisting>");
             DocBookBuildUtilities.setSpecTopicXMLForError(buildData, specTopic, getErrorInvalidValidationTopicTemplate().getValue());
 
             return false;
@@ -3763,7 +3764,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         // Create the PropertyTagCollection to be used to update any data
                         final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
                                 .newPropertyTagInTopicCollection(
-                                        topic);
+                                topic);
 
                         // Get a list of all property tag items that exist for the current topic
                         final List<PropertyTagInTopicWrapper> existingUniqueURLs = topic.getProperties(
