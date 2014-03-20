@@ -3514,7 +3514,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                                 fileRefAttribute.setNodeValue("images/" + fileRefValue);
                             }
 
-                            buildData.getImageLocations().add(new TopicImageData(topic, fileRefValue));
+                            buildData.getImageLocations().add(new TopicImageData(topic, fileRefAttribute.getNodeValue()));
 
                             //                        } else {
                             //                            if (fileRefAttribute != null && !fileRefAttribute.getNodeValue().startsWith
