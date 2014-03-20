@@ -112,7 +112,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 /**
- * A builder to build Docbook compatible output using a Content Specification. The builder works in the following stages:
+ * A builder to build DocBook compatible output using a Content Specification. The builder works in the following stages:
  * <br />
  * <ol>
  * <li>
@@ -125,7 +125,7 @@ import org.w3c.dom.NodeList;
  * Topic Pass
  * <ul>
  * <li>Goes through each topic and converts the XML into a DOM element. If the XML is empty or can't be converted into a
- * DOM element it is replaced by a template. Then it initials all the SpecTopics with the XML and Topic information.</li>
+ * DOM element it is replaced by a template. Then it initialises all the SpecTopics with the XML and Topic information.</li>
  * </ul>
  * </li>
  * <li>
@@ -3508,7 +3508,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
                             // TODO Uncomment once image processing is fixed.
                             //                        if (specTopic.getRevision() == null)
                             //                        {
-                            if (!fileRefValue.startsWith("images/")) {
+                            if (fileRefValue.startsWith("./images/")) {
+                                fileRefAttribute.setNodeValue(fileRefValue.substring(2));
+                            } else if (!fileRefValue.startsWith("images/")) {
                                 fileRefAttribute.setNodeValue("images/" + fileRefValue);
                             }
 

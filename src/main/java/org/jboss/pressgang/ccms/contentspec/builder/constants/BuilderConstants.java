@@ -18,7 +18,7 @@ public class BuilderConstants {
 
     public static final String FAILPENGUIN_PNG_NAME = "failpenguinPng";
 
-    public static final Pattern IMAGE_FILE_REF_PATTERN = Pattern.compile("^(images/)?\\d+(-\\d+)?\\.\\w+$");
+    public static final Pattern IMAGE_FILE_REF_PATTERN = Pattern.compile("^((\\./)?images/)?\\d+(-\\d+)?\\.\\w+$");
 
     /**
      * A regular expression that identifies a topic id
