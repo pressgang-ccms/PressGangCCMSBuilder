@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import org.jboss.pressgang.ccms.contentspec.ITopicNode;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecNode;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
@@ -16,8 +17,8 @@ import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.wrapper.base.BaseTopicWrapper;
 
 public class BuildDatabase {
-    private Map<Integer, List<SpecTopic>> topics = new HashMap<Integer, List<SpecTopic>>();
-    private Map<String, List<SpecTopic>> topicsKeys = new HashMap<String, List<SpecTopic>>();
+    private Map<Integer, List<ITopicNode>> topics = new HashMap<Integer, List<ITopicNode>>();
+    private Map<String, List<ITopicNode>> topicsKeys = new HashMap<String, List<ITopicNode>>();
     private Map<String, List<Level>> levelTitles = new HashMap<String, List<Level>>();
 
     /**
@@ -26,17 +27,17 @@ public class BuildDatabase {
      * @param specTopic The SpecTopic object to be added.
      * @param key       A key that represents the Topic mapped to the SpecTopic
      */
-    public void add(final SpecTopic specTopic, final String key) {
+    public void add(final ITopicNode specTopic, final String key) {
         if (specTopic == null) return;
 
         final Integer topicId = specTopic.getDBId();
         if (!topics.containsKey(topicId)) {
-            topics.put(topicId, new LinkedList<SpecTopic>());
+            topics.put(topicId, new LinkedList<ITopicNode>());
         }
 
         // Make sure the key exists
         if (!topicsKeys.containsKey(key)) {
-            topicsKeys.put(key, new LinkedList<SpecTopic>());
+            topicsKeys.put(key, new LinkedList<ITopicNode>());
         }
 
         topics.get(topicId).add(specTopic);
@@ -71,17 +72,20 @@ public class BuildDatabase {
     public void setDatabaseDuplicateIds(final BuildData buildData) {
         // Create the mapping of topic titles to spec topics
         final Map<String, List<SpecTopic>> topicsTitles = new HashMap<String, List<SpecTopic>>();
-        for (final Entry<Integer, List<SpecTopic>> topicEntry : topics.entrySet()) {
-            final List<SpecTopic> specTopics = topicEntry.getValue();
-            for (final SpecTopic specTopic : specTopics) {
-                String topicTitle = specTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
-                        buildData.isUseFixedUrls());
+        for (final Entry<Integer, List<ITopicNode>> topicEntry : topics.entrySet()) {
+            final List<ITopicNode> specTopics = topicEntry.getValue();
+            for (final ITopicNode topicNode : specTopics) {
+                if (topicNode instanceof SpecTopic) {
+                    final SpecTopic specTopic = (SpecTopic) topicNode;
+                    String topicTitle = specTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
+                            buildData.isUseFixedUrls());
 
-                if (!topicsTitles.containsKey(topicTitle)) {
-                    topicsTitles.put(topicTitle, new LinkedList<SpecTopic>());
+                    if (!topicsTitles.containsKey(topicTitle)) {
+                        topicsTitles.put(topicTitle, new LinkedList<SpecTopic>());
+                    }
+
+                    topicsTitles.get(topicTitle).add(specTopic);
                 }
-
-                topicsTitles.get(topicTitle).add(specTopic);
             }
         }
 
@@ -133,12 +137,12 @@ public class BuildDatabase {
      * @param topicId The Topic ID to find SpecTopics for.
      * @return A List of SpecTopic objects whose Topic ID matches.
      */
-    public List<SpecTopic> getSpecTopicsForTopicID(final Integer topicId) {
+    public List<ITopicNode> getTopicNodesForTopicID(final Integer topicId) {
         if (topics.containsKey(topicId)) {
             return topics.get(topicId);
         }
 
-        return new LinkedList<SpecTopic>();
+        return new LinkedList<ITopicNode>();
     }
 
     /**
@@ -147,12 +151,12 @@ public class BuildDatabase {
      * @param key The Topic Key to find SpecTopics for.
      * @return A List of SpecTopic objects whose Key matches.
      */
-    public List<SpecTopic> getSpecTopicsForKey(final String key) {
+    public List<ITopicNode> getTopicNodesForKey(final String key) {
         if (topicsKeys.containsKey(key)) {
             return topicsKeys.get(key);
         }
 
-        return new LinkedList<SpecTopic>();
+        return new LinkedList<ITopicNode>();
     }
 
     /**
@@ -162,11 +166,29 @@ public class BuildDatabase {
      */
     public List<SpecTopic> getAllSpecTopics() {
         final ArrayList<SpecTopic> specTopics = new ArrayList<SpecTopic>();
-        for (final Entry<Integer, List<SpecTopic>> topicEntry : topics.entrySet()) {
-            specTopics.addAll(topicEntry.getValue());
+        for (final Entry<Integer, List<ITopicNode>> topicEntry : topics.entrySet()) {
+            for (final ITopicNode topic : topicEntry.getValue()) {
+                if (topic instanceof SpecTopic) {
+                    specTopics.add((SpecTopic) topic);
+                }
+            }
         }
 
         return specTopics;
+    }
+
+    /**
+     * Get a List of all the Topic nodes in the Database.
+     *
+     * @return A list of ITopicNode objects.
+     */
+    public List<ITopicNode> getAllTopicNodes() {
+        final ArrayList<ITopicNode> topicNodes = new ArrayList<ITopicNode>();
+        for (final Entry<Integer, List<ITopicNode>> topicEntry : topics.entrySet()) {
+            topicNodes.addAll(topicEntry.getValue());
+        }
+
+        return topicNodes;
     }
 
     /**
@@ -197,8 +219,12 @@ public class BuildDatabase {
         }
 
         // Add all the topics
-        for (final Entry<Integer, List<SpecTopic>> topicEntry : topics.entrySet()) {
-            retValue.addAll(topicEntry.getValue());
+        for (final Entry<Integer, List<ITopicNode>> topicEntry : topics.entrySet()) {
+            for (final ITopicNode topic : topicEntry.getValue()) {
+                if (topic instanceof SpecNode) {
+                    retValue.add((SpecNode) topic);
+                }
+            }
         }
 
         return retValue;
@@ -222,10 +248,13 @@ public class BuildDatabase {
         }
 
         // Add all the topic id attributes
-        for (final Entry<Integer, List<SpecTopic>> topicEntry : topics.entrySet()) {
-            final List<SpecTopic> topics = topicEntry.getValue();
-            for (final SpecTopic topic : topics) {
-                ids.add(topic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(), buildData.isUseFixedUrls()));
+        for (final Entry<Integer, List<ITopicNode>> topicEntry : topics.entrySet()) {
+            final List<ITopicNode> topics = topicEntry.getValue();
+            for (final ITopicNode topic : topics) {
+                if (topic instanceof SpecTopic) {
+                    final SpecTopic specTopic = (SpecTopic) topic;
+                    ids.add(specTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(), buildData.isUseFixedUrls()));
+                }
             }
         }
 
@@ -252,7 +281,7 @@ public class BuildDatabase {
     @SuppressWarnings("unchecked")
     public <T extends BaseTopicWrapper<T>> List<T> getAllTopics(boolean ignoreRevisions) {
         final List<T> topics = new ArrayList<T>();
-        for (final Entry<Integer, List<SpecTopic>> entry : this.topics.entrySet()) {
+        for (final Entry<Integer, List<ITopicNode>> entry : this.topics.entrySet()) {
             final Integer topicId = entry.getKey();
             if (!this.topics.get(topicId).isEmpty()) {
                 if (ignoreRevisions) {
@@ -273,10 +302,10 @@ public class BuildDatabase {
      * @return A Unique list of Topics.
      */
     @SuppressWarnings("unchecked")
-    protected <T extends BaseTopicWrapper<T>> List<T> getUniqueTopicsFromSpecTopics(final List<SpecTopic> topics) {
+    protected <T extends BaseTopicWrapper<T>> List<T> getUniqueTopicsFromSpecTopics(final List<ITopicNode> topics) {
         // Find all the unique topics first
         final Map<Integer, T> revisionToTopic = new HashMap<Integer, T>();
-        for (final SpecTopic specTopic : topics) {
+        for (final ITopicNode specTopic : topics) {
             final T topic = (T) specTopic.getTopic();
 
             // Find the Topic Revision

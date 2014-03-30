@@ -9,6 +9,7 @@ import java.util.ResourceBundle;
 import com.google.code.regexp.Matcher;
 import com.google.code.regexp.Pattern;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
+import org.jboss.pressgang.ccms.contentspec.ITopicNode;
 import org.jboss.pressgang.ccms.contentspec.InitialContent;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecNode;
@@ -427,7 +428,7 @@ public class DocBookXMLPreProcessor {
     }
 
     @SuppressWarnings("unchecked")
-    public List<String> processInjections(final ContentSpec contentSpec, final SpecTopic topic, final ArrayList<String> customInjectionIds,
+    public List<String> processInjections(final ContentSpec contentSpec, final ITopicNode topic, final ArrayList<String> customInjectionIds,
             final Document xmlDocument, final DocBookBuildingOptions docbookBuildingOptions, final BuildDatabase buildDatabase,
             final boolean usedFixedUrls, final Integer fixedUrlPropertyTagId) {
         /*
@@ -490,7 +491,7 @@ public class DocBookXMLPreProcessor {
         return errorTopics;
     }
 
-    public List<String> processInjections(final ContentSpec contentSpec, final SpecTopic topic, final ArrayList<String> customInjectionIds,
+    public List<String> processInjections(final ContentSpec contentSpec, final ITopicNode topic, final ArrayList<String> customInjectionIds,
             final HashMap<Node, InjectionListData> customInjections, final int injectionPointType, final Document xmlDocument,
             final Pattern regularExpression, final ExternalListSort<Integer, SpecNode, InjectionData> sortComparator,
             final BuildDatabase buildDatabase, final boolean usedFixedUrls, final Integer fixedUrlPropertyTagId) {

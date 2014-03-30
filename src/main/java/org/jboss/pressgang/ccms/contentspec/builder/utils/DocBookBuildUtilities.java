@@ -20,6 +20,7 @@ import com.google.code.regexp.Pattern;
 import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
+import org.jboss.pressgang.ccms.contentspec.ITopicNode;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
@@ -108,11 +109,11 @@ public class DocBookBuildUtilities {
      * unique within the book.
      *
      * @param buildData
-     * @param specTopic        The topic the node belongs to.
+     * @param topicNode        The topic the node belongs to.
      * @param node             The node to process for id attributes.
      * @param usedIdAttributes The list of usedIdAttributes.
      */
-    public static void setUniqueIds(final BuildData buildData, final SpecTopic specTopic, final Node node, final Document doc,
+    public static void setUniqueIds(final BuildData buildData, final ITopicNode topicNode, final Node node, final Document doc,
             final Map<SpecTopic, Set<String>> usedIdAttributes) {
         // The root node needs to be handled slightly differently
         boolean isRootNode = doc.getDocumentElement() == node;
@@ -130,14 +131,14 @@ public class DocBookBuildUtilities {
                 String fixedIdAttributeValue = idAttributeValue;
 
                 // Set the duplicate id incase the topic has been included twice
-                if (specTopic.getDuplicateId() != null) {
-                    fixedIdAttributeValue += "-" + specTopic.getDuplicateId();
+                if (topicNode.getDuplicateId() != null) {
+                    fixedIdAttributeValue += "-" + topicNode.getDuplicateId();
                 }
 
                 if (!isRootNode) {
                     // The same id may be used across multiple topics, so add the step/line number to make it unique
-                    if (!DocBookBuildUtilities.isUniqueAttributeId(buildData, fixedIdAttributeValue, specTopic, usedIdAttributes)) {
-                        fixedIdAttributeValue += "-" + specTopic.getStep();
+                    if (!DocBookBuildUtilities.isUniqueAttributeId(buildData, fixedIdAttributeValue, topicNode, usedIdAttributes)) {
+                        fixedIdAttributeValue += "-" + topicNode.getStep();
                     }
                 }
 
@@ -149,7 +150,7 @@ public class DocBookBuildUtilities {
 
         final NodeList elements = node.getChildNodes();
         for (int i = 0; i < elements.getLength(); ++i) {
-            setUniqueIds(buildData, specTopic, elements.item(i), doc, usedIdAttributes);
+            setUniqueIds(buildData, topicNode, elements.item(i), doc, usedIdAttributes);
         }
     }
 
@@ -189,13 +190,15 @@ public class DocBookBuildUtilities {
      *
      * @param buildData
      * @param id               The Attribute id to be checked
-     * @param specTopic        The id of the topic the attribute id was found in
+     * @param topicNode        The id of the topic the attribute id was found in
      * @param usedIdAttributes The set of used ids calculated earlier   @return True if the id is unique otherwise false.
      */
-    public static boolean isUniqueAttributeId(final BuildData buildData, final String id, final SpecTopic specTopic,
+    public static boolean isUniqueAttributeId(final BuildData buildData, final String id, final ITopicNode topicNode,
             final Map<SpecTopic, Set<String>> usedIdAttributes) {
         // Make sure the id doesn't match the spec topic's unique link
-        if (id.equals(specTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(), buildData.isUseFixedUrls()))) {
+        if (topicNode instanceof SpecTopic && id.equals(
+                ((SpecTopic) topicNode).getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
+                        buildData.isUseFixedUrls()))) {
             return false;
         }
 
@@ -203,7 +206,7 @@ public class DocBookBuildUtilities {
         for (final Entry<SpecTopic, Set<String>> entry : usedIdAttributes.entrySet()) {
             final SpecTopic topic2 = entry.getKey();
             final Integer topicId2 = topic2.getDBId();
-            if (topicId2.equals(specTopic.getDBId())) {
+            if (topicId2.equals(topicNode.getDBId())) {
                 continue;
             }
 
@@ -314,8 +317,17 @@ public class DocBookBuildUtilities {
      */
     protected static String buildTopicErrorTemplate(final BuildData buildData, final BaseTopicWrapper<?> topic,
             final String errorTemplate) {
-        String topicXMLErrorTemplate = errorTemplate;
+        // Info topics cannot use the regular templates and the information should be hidden so just make a basic one
+        if (topic.hasTag(buildData.getServerEntities().getInfoTagId())) {
+            if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+                return DocBookUtilities.addDocBook50Namespace("<info><keywordset><keyword></keyword></keywordset></info>");
+            } else {
+                return "<sectioninfo><keywordset><keyword></keyword></keywordset></sectioninfo>";
+            }
+        }
 
+        // Replace the markers in the template with values
+        String topicXMLErrorTemplate = errorTemplate;
         topicXMLErrorTemplate = topicXMLErrorTemplate.replaceAll(BuilderConstants.TOPIC_TITLE_REGEX, "Invalid Topic");
 
         // Set the topic id in the error
@@ -586,17 +598,21 @@ public class DocBookBuildUtilities {
      * @param doc       The document object for the topics XML.
      */
     public static void processTopicID(final BuildData buildData, final BaseTopicWrapper<?> topic, final Document doc) {
-        // Get the id value
-        final String errorXRefID;
-        if (buildData.isUseFixedUrls()) {
-            errorXRefID = topic.getXRefPropertyOrId(buildData.getServerEntities().getFixedUrlPropertyTagId());
-        } else {
-            errorXRefID = topic.getXRefId();
+        // Ignore info topics
+        if (!topic.hasTag(buildData.getServerEntities().getInfoTagId())) {
+            // Get the id value
+            final String errorXRefID;
+            if (buildData.isUseFixedUrls()) {
+                errorXRefID = topic.getXRefPropertyOrId(buildData.getServerEntities().getFixedUrlPropertyTagId());
+            } else {
+                errorXRefID = topic.getXRefId();
+            }
+
+            // Set the id
+            setDOMElementId(buildData.getDocBookVersion(), doc.getDocumentElement(), errorXRefID);
         }
 
-        // Set the id
-        setDOMElementId(buildData.getDocBookVersion(), doc.getDocumentElement(), errorXRefID);
-
+        // Add the remap parameter
         final Integer topicId = topic.getTopicId();
         doc.getDocumentElement().setAttribute("remap", "TID_" + topicId);
     }
@@ -635,7 +651,9 @@ public class DocBookBuildUtilities {
             log.debug("Topic Error Template is not valid XML", ex);
             throw new BuildProcessingException("Failed to convert the Topic Error template into a DOM document");
         }
-        DocBookUtilities.setSectionTitle(buildData.getDocBookVersion(), topic.getTitle(), doc);
+        if (DocBookUtilities.TOPIC_ROOT_NODE_NAME.equals(doc.getDocumentElement().getNodeName())) {
+            DocBookUtilities.setSectionTitle(buildData.getDocBookVersion(), topic.getTitle(), doc);
+        }
         processTopicID(buildData, topic, doc);
         return doc;
     }
@@ -644,26 +662,14 @@ public class DocBookBuildUtilities {
      * Sets the XML of the topic in the content spec to the error template provided.
      *
      * @param buildData Information and data structures for the build.
-     * @param specTopic The spec topic to be updated as having an error.
+     * @param topicNode The topic node to be updated as having an error.
      * @param template  The template for the Error Message.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
-    public static void setSpecTopicXMLForError(final BuildData buildData, final SpecTopic specTopic,
+    public static void setTopicNodeXMLForError(final BuildData buildData, final ITopicNode topicNode,
             final String template) throws BuildProcessingException {
-        final BaseTopicWrapper<?> topic = specTopic.getTopic();
-        final String errorContent = buildTopicErrorTemplate(buildData, topic, template);
-
-        Document doc = null;
-        try {
-            doc = XMLUtilities.convertStringToDocument(errorContent);
-        } catch (Exception ex) {
-            // Exit since we shouldn't fail at converting a basic template
-            log.debug("Topic Error Template is not valid XML", ex);
-            throw new BuildProcessingException("Failed to convert the Topic Error template into a DOM document");
-        }
-        specTopic.setXMLDocument(doc);
-        DocBookUtilities.setSectionTitle(buildData.getDocBookVersion(), topic.getTitle(), doc);
-        processTopicID(buildData, topic, doc);
+        final BaseTopicWrapper<?> topic = topicNode.getTopic();
+        topicNode.setXMLDocument(setTopicXMLForError(buildData, topic, template));
     }
 
     /**
@@ -737,11 +743,26 @@ public class DocBookBuildUtilities {
             }
         } else if (topic.hasTag(buildData.getServerEntities().getAuthorGroupTagId())) {
             if (!doc.getDocumentElement().getNodeName().equals("authorgroup")) {
-                xmlErrors.append("Author Group topics must be a &lt;authorgroup&gt;.\n");
+                xmlErrors.append("Author Group topics must be an &lt;authorgroup&gt;.\n");
             }
         } else if (topic.hasTag(buildData.getServerEntities().getAbstractTagId())) {
             if (!doc.getDocumentElement().getNodeName().equals("abstract")) {
-                xmlErrors.append("Abstract topics must be a &lt;abstract&gt;.\n");
+                xmlErrors.append("Abstract topics must be an &lt;abstract&gt;.\n");
+            }
+        } else if (topic.hasTag(buildData.getServerEntities().getInfoTagId())) {
+            if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+                if (!doc.getDocumentElement().getNodeName().equals("info")) {
+                    xmlErrors.append("Info topics must be an &lt;info&gt;.\n");
+                }
+            } else {
+                if (!doc.getDocumentElement().getNodeName().equals("sectioninfo")) {
+                    xmlErrors.append("Info topics must be a &lt;sectioninfo&gt;.\n");
+                }
+            }
+
+            // Check that the info topic doesn't contain invalid fields
+            if (checkForInvalidInfoElements(doc)) {
+                xmlErrors.append("Info topics cannot contain &lt;title&gt;, &lt;subtitle&gt; or &lt;titleabbrev&gt; elements.");
             }
         } else {
             if (!doc.getDocumentElement().getNodeName().equals(DocBookUtilities.TOPIC_ROOT_NODE_NAME)) {
@@ -772,6 +793,11 @@ public class DocBookBuildUtilities {
         }
 
         return xmlErrors;
+    }
+
+    protected static boolean checkForInvalidInfoElements(final Document doc) {
+        final List<Node> invalidElements = XMLUtilities.getDirectChildNodes(doc.getDocumentElement(), "title", "subtitle", "titleabbrev");
+        return invalidElements != null && !invalidElements.isEmpty();
     }
 
     /**
@@ -980,9 +1006,10 @@ public class DocBookBuildUtilities {
     }
 
     public static boolean useStaticFixedURLForTopic(final BuildData buildData, final BaseTopicWrapper<?> topic) {
-        return topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId()) || topic.hasTag(
-                buildData.getServerEntities().getLegalNoticeTagId()) || topic.hasTag(
-                buildData.getServerEntities().getAuthorGroupTagId()) || topic.hasTag(buildData.getServerEntities().getAbstractTagId());
+        return topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId())
+                || topic.hasTag(buildData.getServerEntities().getLegalNoticeTagId())
+                || topic.hasTag(buildData.getServerEntities().getAuthorGroupTagId())
+                || topic.hasTag(buildData.getServerEntities().getAbstractTagId());
     }
 
     public static String getStaticFixedURLForTopic(final BuildData buildData, final BaseTopicWrapper<?> topic) {
