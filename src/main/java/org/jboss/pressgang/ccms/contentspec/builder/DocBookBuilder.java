@@ -1429,6 +1429,10 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 if (validateTopicXML(buildData, topicNode, doc) && topicNode instanceof SpecTopic) {
                     // Add the editor/report a bug links (these should always be valid)
                     xmlPreProcessor.processTopicAdditionalInfo(buildData, (SpecTopic) topicNode, doc);
+                } else {
+                    // Re-run the unique id pass, as the topic would have been replaced by an error template
+                    DocBookBuildUtilities.setUniqueIds(buildData, topicNode, topicNode.getXMLDocument().getDocumentElement(),
+                            topicNode.getXMLDocument(), usedIdAttributes);
                 }
             }
         }
