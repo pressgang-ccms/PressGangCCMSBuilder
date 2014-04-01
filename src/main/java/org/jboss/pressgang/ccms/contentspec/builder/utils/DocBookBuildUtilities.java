@@ -1,16 +1,11 @@
 package org.jboss.pressgang.ccms.contentspec.builder.utils;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
-
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -27,10 +22,8 @@ import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionError;
 import org.jboss.pressgang.ccms.contentspec.sort.RevisionNodeSort;
 import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
-import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
 import org.jboss.pressgang.ccms.utils.structures.DocBookVersion;
@@ -62,17 +55,6 @@ public class DocBookBuildUtilities {
     private static final String[] DATE_FORMATS = new String[]{"MM-dd-yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "yyyy/MM/dd", "EEE MMM dd yyyy",
             "EEE, MMM dd yyyy", "EEE MMM dd yyyy Z", "EEE dd MMM yyyy", "EEE, dd MMM yyyy", "EEE dd MMM yyyy Z", "yyyyMMdd",
             "yyyyMMdd'T'HHmmss.SSSZ"};
-
-    private static final Pattern THURSDAY_DATE_RE = Pattern.compile("Thurs?(?!s?day)", java.util.regex.Pattern.CASE_INSENSITIVE);
-    private static final Pattern TUESDAY_DATE_RE = Pattern.compile("Tues(?!day)", java.util.regex.Pattern.CASE_INSENSITIVE);
-
-    private static final Pattern INJECT_RE = Pattern.compile(
-            "^\\s*(?<TYPE>Inject\\w*)(?<COLON>:?)\\s*(?<IDS>" + BuilderConstants.INJECT_ID_RE + ".*)\\s*$",
-            java.util.regex.Pattern.CASE_INSENSITIVE);
-    private static final Pattern INJECT_ID_RE = Pattern.compile("^[\\d ,]+$");
-    private static final Pattern INJECT_SINGLE_ID_RE = Pattern.compile("^[\\d]+$");
-    private static final List<String> VALID_INJECTION_TYPES = Arrays.asList("Inject", "InjectList", "InjectListItems",
-            "InjectListAlphaSort", "InjectSequence");
 
     /**
      * Adds the levels in the provided Level object to the content spec database.
@@ -367,32 +349,6 @@ public class DocBookBuildUtilities {
         }
 
         return topicXMLErrorTemplate;
-    }
-
-    /**
-     * Checks to see if the Rows, in XML Tables exceed the maximum number of columns.
-     *
-     * @param doc The XML DOM Document to be validated.
-     * @return True if the XML is valid, otherwise false.
-     */
-    public static boolean validateTopicTables(final Document doc) {
-        final NodeList tables = doc.getElementsByTagName("table");
-        for (int i = 0; i < tables.getLength(); i++) {
-            final Element table = (Element) tables.item(i);
-            if (!DocBookUtilities.validateTableRows(table)) {
-                return false;
-            }
-        }
-
-        final NodeList informalTables = doc.getElementsByTagName("informaltable");
-        for (int i = 0; i < informalTables.getLength(); i++) {
-            final Element informalTable = (Element) informalTables.item(i);
-            if (!DocBookUtilities.validateTableRows(informalTable)) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /**
@@ -711,7 +667,7 @@ public class DocBookBuildUtilities {
             final BuildData buildData) {
         final List<String> xmlErrors = new ArrayList<String>();
         // Check to ensure that if the topic has a table, that the table isn't missing any entries
-        if (!DocBookBuildUtilities.validateTopicTables(topicDoc)) {
+        if (!DocBookUtilities.validateTables(topicDoc)) {
             xmlErrors.add("Table column declaration doesn't match the number of entry elements.");
         }
         // Check that the root element matches the topic type
@@ -759,11 +715,6 @@ public class DocBookBuildUtilities {
                     xmlErrors.append("Info topics must be a &lt;sectioninfo&gt;.\n");
                 }
             }
-
-            // Check that the info topic doesn't contain invalid fields
-            if (checkForInvalidInfoElements(doc)) {
-                xmlErrors.append("Info topics cannot contain &lt;title&gt;, &lt;subtitle&gt; or &lt;titleabbrev&gt; elements.");
-            }
         } else {
             if (!doc.getDocumentElement().getNodeName().equals(DocBookUtilities.TOPIC_ROOT_NODE_NAME)) {
                 xmlErrors.append("Topics must be a &lt;" + DocBookUtilities.TOPIC_ROOT_NODE_NAME + "&gt;.\n");
@@ -786,95 +737,18 @@ public class DocBookBuildUtilities {
         final List<String> xmlErrors = new ArrayList<String>();
         if (topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId())) {
             // Check to make sure that a revhistory entry exists
-            final String revHistoryErrors = validateRevisionHistory(doc);
+            final String revHistoryErrors = DocBookUtilities.validateRevisionHistory(doc, DATE_FORMATS);
             if (revHistoryErrors != null) {
                 xmlErrors.add(revHistoryErrors);
+            }
+        } else if (topic.hasTag(buildData.getServerEntities().getInfoTagId())) {
+            // Check that the info topic doesn't contain invalid fields
+            if (DocBookUtilities.checkForInvalidInfoElements(doc)) {
+                xmlErrors.add("Info topics cannot contain &lt;title&gt;, &lt;subtitle&gt; or &lt;titleabbrev&gt; elements.");
             }
         }
 
         return xmlErrors;
-    }
-
-    protected static boolean checkForInvalidInfoElements(final Document doc) {
-        final List<Node> invalidElements = XMLUtilities.getDirectChildNodes(doc.getDocumentElement(), "title", "subtitle", "titleabbrev");
-        return invalidElements != null && !invalidElements.isEmpty();
-    }
-
-    /**
-     * Validates a Revision History XML DOM Document to ensure that the content is valid for use with Publican.
-     *
-     * @param doc The DOM Document that represents the XML that is to be validated.
-     * @return Null if there weren't any errors otherwise an error message that states what is wrong.
-     */
-    protected static String validateRevisionHistory(final Document doc) {
-        final List<String> invalidRevNumbers = new ArrayList<String>();
-
-        // Find each <revnumber> element and make sure it matches the publican regex
-        final NodeList revisions = doc.getElementsByTagName("revision");
-        Date previousDate = null;
-        for (int i = 0; i < revisions.getLength(); i++) {
-            final Element revision = (Element) revisions.item(i);
-            final NodeList revnumbers = revision.getElementsByTagName("revnumber");
-            final Element revnumber = revnumbers.getLength() == 1 ? (Element) revnumbers.item(0) : null;
-            final NodeList dates = revision.getElementsByTagName("date");
-            final Element date = dates.getLength() == 1 ? (Element) dates.item(0) : null;
-
-            // Make sure the rev number is valid and the order is correct
-            if (revnumber != null && !revnumber.getTextContent().matches("^([0-9.]*)-([0-9.]*)$")) {
-                invalidRevNumbers.add(revnumber.getTextContent());
-            } else if (revnumber == null) {
-                return "Invalid revision, missing &lt;revnumber&gt; element.";
-            }
-
-            // Check the dates are in chronological order
-            if (date != null) {
-                try {
-                    final Date revisionDate = DateUtils.parseDateStrictly(cleanDate(date.getTextContent()), Locale.ENGLISH, DATE_FORMATS);
-                    if (previousDate != null && revisionDate.after(previousDate)) {
-                        return "The revisions in the Revision History are not in descending chronological order, " +
-                                "starting from \"" + date.getTextContent() + "\".";
-                    }
-
-                    previousDate = revisionDate;
-                } catch (Exception e) {
-                    // Check that it is an invalid format or just an incorrect date (ie the day doesn't match)
-                    try {
-                        DateUtils.parseDate(cleanDate(date.getTextContent()), Locale.ENGLISH, DATE_FORMATS);
-                        return "Invalid revision, the name of the day specified in \"" + date.getTextContent() + "\" doesn't match the " +
-                                "date.";
-                    } catch (Exception ex) {
-                        return "Invalid revision, the date \"" + date.getTextContent() + "\" is not in a valid format.";
-                    }
-                }
-            } else {
-                return "Invalid revision, missing &lt;date&gt; element.";
-            }
-        }
-
-        if (!invalidRevNumbers.isEmpty()) {
-            return "Revision History has invalid &lt;revnumber&gt; values: " + CollectionUtilities.toSeperatedString(invalidRevNumbers,
-                    ", ") + ". The revnumber must match \"^([0-9.]*)-([0-9.]*)$\" to be valid.";
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * Basic method to clean a date string to fix any partial day names. It currently cleans "Thur", "Thurs" and "Tues".
-     *
-     * @param dateString
-     * @return
-     */
-    private static String cleanDate(final String dateString) {
-        if (dateString == null) {
-            return dateString;
-        }
-
-        String retValue = dateString;
-        retValue = THURSDAY_DATE_RE.matcher(retValue).replaceAll("Thu");
-        retValue = TUESDAY_DATE_RE.matcher(retValue).replaceAll("Tue");
-
-        return retValue;
     }
 
     public static void mergeRevisionHistories(final Document mainDoc, final Document mergeDoc) throws BuildProcessingException {
@@ -941,69 +815,7 @@ public class DocBookBuildUtilities {
         }
     }
 
-    /**
-     * Checks for instances of PressGang Injections that are invalid. This will check for the following problems:
-     * <ul>
-     * <li>Incorrect Captialisation</li>
-     * <li>Invalid Injection types (eg. InjectListItem)</li>
-     * <li>Missing colons</li>
-     * <li>Incorrect ID list (eg referencing Topic 10 as 10.xml)</li>
-     * </ul>
-     *
-     * @param doc The DOM document to be checked for invalid PressGang injections.
-     * @return A List of {@link InjectionError} objects that contain the invalid injection and the error messages.
-     */
-    public static List<InjectionError> checkForInvalidInjections(final Document doc) {
-        final List<InjectionError> retValue = new ArrayList<InjectionError>();
 
-        final List<Node> comments = XMLUtilities.getComments(doc.getDocumentElement());
-        for (final Node comment : comments) {
-            final Matcher match = INJECT_RE.matcher(comment.getTextContent());
-            if (match.find()) {
-                final String type = match.group("TYPE");
-                final String colon = match.group("COLON");
-                final String ids = match.group("IDS");
-
-                final InjectionError error = new InjectionError(comment.getTextContent());
-
-                // Check the type
-                if (!VALID_INJECTION_TYPES.contains(type)) {
-                    error.addMessage(
-                            "\"" + type + "\" is not a valid injection type. The valid types are: " + CollectionUtilities.toSeperatedString(
-                                    VALID_INJECTION_TYPES, ", "));
-                }
-
-                // Check that a colon has been specified
-                if (isNullOrEmpty(colon)) {
-                    error.addMessage("No colon specified in the injection.");
-                }
-
-                // Check that the id(s) are valid
-                if (isNullOrEmpty(ids) || !INJECT_ID_RE.matcher(ids).matches()) {
-                    if (type.equalsIgnoreCase("inject")) {
-                        error.addMessage(
-                                "The Topic ID in the injection is invalid. Please ensure that only the Topic ID is used. eg " +
-                                        "\"Inject: 1\"");
-                    } else {
-                        error.addMessage(
-                                "The Topic ID(s) in the injection are invalid. Please ensure that only the Topic ID is used and is " +
-                                        "in a comma separated list. eg \"InjectList: 1, 2, 3\"");
-                    }
-                } else if (type.equalsIgnoreCase("inject") && !INJECT_SINGLE_ID_RE.matcher(ids.trim()).matches()) {
-                    error.addMessage(
-                            "The Topic ID in the injection is invalid. Please ensure that only the Topic ID is used. eg " + "\"Inject: " +
-                                    "1\"");
-                }
-
-                // Some errors were found so add the injection to the retValue
-                if (!error.getMessages().isEmpty()) {
-                    retValue.add(error);
-                }
-            }
-        }
-
-        return retValue;
-    }
 
     public static boolean useStaticFixedURLForTopic(final BuildData buildData, final BaseTopicWrapper<?> topic) {
         return topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId())

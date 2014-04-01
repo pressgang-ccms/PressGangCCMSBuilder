@@ -44,7 +44,7 @@ import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingExc
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.DocBookBuildingOptions;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionError;
+import org.jboss.pressgang.ccms.utils.structures.InjectionError;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorDatabase.ErrorLevel;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorDatabase.ErrorType;
@@ -1405,7 +1405,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     DocBookBuildUtilities.setTopicNodeXMLForError(buildData, topicNode, getErrorInvalidInjectionTopicTemplate().getValue());
                 } else {
                     // Check for any possible invalid injection references
-                    final List<InjectionError> injectionErrors = DocBookBuildUtilities.checkForInvalidInjections(doc);
+                    final List<InjectionError> injectionErrors = XMLUtilities.checkForInvalidInjections(doc);
                     if (!injectionErrors.isEmpty()) {
                         for (final InjectionError injectionError : injectionErrors) {
                             final List<String> injectionErrorMsgs = new ArrayList<String>();
