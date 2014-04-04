@@ -31,7 +31,7 @@ public class BuildData {
     static {
         LOCALE_MAP.put("ja", new Locale("ja", "JP"));
         LOCALE_MAP.put("es", new Locale("es", "ES"));
-        LOCALE_MAP.put("zh-Hans", new Locale("zh", "CH"));
+        LOCALE_MAP.put("zh-Hans", new Locale("zh", "CN"));
         LOCALE_MAP.put("zh-TW", new Locale("zh", "TW"));
         LOCALE_MAP.put("pt-BR", new Locale("pt", "BR"));
         LOCALE_MAP.put("de", new Locale("de", "DE"));

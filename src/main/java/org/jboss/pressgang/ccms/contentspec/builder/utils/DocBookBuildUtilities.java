@@ -815,8 +815,6 @@ public class DocBookBuildUtilities {
         }
     }
 
-
-
     public static boolean useStaticFixedURLForTopic(final BuildData buildData, final BaseTopicWrapper<?> topic) {
         return topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId())
                 || topic.hasTag(buildData.getServerEntities().getLegalNoticeTagId())

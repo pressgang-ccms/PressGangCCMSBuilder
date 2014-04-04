@@ -3728,14 +3728,13 @@ public class DocBookBuilder implements ShutdownAbleApp {
     protected boolean setFixedURLsPass(final BuildData buildData, final List<TopicWrapper> topics, final Set<String> processedFileNames) {
         log.info("Doing Fixed URL Pass");
 
-        int tries = 0;
         boolean success = true;
 
         try {
-            final CollectionWrapper<TopicWrapper> updateTopics = topicProvider.newTopicCollection();
+            final CollectionWrapper<TopicWrapper> allUpdatedTopics = topicProvider.newTopicCollection();
+            CollectionWrapper<TopicWrapper> updateTopics = topicProvider.newTopicCollection();
 
             for (final TopicWrapper topic : topics) {
-
                 // Check if the app should be shutdown
                 if (isShuttingDown.get()) {
                     return false;
@@ -3784,11 +3783,18 @@ public class DocBookBuilder implements ShutdownAbleApp {
                             String postFix = "";
 
                             for (int uniqueCount = 1; uniqueCount <= BuilderConstants.MAXIMUM_SET_PROP_TAG_NAME_RETRY; ++uniqueCount) {
+                                // Check to make sure we aren't already using the name locally
+                                if (processedFileNames.contains(baseUrlName + postFix)) {
+                                    postFix = uniqueCount + "";
+                                    continue;
+                                }
+
+                                // Check that the fixed url is unique on the server
                                 final String query = "query;propertyTag" + buildData.getServerEntities().getFixedUrlPropertyTagId() + "=" +
                                         URLEncoder.encode(baseUrlName + postFix, ENCODING);
                                 final CollectionWrapper<TopicWrapper> queryTopics = topicProvider.getTopicsWithQuery(query);
 
-                                if (queryTopics.size() != 0 || processedFileNames.contains(baseUrlName + postFix)) {
+                                if (queryTopics.size() != 0) {
                                     postFix = uniqueCount + "";
                                 } else {
                                     break;
@@ -3843,10 +3849,18 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
                             updateTopic.setProperties(updatePropertyTags);
                             updateTopics.addItem(updateTopic);
+                            allUpdatedTopics.addItem(updateTopic);
                         }
                     } catch (ProviderException e) {
                         success = false;
                     }
+                }
+
+                // Do batch updates to avoid the timeout issue. See BZ#1065586
+                if (updateTopics.size() >= BuilderConstants.FIXED_URL_BATCH_SIZE) {
+                    log.debug("Doing batch update of fixed urls");
+                    topicProvider.updateTopics(updateTopics);
+                    updateTopics = topicProvider.newTopicCollection();
                 }
             }
 
@@ -3859,7 +3873,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 return false;
             }
 
-            updateFixedURLsForTopics(buildData, updateTopics, topics);
+            updateFixedURLsForTopics(buildData, allUpdatedTopics, topics);
         } catch (final Exception ex) {
             log.debug(ex);
             success = false;
