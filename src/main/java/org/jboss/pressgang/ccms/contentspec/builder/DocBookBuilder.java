@@ -584,12 +584,19 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @param contentSpec           The content spec that contains all the nodes to set the translation unique ids for.
      * @param translatedContentSpec The Translated Content Spec object, that holds details on the translated nodes.
      */
-    protected void setTranslationUniqueIds(final ContentSpec contentSpec, final TranslatedContentSpecWrapper translatedContentSpec) {
+    protected void setTranslationUniqueIds(final ContentSpec contentSpec,
+            final TranslatedContentSpecWrapper translatedContentSpec) throws BuildProcessingException {
         final List<TranslatedCSNodeWrapper> translatedCSNodes = translatedContentSpec.getTranslatedNodes().getItems();
         for (final TranslatedCSNodeWrapper translatedCSNode : translatedCSNodes) {
             final org.jboss.pressgang.ccms.contentspec.Node node = ContentSpecUtilities.findMatchingContentSpecNode(contentSpec,
                     translatedCSNode.getNodeId());
-            node.setTranslationUniqueId(translatedCSNode.getId().toString());
+            if (node != null) {
+                node.setTranslationUniqueId(translatedCSNode.getId().toString());
+            } else {
+                // This shouldn't happen, but take care of it incase it does due to another bug
+                throw new BuildProcessingException("Unable to find a matching Content Spec Node object for Translated Node " +
+                        translatedCSNode.getId());
+            }
         }
     }
 
