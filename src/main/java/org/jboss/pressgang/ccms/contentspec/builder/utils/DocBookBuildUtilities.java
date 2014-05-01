@@ -16,6 +16,7 @@ import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.RuleBasedNumberFormat;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.ITopicNode;
+import org.jboss.pressgang.ccms.contentspec.KeyValueNode;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
@@ -521,8 +522,20 @@ public class DocBookBuildUtilities {
      * @return The converted XML String representation.
      */
     public static String convertDocumentToFormattedString(final Document doc, final XMLFormatProperties xmlFormatProperties) {
-        return XMLUtilities.convertNodeToString(doc, xmlFormatProperties.getVerbatimElements(), xmlFormatProperties.getInlineElements(),
-                xmlFormatProperties.getContentsInlineElements(), true);
+        return convertDocumentToFormattedString(doc, xmlFormatProperties, true);
+    }
+
+    /**
+     * Convert a DOM Document to a Formatted String representation.
+     *
+     * @param doc                 The DOM Document to be converted and formatted.
+     * @param xmlFormatProperties The XML Formatting Properties.
+     * @return The converted XML String representation.
+     */
+    public static String convertDocumentToFormattedString(final Document doc, final XMLFormatProperties xmlFormatProperties,
+            final boolean includeElementName) {
+        return XMLUtilities.convertNodeToString(doc, includeElementName, xmlFormatProperties.getVerbatimElements(),
+                xmlFormatProperties.getInlineElements(), xmlFormatProperties.getContentsInlineElements(), true);
     }
 
     /**
@@ -844,6 +857,18 @@ public class DocBookBuildUtilities {
             return "Abstract";
         } else {
             return null;
+        }
+    }
+
+    public static <T> String getKeyValueNodeText(final BuildData buildData, final KeyValueNode<T> keyValueNode) {
+        if (keyValueNode == null) {
+            return null;
+        } else {
+            if (buildData.isTranslationBuild() && keyValueNode.getTranslatedValue() != null) {
+                return (String) keyValueNode.getTranslatedValue();
+            } else {
+                return (String) keyValueNode.getValue();
+            }
         }
     }
 }

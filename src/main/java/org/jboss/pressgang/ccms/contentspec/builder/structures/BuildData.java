@@ -27,7 +27,8 @@ import org.jboss.pressgang.ccms.wrapper.ServerSettingsWrapper;
 import org.jboss.pressgang.ccms.zanata.ZanataDetails;
 
 public class BuildData {
-    protected static final Map<String, Locale> LOCALE_MAP = new HashMap<String, Locale>();
+    public static final Map<String, Locale> LOCALE_MAP = new HashMap<String, Locale>();
+
     static {
         LOCALE_MAP.put("ja", new Locale("ja", "JP"));
         LOCALE_MAP.put("es", new Locale("es", "ES"));
@@ -55,14 +56,6 @@ public class BuildData {
      */
     private final String outputLocale;
     /**
-     * The original title of the book before any modifications are done.
-     */
-    private final String originalTitle;
-    /**
-     * The original product of the book before any modifications are done.
-     */
-    private final String originalProduct;
-    /**
      * Holds information on file url locations, which will be downloaded and included in the docbook zip file.
      */
     private final List<TopicImageData> imageLocations = new ArrayList<TopicImageData>();
@@ -70,7 +63,7 @@ public class BuildData {
     /**
      * If the build is building a translation or just a normal book
      */
-    private boolean translationBuild;
+    private final boolean translationBuild;
     /**
      * The date of this build.
      */
@@ -84,6 +77,10 @@ public class BuildData {
      * The locale the book is to be built in.
      */
     private final String locale;
+    /**
+     * The books original locale.
+     */
+    private final String defaultLocale;
     /**
      * The Docbook/Formatting Building Options to be used when building.
      */
@@ -119,25 +116,26 @@ public class BuildData {
     private BaseBugLinkStrategy bugLinkStrategy = null;
     private DocBookXMLPreProcessor xmlPreProcessor = null;
 
-    public BuildData(final String requester, final ContentSpec contentSpec, final DocBookBuildingOptions buildOptions, final DataProviderFactory providerFactory) {
-        this(requester, contentSpec, buildOptions, new ZanataDetails(), providerFactory);
-    }
-
-    public BuildData(final String requester, final ContentSpec contentSpec, final DocBookBuildingOptions buildOptions, final ZanataDetails zanataDetails, final DataProviderFactory providerFactory) {
+    public BuildData(final String requester, final ContentSpec contentSpec, final DocBookBuildingOptions buildOptions,
+            final ZanataDetails zanataDetails, final DataProviderFactory providerFactory, boolean translationBuild) {
         this.contentSpec = contentSpec;
         this.requester = requester;
         this.buildOptions = buildOptions;
         this.zanataDetails = zanataDetails;
-        originalProduct = contentSpec.getProduct();
-        originalTitle = contentSpec.getTitle();
-        escapedTitle = DocBookUtilities.escapeTitle(originalTitle);
+        escapedTitle = DocBookUtilities.escapeTitle(contentSpec.getTitleNode().getValue());
+        this.translationBuild = translationBuild;
         buildDate = new Date();
 
         serverSettings = providerFactory.getProvider(ServerSettingsProvider.class).getServerSettings();
 
-        locale = buildOptions.getLocale() == null ? (contentSpec.getLocale() == null ? serverSettings.getDefaultLocale() : contentSpec
-                .getLocale()) : buildOptions.getLocale();
-        outputLocale = buildOptions.getOutputLocale() == null ? locale : buildOptions.getOutputLocale();
+        defaultLocale = contentSpec.getLocale() == null ? serverSettings.getDefaultLocale() : contentSpec.getLocale();
+        if (translationBuild) {
+            locale = buildOptions.getLocale() == null ? defaultLocale : buildOptions.getLocale();
+            outputLocale = buildOptions.getOutputLocale() == null ? locale : buildOptions.getOutputLocale();
+        } else {
+            locale = defaultLocale;
+            outputLocale = locale;
+        }
 
         applyBuildOptionsFromSpec(contentSpec, buildOptions);
         applyInjectionOptionsFromSpec(contentSpec, buildOptions);
@@ -168,11 +166,11 @@ public class BuildData {
     }
 
     public String getOriginalBookTitle() {
-        return originalTitle;
+        return contentSpec.getTitleNode().getValue();
     }
 
     public String getOriginalBookProduct() {
-        return originalProduct;
+        return contentSpec.getProductNode().getValue();
     }
 
     public List<TopicImageData> getImageLocations() {
@@ -181,10 +179,6 @@ public class BuildData {
 
     public boolean isTranslationBuild() {
         return translationBuild;
-    }
-
-    public void setTranslationBuild(boolean translationBuild) {
-        this.translationBuild = translationBuild;
     }
 
     public Date getBuildDate() {
@@ -196,6 +190,10 @@ public class BuildData {
     }
 
     public String getBuildLocale() {
+        return locale;
+    }
+
+    public String getDefaultLocale() {
         return locale;
     }
 
@@ -313,8 +311,6 @@ public class BuildData {
     }
 
     /**
-     *
-     *
      * @return
      */
     public HashMap<String, byte[]> getOutputFiles() {
@@ -372,8 +368,7 @@ public class BuildData {
         if (bugLinkStrategy == null) {
             final BugLinkType bugLinkType = getContentSpec().getBugLinks();
             final BugLinkOptions bugOptions = getBugLinkOptions();
-            bugLinkStrategy = BugLinkStrategyFactory.getInstance().create(bugLinkType,
-                bugOptions == null ? null : bugOptions.getBaseUrl());
+            bugLinkStrategy = BugLinkStrategyFactory.getInstance().create(bugLinkType, bugOptions == null ? null : bugOptions.getBaseUrl());
         }
 
         return bugLinkStrategy;

@@ -35,6 +35,7 @@ import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.ITopicNode;
 import org.jboss.pressgang.ccms.contentspec.InfoTopic;
 import org.jboss.pressgang.ccms.contentspec.InitialContent;
+import org.jboss.pressgang.ccms.contentspec.KeyValueNode;
 import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
@@ -44,8 +45,6 @@ import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingExc
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.DocBookBuildingOptions;
-import org.jboss.pressgang.ccms.contentspec.exceptions.BugLinkException;
-import org.jboss.pressgang.ccms.utils.structures.InjectionError;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorDatabase.ErrorLevel;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorDatabase.ErrorType;
@@ -57,6 +56,7 @@ import org.jboss.pressgang.ccms.contentspec.entities.AuthorInformation;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
 import org.jboss.pressgang.ccms.contentspec.enums.LevelType;
 import org.jboss.pressgang.ccms.contentspec.enums.TopicType;
+import org.jboss.pressgang.ccms.contentspec.exceptions.BugLinkException;
 import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
 import org.jboss.pressgang.ccms.contentspec.sort.AuthorInformationComparator;
 import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
@@ -88,6 +88,7 @@ import org.jboss.pressgang.ccms.utils.common.ZipUtilities;
 import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
 import org.jboss.pressgang.ccms.utils.constants.CommonFilterConstants;
 import org.jboss.pressgang.ccms.utils.structures.DocBookVersion;
+import org.jboss.pressgang.ccms.utils.structures.InjectionError;
 import org.jboss.pressgang.ccms.utils.structures.Pair;
 import org.jboss.pressgang.ccms.wrapper.BlobConstantWrapper;
 import org.jboss.pressgang.ccms.wrapper.FileWrapper;
@@ -350,7 +351,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
     }
 
     /**
-     * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.
+     * Builds a DocBook Formatted Book using a Content Specification to define the structure and contents of the book.
      *
      * @param contentSpec     The content specification to build from.
      * @param requester       The user who requested the build.
@@ -366,7 +367,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
     }
 
     /**
-     * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.
+     * Builds a DocBook Formatted Book using a Content Specification to define the structure and contents of the book.
      *
      * @param contentSpec     The content specification to build from.
      * @param requester       The user who requested the build.
@@ -384,7 +385,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
     }
 
     /**
-     * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.
+     * Builds a DocBook Formatted Book using a Content Specification to define the structure and contents of the book.
      *
      * @param contentSpec     The content specification to build from.
      * @param requester       The user who requested the build.
@@ -403,7 +404,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
 
     /**
-     * Builds a Docbook Formatted Book using a Content Specification to define the structure and contents of the book.
+     * Builds a DocBook Formatted Book using a Content Specification to define the structure and contents of the book.
      *
      * @param contentSpec     The content specification to build from.
      * @param requester       The user who requested the build.
@@ -436,7 +437,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final String fixedRequester = requester == null ? "Unknown" : requester;
 
         // Create the build data
-        final BuildData buildData = new BuildData(fixedRequester, contentSpec, buildingOptions, zanataDetails, providerFactory);
+        final BuildData buildData = createBuildData(fixedRequester, contentSpec, buildingOptions, zanataDetails, providerFactory,
+                translationBuild);
         setBuildData(buildData);
 
         // Set the override files if any were passed
@@ -444,13 +446,16 @@ public class DocBookBuilder implements ShutdownAbleApp {
             buildData.getOverrideFiles().putAll(overrideFiles);
         }
 
-        // Set whether this is a translation build
-        buildData.setTranslationBuild(translationBuild);
-
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
             shutdown.set(true);
             return null;
+        }
+
+        // Get the entities to be used from the content spec and expand them
+        final List<Entity> entities = ContentSpecUtilities.getContentSpecEntities(buildData.getContentSpec());
+        if (buildData.getBuildOptions().isResolveEntities()) {
+            TranslationUtilities.resolveCustomContentSpecEntities(entities, buildData.getContentSpec());
         }
 
         // Get the translations
@@ -473,7 +478,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         final Map<SpecTopic, Set<String>> usedIdAttributes = new HashMap<SpecTopic, Set<String>>();
-        doSpecTopicFirstPass(buildData, usedIdAttributes);
+        doSpecTopicFirstPass(buildData, usedIdAttributes, entities);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -525,6 +530,13 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         return doBuildZipPass(buildData);
+    }
+
+    protected BuildData createBuildData(final String fixedRequester, final ContentSpec contentSpec,
+            final DocBookBuildingOptions buildingOptions, final ZanataDetails zanataDetails, final DataProviderFactory providerFactory,
+            final boolean translationBuild) {
+        return new BuildData(fixedRequester, contentSpec, buildingOptions, zanataDetails, providerFactory,
+                translationBuild);
     }
 
     /**
@@ -595,8 +607,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 node.setTranslationUniqueId(translatedCSNode.getId().toString());
             } else {
                 // This shouldn't happen, but take care of it incase it does due to another bug
-                throw new BuildProcessingException("Unable to find a matching Content Spec Node object for Translated Node " +
-                        translatedCSNode.getId());
+                throw new BuildProcessingException(
+                        "Unable to find a matching Content Spec Node object for Translated Node " + translatedCSNode.getId());
             }
         }
     }
@@ -653,8 +665,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
                     final List<ITopicNode> buildTopics = buildData.getBuildDatabase().getTopicNodesForTopicID(topicId);
                     for (final ITopicNode topicNode : buildTopics) {
-                        DocBookBuildUtilities.setTopicNodeXMLForError(
-                                buildData, topicNode, getErrorInvalidValidationTopicTemplate().getValue());
+                        DocBookBuildUtilities.setTopicNodeXMLForError(buildData, topicNode,
+                                getErrorInvalidValidationTopicTemplate().getValue());
                     }
                 }
             }
@@ -840,7 +852,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 if (latestTranslatedTopic != null && latestPushedTranslatedTopic != null && latestPushedTranslatedTopic.getTopicRevision
                         ().equals(
                         latestTranslatedTopic.getTopicRevision())) {
-                    translatedTopic = translatedTopicProvider.getTranslatedTopic(latestTranslatedTopic.getId());
+                    translatedTopic = latestTranslatedTopic;
                 } else if (latestPushedTranslatedTopic != null) {
                     latestPushedTranslatedTopic.setTopic(topic);
                     translatedTopic = createDummyTranslatedTopicFromExisting(latestPushedTranslatedTopic, buildData.getBuildLocale());
@@ -916,7 +928,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @param baseLocale       The original sources locale.
      * @return A Pair whose first element is the Latest Translated Topic and second element is the Latest Pushed Translation.
      */
-    private Pair<TranslatedTopicWrapper, TranslatedTopicWrapper> getLatestTranslations(final BuildData buildData,
+    protected Pair<TranslatedTopicWrapper, TranslatedTopicWrapper> getLatestTranslations(final BuildData buildData,
             final CollectionWrapper<TranslatedTopicWrapper> translatedTopics, final Integer rev, final String baseLocale) {
         TranslatedTopicWrapper latestTranslatedTopic = null;
         TranslatedTopicWrapper latestPushedTranslatedTopic = null;
@@ -1243,7 +1255,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
      */
     @SuppressWarnings("unchecked")
     private <T extends BaseTopicWrapper<T>> void doSpecTopicFirstPass(final BuildData buildData,
-            final Map<SpecTopic, Set<String>> usedIdAttributes) throws BuildProcessingException {
+            final Map<SpecTopic, Set<String>> usedIdAttributes, final List<Entity> entities) throws BuildProcessingException {
         final List<SpecTopic> specTopics = buildData.getBuildDatabase().getAllSpecTopics();
 
         for (final SpecTopic specTopic : specTopics) {
@@ -1262,6 +1274,14 @@ public class DocBookBuilder implements ShutdownAbleApp {
             assert topic != null;
 
             if (doc != null) {
+                if (buildData.getBuildOptions().isResolveEntities()) {
+                    // Expand the entities
+                    try {
+                        TranslationUtilities.resolveCustomTopicEntities(entities, doc);
+                    } catch (Exception e) {
+                        // Do Nothing
+                    }
+                }
                 // Process the conditional statements
                 processConditions(buildData, specTopic, doc);
 
@@ -1611,7 +1631,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @throws BuildProcessingException Any build issue that should not occur under normal circumstances. Ie a Template can't be
      *                                  converted to a DOM Document.
      */
-    private HashMap<String, byte[]> doBuildZipPass(final BuildData buildData) throws BuildProcessingException {
+    protected HashMap<String, byte[]> doBuildZipPass(final BuildData buildData) throws BuildProcessingException {
         log.info("Building the ZIP file");
 
         // Add the base book information
@@ -1653,8 +1673,10 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         // Setup the basic book.xml
         String basicBook = bookXmlTemplate.replaceAll(BuilderConstants.ESCAPED_TITLE_REGEX, buildData.getEscapedBookTitle());
-        basicBook = basicBook.replaceAll(BuilderConstants.PRODUCT_REGEX, contentSpec.getProduct());
-        basicBook = basicBook.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion());
+        basicBook = basicBook.replaceAll(BuilderConstants.PRODUCT_REGEX,
+                DocBookBuildUtilities.getKeyValueNodeText(buildData, contentSpec.getProductNode()));
+        basicBook = basicBook.replaceAll(BuilderConstants.VERSION_REGEX,
+                DocBookBuildUtilities.getKeyValueNodeText(buildData, contentSpec.getVersionNode()));
         basicBook = basicBook.replaceAll(BuilderConstants.DRAFT_REGEX, buildData.getBuildOptions().getDraft() ? "status=\"draft\"" : "");
 
         // Add the preface to the book.xml
@@ -1700,11 +1722,11 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         final Element sectionNode = bookBase.createElement("section");
                         setUpRootElement(buildData, level, bookBase, sectionNode);
 
-                        createSectionXML(buildData, level, bookBase, sectionNode, buildData.getBookTopicsFolder(), flattenStructure);
+                        createContainerXML(buildData, level, bookBase, sectionNode, buildData.getBookTopicsFolder(), flattenStructure);
 
                         bookBase.getDocumentElement().appendChild(sectionNode);
                     } else {
-                        final Element xiInclude = createRootElementXML(buildData, bookBase, level, flattenStructure);
+                        final Element xiInclude = createRootContainerXML(buildData, bookBase, level, flattenStructure);
                         if (xiInclude != null) {
                             bookBase.getDocumentElement().appendChild(xiInclude);
                         }
@@ -1954,14 +1976,20 @@ public class DocBookBuilder implements ShutdownAbleApp {
             retValue.append(", ").append(contentSpec.getId());
 
             // Add the product
-            retValue.append(", \"").append(new String(encoder.quoteAsUTF8(contentSpec.getProduct()), ENCODING)).append("\"");
+            retValue.append(", \"").append(
+                    new String(encoder.quoteAsUTF8(DocBookBuildUtilities.getKeyValueNodeText(buildData, contentSpec.getProductNode())),
+                            ENCODING)).append("\"");
 
             // Add the title
-            retValue.append(", \"").append(new String(encoder.quoteAsUTF8(contentSpec.getTitle()), ENCODING)).append("\"");
+            retValue.append(", \"").append(
+                    new String(encoder.quoteAsUTF8(DocBookBuildUtilities.getKeyValueNodeText(buildData, contentSpec.getTitleNode())),
+                            ENCODING)).append("\"");
 
             // Add the version
             if (contentSpec.getVersion() != null) {
-                retValue.append(", \"").append(new String(encoder.quoteAsUTF8(contentSpec.getVersion()), ENCODING)).append("\"");
+                retValue.append(", \"").append(
+                        new String(encoder.quoteAsUTF8(DocBookBuildUtilities.getKeyValueNodeText(buildData, contentSpec.getVersionNode())),
+                                ENCODING)).append("\"");
             } else {
                 retValue.append(", null");
             }
@@ -2004,23 +2032,82 @@ public class DocBookBuilder implements ShutdownAbleApp {
             }
         }
 
-        // Set the book title
-        bookInfo = bookInfo.replaceAll(BuilderConstants.TITLE_REGEX,
-                DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeForXML(contentSpec.getTitle())));
-        // Set the book subtitle
-        bookInfo = bookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX,
-                contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : DocBookBuildUtilities.escapeForReplaceAll(
-                        DocBookUtilities.escapeForXML(contentSpec.getSubtitle())));
-        // Set the book product
-        bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX,
-                DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeForXML(contentSpec.getProduct())));
-        // Set the book product version
-        bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, contentSpec.getVersion() == null ? "" : contentSpec.getVersion());
-        // Set or remove the book edition
-        if (contentSpec.getEdition() == null) {
+        // Replace the book info elements with the data from the content spec
+        boolean versionSet = false;
+        boolean editionSet = false;
+        boolean abstractSet = false;
+        boolean subtitleSet = false;
+        for (final org.jboss.pressgang.ccms.contentspec.Node node : contentSpec.getNodes()) {
+            if (node instanceof KeyValueNode) {
+                final KeyValueNode<?> keyValueNode = (KeyValueNode<?>) node;
+                if (!(keyValueNode.getValue() instanceof String)) {
+                    continue;
+                }
+
+                if (CommonConstants.CS_TITLE_TITLE.equalsIgnoreCase(keyValueNode.getKey())) {
+                    // Set the book title
+                    final String title = DocBookBuildUtilities.getKeyValueNodeText(buildData, keyValueNode);
+                    bookInfo = bookInfo.replaceAll(BuilderConstants.TITLE_REGEX,
+                            DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeForXML(title)));
+                } else if (CommonConstants.CS_SUBTITLE_TITLE.equalsIgnoreCase(keyValueNode.getKey())) {
+                    // Set the book subtitle
+                    final String subtitle = DocBookBuildUtilities.getKeyValueNodeText(buildData, keyValueNode);
+                    bookInfo = bookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX,
+                            contentSpec.getSubtitle() == null ? BuilderConstants.SUBTITLE_DEFAULT : DocBookBuildUtilities
+                                    .escapeForReplaceAll(DocBookUtilities.escapeForXML(subtitle)));
+                    subtitleSet = true;
+                } else if (CommonConstants.CS_PRODUCT_TITLE.equalsIgnoreCase(keyValueNode.getKey())) {
+                    // Set the book product
+                    final String product = DocBookBuildUtilities.getKeyValueNodeText(buildData, keyValueNode);
+                    bookInfo = bookInfo.replaceAll(BuilderConstants.PRODUCT_REGEX,
+                            DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeForXML(product)));
+                } else if (CommonConstants.CS_VERSION_TITLE.equalsIgnoreCase(keyValueNode.getKey())) {
+                    // Set the book version
+                    final String version = DocBookBuildUtilities.getKeyValueNodeText(buildData, keyValueNode);
+                    bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, version == null ? "" : version);
+                    versionSet = true;
+                } else if (CommonConstants.CS_EDITION_TITLE.equalsIgnoreCase(keyValueNode.getKey())) {
+                    // Set the book edition
+                    final String edition = DocBookBuildUtilities.getKeyValueNodeText(buildData, keyValueNode);
+                    bookInfo = bookInfo.replaceAll(BuilderConstants.EDITION_REGEX, edition);
+                } else if (CommonConstants.CS_ABSTRACT_TITLE.equalsIgnoreCase(keyValueNode.getKey())) {
+                    final String description = DocBookBuildUtilities.getKeyValueNodeText(buildData, keyValueNode);
+
+                    final String fixedAbstract;
+                    if (description.matches("^<(formal|sim)?para>(.|\\s)*")) {
+                        fixedAbstract = "<abstract>\n\t\t" + description + "\n\t</abstract>\n";
+                    } else {
+                        fixedAbstract = "<abstract>\n\t\t<para>\n\t\t\t" + description + "\n\t\t</para>\n\t</abstract>\n";
+                    }
+
+                    // Set the book abstract
+                    bookInfo = bookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX,
+                            DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeForXML(fixedAbstract)));
+                    abstractSet = true;
+                }
+            }
+        }
+
+        // Apply the null value defaults for version, edition and abstract
+        if (!subtitleSet) {
+            bookInfo = bookInfo.replaceAll(BuilderConstants.SUBTITLE_REGEX, BuilderConstants.SUBTITLE_DEFAULT);
+        }
+        if (!versionSet) {
+            bookInfo = bookInfo.replaceAll(BuilderConstants.VERSION_REGEX, "");
+        }
+        if (!editionSet) {
             bookInfo = bookInfo.replaceAll("<edition>.*</edition>(\r)?\n", "");
-        } else {
-            bookInfo = bookInfo.replaceAll(BuilderConstants.EDITION_REGEX, contentSpec.getEdition());
+        }
+        if (!abstractSet) {
+            final String fixedAbstract;
+            if (contentSpec.getAbstractTopic() != null) {
+                fixedAbstract = DocBookBuildUtilities.convertDocumentToFormattedString(contentSpec.getAbstractTopic().getXMLDocument(),
+                        getXMLFormatProperties());
+            } else {
+                fixedAbstract = BuilderConstants.DEFAULT_ABSTRACT;
+            }
+
+            bookInfo = bookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX, DocBookBuildUtilities.escapeForReplaceAll(fixedAbstract));
         }
 
         // Get the pubsnumber
@@ -2035,8 +2122,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         } else {
             bookInfo = bookInfo.replaceAll(BuilderConstants.PUBSNUMBER_REGEX, "<pubsnumber>" + pubsNumber + "</pubsnumber>");
         }
-        // Set the book abstract
-        bookInfo = bookInfo.replaceAll(BuilderConstants.ABSTRACT_REGEX, getBookAbstract(contentSpec));
+
         // Set the book to have a Legal Notice
         bookInfo = bookInfo.replaceAll(BuilderConstants.LEGAL_NOTICE_REGEX, BuilderConstants.LEGAL_NOTICE_XML);
 
@@ -2055,29 +2141,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
         } else {
             addToZip(buildData.getBookLocaleFolder() + "Book_Info.xml", bookInfo, buildData);
         }
-    }
-
-    /**
-     * Gets the book abstract that should be inserted into the Book_Info.xml file.
-     *
-     * @param contentSpec The content spec to get the abstract from.
-     * @return The XML content that represents the abstract.
-     */
-    private String getBookAbstract(final ContentSpec contentSpec) {
-        final String retValue;
-        if (contentSpec.getAbstract() == null && contentSpec.getAbstractTopic() == null) {
-            retValue = DocBookUtilities.escapeForXML(BuilderConstants.DEFAULT_ABSTRACT);
-        } else if (contentSpec.getAbstract() == null) {
-            retValue = DocBookBuildUtilities.convertDocumentToFormattedString(contentSpec.getAbstractTopic().getXMLDocument(),
-                    getXMLFormatProperties());
-        } else if (contentSpec.getAbstract().matches("^<(formal|sim)?para>(.|\\s)*")) {
-            retValue = "<abstract>\n\t\t" + DocBookUtilities.escapeForXML(contentSpec.getAbstract()) + "\n\t</abstract>\n";
-        } else {
-            retValue = "<abstract>\n\t\t<para>\n\t\t\t" + DocBookUtilities.escapeForXML(contentSpec.getAbstract())
-                    + "\n\t\t</para>\n\t</abstract>\n";
-        }
-
-        return DocBookBuildUtilities.escapeForReplaceAll(retValue);
     }
 
     /**
@@ -2174,7 +2237,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @return The Element that specifies the XiInclude for the chapter/appendix in the files.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
-    protected Element createRootElementXML(final BuildData buildData, final Document doc, final Level level,
+    protected Element createRootContainerXML(final BuildData buildData, final Document doc, final Level level,
             final boolean flattenStructure) throws BuildProcessingException {
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -2185,9 +2248,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final String elementName = level.getLevelType() == LevelType.PROCESS ? "chapter" : level.getLevelType().getTitle().toLowerCase(
                 Locale.ENGLISH);
 
-        Document chapter = null;
+        Document container = null;
         try {
-            chapter = XMLUtilities.convertStringToDocument("<" + elementName + "></" + elementName + ">");
+            container = XMLUtilities.convertStringToDocument("<" + elementName + "></" + elementName + ">");
         } catch (Exception ex) {
             // Exit since we shouldn't fail at converting a basic chapter
             log.debug("", ex);
@@ -2195,24 +2258,24 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         // Create the title
-        final String chapterName = level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
+        final String containerName = level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
                 buildData.isUseFixedUrls());
-        final String chapterXMLName = chapterName + ".xml";
+        final String containerXMLName = containerName + ".xml";
 
         // Create the xiInclude to be added to the book.xml file
-        final Element xiInclude = XMLUtilities.createXIInclude(doc, chapterXMLName);
+        final Element xiInclude = XMLUtilities.createXIInclude(doc, containerXMLName);
 
         // Setup the title and id
-        setUpRootElement(buildData, level, chapter, chapter.getDocumentElement());
+        setUpRootElement(buildData, level, container, container.getDocumentElement());
 
         // Create and add the chapter/level contents
-        createSectionXML(buildData, level, chapter, chapter.getDocumentElement(), buildData.getBookTopicsFolder() + chapterName + "/",
-                flattenStructure);
+        createContainerXML(buildData, level, container, container.getDocumentElement(),
+                buildData.getBookTopicsFolder() + containerName + "/", flattenStructure);
 
         // Add the boiler plate text and add the chapter to the book
-        final String chapterString = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(), chapter,
+        final String chapterString = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(), container,
                 elementName, buildData.getEntityFileName(), getXMLFormatProperties());
-        addToZip(buildData.getBookLocaleFolder() + chapterXMLName, chapterString, buildData);
+        addToZip(buildData.getBookLocaleFolder() + containerXMLName, chapterString, buildData);
 
         return xiInclude;
     }
@@ -2223,13 +2286,13 @@ public class DocBookBuilder implements ShutdownAbleApp {
      *
      * @param buildData           Information and data structures for the build.
      * @param doc                 The document object to add the child level content to.
-     * @param level               The level to build the chapter from.
+     * @param container           The level to build the chapter from.
      * @param parentFileDirectory The parent file location, so any files can be saved in a subdirectory of the parents location.
      * @param flattenStructure    Whether or not the build should be flattened.
      * @return The Element that specifies the XiInclude for the chapter/appendix in the files.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
-    protected Element createSubRootElementXML(final BuildData buildData, final Document doc, final Level level,
+    protected Element createSubRootContainerXML(final BuildData buildData, final Document doc, final Level container,
             final String parentFileDirectory, final boolean flattenStructure) throws BuildProcessingException {
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -2237,7 +2300,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         // Get the name of the element based on the type
-        final String elementName = level.getLevelType() == LevelType.PROCESS ? "chapter" : level.getLevelType().getTitle().toLowerCase(
+        final String elementName = container.getLevelType() == LevelType.PROCESS ? "chapter" : container.getLevelType().getTitle()
+                .toLowerCase(
                 Locale.ENGLISH);
 
         Document chapter = null;
@@ -2250,15 +2314,15 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         // Create the title
-        final String chapterName = level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
+        final String chapterName = container.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
                 buildData.isUseFixedUrls());
         final String chapterXMLName = chapterName + ".xml";
 
         // Setup the title and id
-        setUpRootElement(buildData, level, chapter, chapter.getDocumentElement());
+        setUpRootElement(buildData, container, chapter, chapter.getDocumentElement());
 
         // Create and add the chapter/level contents
-        createSectionXML(buildData, level, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + "/",
+        createContainerXML(buildData, container, chapter, chapter.getDocumentElement(), parentFileDirectory + chapterName + "/",
                 flattenStructure);
 
         // Add the boiler plate text and add the chapter to the book
@@ -2282,7 +2346,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
      */
     protected void setUpRootElement(final BuildData buildData, final Level level, final Document doc, Element ele) {
         final Element titleNode = doc.createElement("title");
-        if (buildData.isTranslationBuild() && level.getTranslatedTitle() != null && !level.getTranslatedTitle().isEmpty()) {
+        if (buildData.isTranslationBuild() && !isNullOrEmpty(level.getTranslatedTitle())) {
             titleNode.setTextContent(DocBookUtilities.escapeForXML(level.getTranslatedTitle()));
         } else {
             titleNode.setTextContent(DocBookUtilities.escapeForXML(level.getTitle()));
@@ -2332,21 +2396,22 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * Creates the section component of a chapter.xml for a specific Level.
      *
      * @param buildData          Information and data structures for the build.
-     * @param level              The section level object to get content from.
-     * @param chapter            The chapter document object that this section is to be added to.
+     * @param container          The level object to get content from.
+     * @param doc                The document object that this container is to be added to.
      * @param parentNode         The parent XML node of this section.
      * @param parentFileLocation The parent file location, so any files can be saved in a subdirectory of the parents location.
      * @param flattenStructure   Whether or not the build should be flattened.
      * @throws BuildProcessingException Thrown if an unexpected error occurs during building.
      */
-    protected void createSectionXML(final BuildData buildData, final Level level, final Document chapter, final Element parentNode,
+    protected void createContainerXML(final BuildData buildData, final Level container, final Document doc, final Element parentNode,
             final String parentFileLocation, final Boolean flattenStructure) throws BuildProcessingException {
-        final List<org.jboss.pressgang.ccms.contentspec.Node> levelData = level.getChildNodes();
+        final List<org.jboss.pressgang.ccms.contentspec.Node> levelData = container.getChildNodes();
 
         // Get the name of the element based on the type
-        final String elementName = level.getLevelType() == LevelType.PROCESS ? "chapter" : level.getLevelType().getTitle().toLowerCase(
+        final String elementName = container.getLevelType() == LevelType.PROCESS ? "chapter" : container.getLevelType().getTitle()
+                .toLowerCase(
                 Locale.ENGLISH);
-        final Element intro = chapter.createElement(elementName + "intro");
+        final Element intro = doc.createElement(elementName + "intro");
 
         // Storage container to hold the levels so they can be added in proper order with the intro
         final LinkedList<Node> childNodes = new LinkedList<Node>();
@@ -2361,30 +2426,30 @@ public class DocBookBuilder implements ShutdownAbleApp {
             if (node instanceof Level && node.getParent() != null && (((Level) node).getParent().getLevelType() == LevelType.BASE || (
                     (Level) node).getParent().getLevelType() == LevelType.PART) && ((Level) node).getLevelType() != LevelType
                     .INITIAL_CONTENT) {
-                final Level childLevel = (Level) node;
+                final Level childContainer = (Level) node;
 
                 // Create a new file for the Chapter/Appendix
-                final Element xiInclude = createSubRootElementXML(buildData, chapter, childLevel, parentFileLocation, flattenStructure);
+                final Element xiInclude = createSubRootContainerXML(buildData, doc, childContainer, parentFileLocation, flattenStructure);
                 if (xiInclude != null) {
                     childNodes.add(xiInclude);
                 }
             } else if (node instanceof Level && ((Level) node).getLevelType() == LevelType.INITIAL_CONTENT) {
-                if (level.getLevelType() == LevelType.PART) {
-                    addLevelsInitialContent(buildData, (InitialContent) node, chapter, intro, false);
+                if (container.getLevelType() == LevelType.PART) {
+                    addLevelsInitialContent(buildData, (InitialContent) node, doc, intro, false);
                 } else {
-                    addLevelsInitialContent(buildData, (InitialContent) node, chapter, parentNode);
+                    addLevelsInitialContent(buildData, (InitialContent) node, doc, parentNode, false);
                 }
             } else if (node instanceof Level) {
                 final Level childLevel = (Level) node;
 
                 // Create the section and its title
-                final Element sectionNode = chapter.createElement("section");
-                setUpRootElement(buildData, childLevel, chapter, sectionNode);
+                final Element sectionNode = doc.createElement("section");
+                setUpRootElement(buildData, childLevel, doc, sectionNode);
 
                 // Ignore sections that have no spec topics
                 if (!childLevel.hasSpecTopics()) {
                     if (buildData.getBuildOptions().isAllowEmptySections()) {
-                        Element warning = chapter.createElement("warning");
+                        Element warning = doc.createElement("warning");
                         warning.setTextContent("No Content");
                         sectionNode.appendChild(warning);
                     } else {
@@ -2392,7 +2457,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     }
                 } else {
                     // Add this sections child sections/topics
-                    createSectionXML(buildData, childLevel, chapter, sectionNode, parentFileLocation, flattenStructure);
+                    createContainerXML(buildData, childLevel, doc, sectionNode, parentFileLocation, flattenStructure);
                 }
 
                 childNodes.add(sectionNode);
@@ -2403,7 +2468,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 Node topicNode = null;
                 if (flattenStructure) {
                     // Include the topic as is, into the chapter
-                    topicNode = chapter.importNode(topicDoc.getDocumentElement(), true);
+                    topicNode = doc.importNode(topicDoc.getDocumentElement(), true);
                 } else {
                     // Create the topic file and add the reference to the chapter
                     final String topicFileName = createTopicXMLFile(buildData, specTopic, parentFileLocation);
@@ -2414,7 +2479,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                                 parentFileLocation.replace(
                                 buildData.getBookLocaleFolder(), "");
 
-                        topicNode = XMLUtilities.createXIInclude(chapter, fixedParentFileLocation + topicFileName);
+                        topicNode = XMLUtilities.createXIInclude(doc, fixedParentFileLocation + topicFileName);
                     }
                 }
 
@@ -2577,13 +2642,18 @@ public class DocBookBuilder implements ShutdownAbleApp {
         return null;
     }
 
+    private void addImagesToBook(final BuildData buildData) {
+        addImagesToBook(buildData, buildData.getBuildLocale(), buildData.getBookLocaleFolder(), true, true);
+    }
+
     /**
      * Adds all the images found using the {@link #processImageLocations(BuildData)} method to the files map that will alter be turned
      * into a ZIP archive.
      *
      * @param buildData Information and data structures for the build.
      */
-    private void addImagesToBook(final BuildData buildData) {
+    protected void addImagesToBook(final BuildData buildData, final String locale, final String imageFolder,
+            boolean revertToDefaultLocale, boolean logErrors) {
         // Load the database constants
         final byte[] failpenguinPng = blobConstantProvider.getBlobConstant(
                 buildData.getServerEntities().getFailPenguinBlobConstantId()).getValue();
@@ -2643,11 +2713,11 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         if (imageFile.getLanguageImages() != null && imageFile.getLanguageImages().getItems() != null) {
                             final List<LanguageImageWrapper> languageImages = imageFile.getLanguageImages().getItems();
                             for (final LanguageImageWrapper image : languageImages) {
-                                if (image.getLocale().equals(buildData.getBuildLocale())) {
+                                if (image.getLocale().equals(locale)) {
                                     languageImageFile = image;
                                     break;
-                                } else if (image.getLocale().equals(
-                                        buildData.getServerSettings().getDefaultLocale()) && languageImageFile == null) {
+                                } else if (revertToDefaultLocale && image.getLocale().equals(
+                                        buildData.getDefaultLocale()) && languageImageFile == null) {
                                     languageImageFile = image;
                                 }
                             }
@@ -2657,35 +2727,39 @@ public class DocBookBuilder implements ShutdownAbleApp {
                             success = true;
                             addToZip(buildData.getBookLocaleFolder() + imageLocation.getImageName(), languageImageFile.getImageData(),
                                     buildData);
-                        } else {
+                        } else if (logErrors) {
                             buildData.getErrorDatabase().addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES,
                                     "ImageFile ID " + imageID + " from image location " + imageLocation.getImageName() + " was not found!");
                         }
                     }
                 } catch (final NumberFormatException ex) {
                     success = false;
-                    buildData.getErrorDatabase().addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES,
-                            imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123" +
-                                    ".png, or images/321.jpg");
-                    log.debug("", ex);
+                    if (logErrors) {
+                        buildData.getErrorDatabase().addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES,
+                                imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123" +
+                                        ".png, or images/321.jpg");
+                        log.debug("", ex);
+                    }
                 } catch (final Exception ex) {
                     success = false;
-                    buildData.getErrorDatabase().addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES,
-                            imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123" +
-                                    ".png, or images/321.jpg");
-                    log.debug("", ex);
+                    if (logErrors) {
+                        buildData.getErrorDatabase().addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES,
+                                imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123" +
+                                        ".png, or images/321.jpg");
+                        log.debug("", ex);
+                    }
                 }
             }
 
             // Put in a place holder in the image couldn't be found
-            if (!success) {
-                buildData.getOutputFiles().put(buildData.getBookLocaleFolder() + imageLocation.getImageName(), failpenguinPng);
+            if (logErrors && !success) {
+                buildData.getOutputFiles().put(imageFolder + imageLocation.getImageName(), failpenguinPng);
             }
 
             final int progress = Math.round(imageProgress / imageTotal * 100);
             if (progress - lastPercent >= showPercent) {
                 lastPercent = progress;
-                log.info("\tDownloading Images " + progress + "% done");
+                log.info("\tDownloading " + locale + " Images " + progress + "% done");
             }
 
             ++imageProgress;
@@ -3562,8 +3636,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 if (attributes != null) {
                     final Node fileRefAttribute = attributes.getNamedItem("fileref");
 
-                    if (fileRefAttribute != null && (fileRefAttribute.getNodeValue() == null
-                            || fileRefAttribute.getNodeValue().isEmpty())) {
+                    if (fileRefAttribute != null && (fileRefAttribute.getNodeValue() == null || fileRefAttribute.getNodeValue().isEmpty()
+                    )) {
                         fileRefAttribute.setNodeValue("images/" + BuilderConstants.FAILPENGUIN_PNG_NAME + ".jpg");
                         buildData.getImageLocations().add(new TopicImageData(topic, fileRefAttribute.getNodeValue()));
                     } else if (fileRefAttribute != null && fileRefAttribute.getNodeValue() != null) {
@@ -4078,7 +4152,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * Adds a file to the files ZIP.
      *
      * @param path      The path to add the file to.
-     * @param file      The file to add to the ZIP.
+     * @param data      The data to add to the ZIP.
      * @param buildData
      */
     protected void addToZip(final String path, final byte[] data, final BuildData buildData) {
@@ -4109,7 +4183,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                             if (languageFile.getLocale().equals(buildData.getBuildLocale())) {
                                 languageFileFile = languageFile;
                             } else if (languageFile.getLocale().equals(
-                                    buildData.getServerSettings().getDefaultLocale()) && languageFileFile == null) {
+                                    buildData.getDefaultLocale()) && languageFileFile == null) {
                                 languageFileFile = languageFile;
                             }
                         }

@@ -1,6 +1,8 @@
 package org.jboss.pressgang.ccms.contentspec.builder;
 
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -237,20 +239,54 @@ public class DocBookXMLPreProcessor {
         return linkEle;
     }
 
-    public void processTopicBugLink(final BuildData buildData, final SpecTopic specTopic, final Document document, final Element rootEle) throws BuildProcessingException {
-        try {
-            String specifiedBuildName = "";
-            if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
+    /**
+     * Creates a string that represents an external link.
+     *
+     * @param docBookVersion The DocBook Version the link should be created for.
+     * @param title
+     * @param url            The links url.  @return
+     */
+    protected String createExternalLinkElement(final DocBookVersion docBookVersion, final String title, final String url) {
+        final StringBuilder linkEle = new StringBuilder();
+        if (docBookVersion == DocBookVersion.DOCBOOK_50) {
+            linkEle.append("<link xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:href=\"").append(url).append("\">");
+            linkEle.append(title);
+            linkEle.append("</link>");
+        } else {
+            linkEle.append("<ulink url=\"").append(url).append("\">");
+            linkEle.append(title);
+            linkEle.append("</ulink>");
+        }
+        return linkEle.toString();
+    }
 
+    public void processTopicBugLink(final BuildData buildData, final SpecTopic specTopic, final Document document,
+            final Element rootEle) throws BuildProcessingException {
+        try {
             // build the bug link url with the base components
-            final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), specTopic, specifiedBuildName,
-                    buildData.getBuildDate());
+            final String bugLinkUrl = getBugLinkUrl(buildData, specTopic);
             processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, rootEle);
         } catch (BugLinkException e) {
             throw new BuildProcessingException(e);
         } catch (final Exception ex) {
             throw new BuildProcessingException("Failed to insert Bug Links into the DOM Document");
         }
+    }
+
+    public String getBugLinkUrl(final BuildData buildData, final SpecTopic specTopic) throws UnsupportedEncodingException {
+        String specifiedBuildName = "";
+        if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
+
+        // build the bug link url with the base components
+        return bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), specTopic, specifiedBuildName, buildData.getBuildDate());
+    }
+
+    public String getBugLinkUrl(final BuildData buildData, final InitialContent initialContent) throws UnsupportedEncodingException {
+        String specifiedBuildName = "";
+        if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
+
+        // build the bug link url with the base components
+        return bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), initialContent, specifiedBuildName, buildData.getBuildDate());
     }
 
     public void processInitialContentBugLink(final BuildData buildData, final InitialContent initialContent, final Document document,
@@ -265,12 +301,8 @@ public class DocBookXMLPreProcessor {
             try {
                 final Element rootEle = getRootAdditionalInfoElement(document, rootNode);
 
-                String specifiedBuildName = "";
-                if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
-
                 // build the bug link url with the base components
-                final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), initialContent,
-                        specifiedBuildName, buildData.getBuildDate());
+                final String bugLinkUrl = getBugLinkUrl(buildData, initialContent);
                 processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, rootEle);
             } catch (BugLinkException e) {
                 throw new BuildProcessingException(e);
@@ -329,7 +361,8 @@ public class DocBookXMLPreProcessor {
     /**
      * Adds some debug information and links to the end of the topic
      */
-    public void processTopicAdditionalInfo(final BuildData buildData, final SpecTopic specTopic, final Document document) throws BuildProcessingException {
+    public void processTopicAdditionalInfo(final BuildData buildData, final SpecTopic specTopic,
+            final Document document) throws BuildProcessingException {
         // First check if we should even bother processing any additional info based on build data
         if (!shouldAddAdditionalInfo(buildData, specTopic)) return;
 
@@ -437,6 +470,16 @@ public class DocBookXMLPreProcessor {
     public List<String> processInjections(final ContentSpec contentSpec, final ITopicNode topic, final ArrayList<String> customInjectionIds,
             final Document xmlDocument, final DocBookBuildingOptions docbookBuildingOptions, final BuildDatabase buildDatabase,
             final boolean usedFixedUrls, final Integer fixedUrlPropertyTagId) {
+        final List<Integer> types = Arrays.asList(ORDEREDLIST_INJECTION_POINT, XREF_INJECTION_POINT, ITEMIZEDLIST_INJECTION_POINT,
+                LIST_INJECTION_POINT);
+        return processInjections(contentSpec, topic, customInjectionIds, xmlDocument, docbookBuildingOptions, buildDatabase, usedFixedUrls,
+                fixedUrlPropertyTagId, types);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<String> processInjections(final ContentSpec contentSpec, final ITopicNode topic, final ArrayList<String> customInjectionIds,
+            final Document xmlDocument, final DocBookBuildingOptions docbookBuildingOptions, final BuildDatabase buildDatabase,
+            final boolean useFixedUrls, final Integer fixedUrlPropertyTagId, final List<Integer> types) {
         /*
          * this collection keeps a track of the injection point markers and the docbook lists that we will be replacing them
          * with
@@ -444,20 +487,9 @@ public class DocBookXMLPreProcessor {
         final HashMap<Node, InjectionListData> customInjections = new HashMap<Node, InjectionListData>();
 
         final List<String> errorTopics = new ArrayList<String>();
+        collectInjectionData(contentSpec, topic, customInjectionIds, xmlDocument, buildDatabase, errorTopics, customInjections,
+                useFixedUrls, fixedUrlPropertyTagId, types);
 
-        errorTopics.addAll(
-                processInjections(contentSpec, topic, customInjectionIds, customInjections, ORDEREDLIST_INJECTION_POINT, xmlDocument,
-                        CUSTOM_INJECTION_SEQUENCE_RE, null, buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
-        errorTopics.addAll(processInjections(contentSpec, topic, customInjectionIds, customInjections, XREF_INJECTION_POINT, xmlDocument,
-                CUSTOM_INJECTION_SINGLE_RE, null, buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
-        errorTopics.addAll(
-                processInjections(contentSpec, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument,
-                        CUSTOM_INJECTION_LIST_RE, null, buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
-        errorTopics.addAll(
-                processInjections(contentSpec, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument,
-                        CUSTOM_ALPHA_SORT_INJECTION_LIST_RE, new NodeTitleSorter(), buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
-        errorTopics.addAll(processInjections(contentSpec, topic, customInjectionIds, customInjections, LIST_INJECTION_POINT, xmlDocument,
-                CUSTOM_INJECTION_LISTITEMS_RE, null, buildDatabase, usedFixedUrls, fixedUrlPropertyTagId));
 
         /*
          * If we are not ignoring errors, return the list of topics that could not be injected
@@ -497,65 +529,107 @@ public class DocBookXMLPreProcessor {
         return errorTopics;
     }
 
+    protected void collectInjectionData(final ContentSpec contentSpec, final ITopicNode topic, final ArrayList<String> customInjectionIds,
+            final Document xmlDocument, final BuildDatabase buildDatabase, final List<String> errorTopics,
+            final HashMap<Node, InjectionListData> customInjections, final boolean useFixedUrls, final Integer fixedUrlPropertyTagId,
+            final List<Integer> types) {
+        if (types.contains(ORDEREDLIST_INJECTION_POINT)) {
+            errorTopics.addAll(
+                    processInjections(contentSpec, topic, customInjectionIds, customInjections, ORDEREDLIST_INJECTION_POINT, xmlDocument,
+                            CUSTOM_INJECTION_SEQUENCE_RE, null, buildDatabase, useFixedUrls, fixedUrlPropertyTagId));
+        }
+        if (types.contains(XREF_INJECTION_POINT)) {
+            errorTopics.addAll(
+                    processInjections(contentSpec, topic, customInjectionIds, customInjections, XREF_INJECTION_POINT, xmlDocument,
+                            CUSTOM_INJECTION_SINGLE_RE, null, buildDatabase, useFixedUrls, fixedUrlPropertyTagId));
+        }
+        if (types.contains(ITEMIZEDLIST_INJECTION_POINT)) {
+            errorTopics.addAll(
+                    processInjections(contentSpec, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument,
+                            CUSTOM_INJECTION_LIST_RE, null, buildDatabase, useFixedUrls, fixedUrlPropertyTagId));
+            errorTopics.addAll(
+                    processInjections(contentSpec, topic, customInjectionIds, customInjections, ITEMIZEDLIST_INJECTION_POINT, xmlDocument,
+                            CUSTOM_ALPHA_SORT_INJECTION_LIST_RE, new NodeTitleSorter(), buildDatabase, useFixedUrls,
+                            fixedUrlPropertyTagId));
+        }
+        if (types.contains(LIST_INJECTION_POINT)) {
+            errorTopics.addAll(
+                    processInjections(contentSpec, topic, customInjectionIds, customInjections, LIST_INJECTION_POINT, xmlDocument,
+                            CUSTOM_INJECTION_LISTITEMS_RE, null, buildDatabase, useFixedUrls, fixedUrlPropertyTagId));
+        }
+    }
+
     public List<String> processInjections(final ContentSpec contentSpec, final ITopicNode topic, final ArrayList<String> customInjectionIds,
             final HashMap<Node, InjectionListData> customInjections, final int injectionPointType, final Document xmlDocument,
             final Pattern regularExpression, final ExternalListSort<Integer, SpecNode, InjectionData> sortComparator,
-            final BuildDatabase buildDatabase, final boolean usedFixedUrls, final Integer fixedUrlPropertyTagId) {
+            final BuildDatabase buildDatabase, final boolean useFixedUrls, final Integer fixedUrlPropertyTagId) {
         final List<String> retValue = new ArrayList<String>();
 
         if (xmlDocument == null) return retValue;
 
         // loop over all of the comments in the document
         for (final Node comment : XMLUtilities.getComments(xmlDocument)) {
-            final String commentContent = comment.getNodeValue();
+            processCommentInjection(contentSpec, topic, customInjectionIds, customInjections, injectionPointType, xmlDocument, comment,
+                    regularExpression, sortComparator, buildDatabase, useFixedUrls, fixedUrlPropertyTagId, retValue);
+        }
 
-            // find any matches
-            final Matcher injectionSequenceMatcher = regularExpression.matcher(commentContent);
+        return retValue;
+    }
 
-            // loop over the regular expression matches
-            while (injectionSequenceMatcher.find()) {
-                // Get the list of topics from the named group in the regular expression match
-                final String reMatch = injectionSequenceMatcher.group(IDS_RE_NAMED_GROUP);
+    protected void processCommentInjection(final ContentSpec contentSpec, final ITopicNode topic,
+            final ArrayList<String> customInjectionIds, final HashMap<Node, InjectionListData> customInjections,
+            final int injectionPointType, final Document xmlDocument, final Node comment, final Pattern regularExpression,
+            final ExternalListSort<Integer, SpecNode, InjectionData> sortComparator, final BuildDatabase buildDatabase,
+            final boolean usedFixedUrls, final Integer fixedUrlPropertyTagId, final List<String> retValue) {
+        final String commentContent = comment.getNodeValue();
 
-                // make sure we actually found a matching named group
-                if (reMatch != null) {
-                    // get the sequence of ids
-                    final List<InjectionData> sequenceIDs = processIdList(reMatch);
+        // find any matches
+        final Matcher injectionSequenceMatcher = regularExpression.matcher(commentContent);
 
-                    // sort the InjectionData list if required
-                    if (sortComparator != null) {
-                        sortComparator.sort(buildDatabase.getAllSpecNodes(), sequenceIDs);
-                    }
+        // loop over the regular expression matches
+        while (injectionSequenceMatcher.find()) {
+            // Get the list of topics from the named group in the regular expression match
+            final String reMatch = injectionSequenceMatcher.group(IDS_RE_NAMED_GROUP);
 
-                    // loop over all the topic ids in the injection point
-                    for (final InjectionData sequenceID : sequenceIDs) {
+            // make sure we actually found a matching named group
+            if (reMatch != null) {
+                // get the sequence of ids
+                final List<InjectionData> sequenceIDs = processIdList(reMatch);
+
+                // sort the InjectionData list if required
+                if (sortComparator != null) {
+                    sortComparator.sort(buildDatabase.getAllSpecNodes(), sequenceIDs);
+                }
+
+                // loop over all the topic ids in the injection point
+                for (final InjectionData sequenceID : sequenceIDs) {
                         /*
                          * topics that are injected into custom injection points are excluded from the generic related topic
                          * lists at the beginning and end of a topic. adding the topic id here means that when it comes time to
                          * generate the generic related topic lists, we can skip this topic
                          */
-                        customInjectionIds.add(sequenceID.id);
+                    customInjectionIds.add(sequenceID.id);
 
                         /*
                          * See if the topic/target is available in the content spec
                          */
-                        final boolean isTopicId = BuilderConstants.TOPIC_ID_PATTERN.matcher(sequenceID.id).matches();
-                        final boolean isInContentSpec;
-                        if (isTopicId) {
-                            isInContentSpec = contentSpec.getBaseLevel().isSpecTopicInLevelByTopicID(Integer.parseInt(sequenceID.id));
-                        } else {
-                            isInContentSpec = contentSpec.getBaseLevel().isSpecNodeInLevelByTargetID(sequenceID.id);
-                        }
+                    final boolean isTopicId = BuilderConstants.TOPIC_ID_PATTERN.matcher(sequenceID.id).matches();
+                    final boolean isInContentSpec;
+                    if (isTopicId) {
+                        isInContentSpec = contentSpec.getBaseLevel().isSpecTopicInLevelByTopicID(Integer.parseInt(sequenceID.id));
+                    } else {
+                        isInContentSpec = contentSpec.getBaseLevel().isSpecNodeInLevelByTargetID(sequenceID.id);
+                    }
 
                         /*
                          * It is possible that the topic id referenced in the injection point has not been related, or has not
                          * been included in the list of topics to process. This is a validity error
                          */
-                        if (isInContentSpec) {
+                    if (isInContentSpec) {
                             /*
                              * build our list
                              */
-                            List<List<Element>> list = new ArrayList<List<Element>>();
+                        List<List<Element>> list = new ArrayList<List<Element>>();
 
                             /*
                              * each related topic is added to a string, which is stored in the customInjections collection. the
@@ -563,35 +637,32 @@ public class DocBookXMLPreProcessor {
                              * the xrefs we are generating for the related topic with the text in the xml file that these xrefs
                              * will eventually replace
                              */
-                            if (customInjections.containsKey(comment)) list = customInjections.get(comment).listItems;
+                        if (customInjections.containsKey(comment)) list = customInjections.get(comment).listItems;
 
-                            final SpecNode closestSpecNode;
-                            if (isTopicId) {
-                                closestSpecNode = topic.getClosestTopicByDBId(Integer.parseInt(sequenceID.id), true);
-                            } else {
-                                closestSpecNode = topic.getClosestSpecNodeByTargetId(sequenceID.id, true);
-                            }
-                            if (sequenceID.optional) {
-                                list.add(DocBookUtilities.buildEmphasisPrefixedXRef(xmlDocument, OPTIONAL_LIST_PREFIX,
-                                        closestSpecNode.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
-                            } else {
-                                list.add(DocBookUtilities.buildXRef(xmlDocument,
-                                        closestSpecNode.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
-                            }
+                        final SpecNode closestSpecNode;
+                        if (isTopicId) {
+                            closestSpecNode = topic.getClosestTopicByDBId(Integer.parseInt(sequenceID.id), true);
+                        } else {
+                            closestSpecNode = topic.getClosestSpecNodeByTargetId(sequenceID.id, true);
+                        }
+                        if (sequenceID.optional) {
+                            list.add(DocBookUtilities.buildEmphasisPrefixedXRef(xmlDocument, OPTIONAL_LIST_PREFIX,
+                                    closestSpecNode.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
+                        } else {
+                            list.add(DocBookUtilities.buildXRef(xmlDocument,
+                                    closestSpecNode.getUniqueLinkId(fixedUrlPropertyTagId, usedFixedUrls)));
+                        }
 
                             /*
                              * save the changes back into the customInjections collection
                              */
-                            customInjections.put(comment, new InjectionListData(list, injectionPointType));
-                        } else {
-                            retValue.add(sequenceID.id);
-                        }
+                        customInjections.put(comment, new InjectionListData(list, injectionPointType));
+                    } else {
+                        retValue.add(sequenceID.id);
                     }
                 }
             }
         }
-
-        return retValue;
     }
 
     /**

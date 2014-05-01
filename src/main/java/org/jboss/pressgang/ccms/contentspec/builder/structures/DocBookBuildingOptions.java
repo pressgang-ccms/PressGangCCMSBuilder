@@ -34,6 +34,7 @@ public class DocBookBuildingOptions implements Serializable {
     private Boolean serverBuild = false;
     private Integer maxRevision = null;
     private Boolean calculateChunkDepth = false;
+    private Boolean resolveEntities = false;
 
     public DocBookBuildingOptions() {
 
@@ -245,5 +246,13 @@ public class DocBookBuildingOptions implements Serializable {
 
     public void setUseOldBugLinks(Boolean useOldBugLinks) {
         this.useOldBugLinks = useOldBugLinks;
+    }
+
+    public Boolean isResolveEntities() {
+        return resolveEntities;
+    }
+
+    public void setResolveEntities(Boolean resolveEntities) {
+        this.resolveEntities = resolveEntities;
     }
 }

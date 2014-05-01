@@ -86,6 +86,8 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 
         if (buildType == BuildType.PUBLICAN) {
             docbookBuilder = new PublicanDocBookBuilder(providerFactory);
+        } else if (buildType == BuildType.PUBLICAN_PO) {
+            docbookBuilder = new PublicanPODocBookBuilder(providerFactory);
         } else if (buildType == BuildType.JDOCBOOK) {
             docbookBuilder = new JDocBookBuilder(providerFactory);
         } else {
@@ -145,6 +147,8 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
 
         if (buildType == BuildType.PUBLICAN) {
             docbookBuilder = new PublicanDocBookBuilder(providerFactory);
+        } else if (buildType == BuildType.PUBLICAN_PO) {
+            docbookBuilder = new PublicanPODocBookBuilder(providerFactory);
         } else if (buildType == BuildType.JDOCBOOK) {
             docbookBuilder = new JDocBookBuilder(providerFactory);
         } else {

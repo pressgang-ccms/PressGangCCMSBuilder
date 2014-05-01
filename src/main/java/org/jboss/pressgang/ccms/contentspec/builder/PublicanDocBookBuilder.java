@@ -120,7 +120,7 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
         if (!publicanCfg.contains("version:")) {
             String version = contentSpec.getBookVersion();
             if (isNullOrEmpty(version)) {
-                version = contentSpec.getVersion();
+                version = DocBookBuildUtilities.getKeyValueNodeText(buildData, contentSpec.getVersionNode());
             }
             if (isNullOrEmpty(version)) {
                 version = BuilderConstants.DEFAULT_VERSION;
@@ -176,7 +176,7 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
             if (publicanCfg.indexOf("version:") == -1) {
                 String version = contentSpec.getBookVersion();
                 if (isNullOrEmpty(version)) {
-                    version = contentSpec.getVersion();
+                    version = DocBookBuildUtilities.getKeyValueNodeText(buildData, contentSpec.getVersionNode());
                 }
                 if (isNullOrEmpty(version)) {
                     version = BuilderConstants.DEFAULT_VERSION;
