@@ -17,6 +17,7 @@ import org.jboss.pressgang.ccms.contentspec.SpecNodeWithRelationships;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
 import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
+import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.sort.NodeTitleSorter;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
@@ -27,6 +28,7 @@ import org.jboss.pressgang.ccms.contentspec.entities.Relationship;
 import org.jboss.pressgang.ccms.contentspec.entities.TargetRelationship;
 import org.jboss.pressgang.ccms.contentspec.entities.TopicRelationship;
 import org.jboss.pressgang.ccms.contentspec.enums.TopicType;
+import org.jboss.pressgang.ccms.contentspec.exceptions.BugLinkException;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
 import org.jboss.pressgang.ccms.utils.sort.ExternalListSort;
@@ -235,7 +237,7 @@ public class DocBookXMLPreProcessor {
         return linkEle;
     }
 
-    public void processTopicBugLink(final BuildData buildData, final SpecTopic specTopic, final Document document, final Element rootEle) {
+    public void processTopicBugLink(final BuildData buildData, final SpecTopic specTopic, final Document document, final Element rootEle) throws BuildProcessingException {
         try {
             String specifiedBuildName = "";
             if (buildData.getBuildName() != null) specifiedBuildName = buildData.getBuildName();
@@ -244,13 +246,15 @@ public class DocBookXMLPreProcessor {
             final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), specTopic, specifiedBuildName,
                     buildData.getBuildDate());
             processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, rootEle);
+        } catch (BugLinkException e) {
+            throw new BuildProcessingException(e);
         } catch (final Exception ex) {
-            LOG.error("Failed to insert Bug Links into the DOM Document", ex);
+            throw new BuildProcessingException("Failed to insert Bug Links into the DOM Document");
         }
     }
 
     public void processInitialContentBugLink(final BuildData buildData, final InitialContent initialContent, final Document document,
-            final Element rootNode) {
+            final Element rootNode) throws BuildProcessingException {
         if (!buildData.getBuildOptions().getInsertBugLinks()) return;
 
         final List<Node> invalidNodes = XMLUtilities.getChildNodes(document.getDocumentElement(), "section");
@@ -268,8 +272,10 @@ public class DocBookXMLPreProcessor {
                 final String bugLinkUrl = bugLinkStrategy.generateUrl(buildData.getBugLinkOptions(), initialContent,
                         specifiedBuildName, buildData.getBuildDate());
                 processBugLink(buildData.getDocBookVersion(), bugLinkUrl, document, rootEle);
+            } catch (BugLinkException e) {
+                throw new BuildProcessingException(e);
             } catch (final Exception ex) {
-                LOG.error("Failed to insert Bug Links into the DOM Document", ex);
+                throw new BuildProcessingException("Failed to insert Bug Links into the DOM Document");
             }
         }
     }
@@ -323,7 +329,7 @@ public class DocBookXMLPreProcessor {
     /**
      * Adds some debug information and links to the end of the topic
      */
-    public void processTopicAdditionalInfo(final BuildData buildData, final SpecTopic specTopic, final Document document) {
+    public void processTopicAdditionalInfo(final BuildData buildData, final SpecTopic specTopic, final Document document) throws BuildProcessingException {
         // First check if we should even bother processing any additional info based on build data
         if (!shouldAddAdditionalInfo(buildData, specTopic)) return;
 
