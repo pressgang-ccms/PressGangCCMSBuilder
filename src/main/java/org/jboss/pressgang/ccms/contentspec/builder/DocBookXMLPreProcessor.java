@@ -391,7 +391,7 @@ public class DocBookXMLPreProcessor {
 
         // For simplesects inject the links into the last <simplesect>
         if (simpleSectNodes.getLength() > 0) {
-            rootEle = (Element) refEntryNodes.item(refEntryNodes.getLength() - 1);
+            rootEle = (Element) simpleSectNodes.item(simpleSectNodes.getLength() - 1);
         }
 
         return rootEle;
