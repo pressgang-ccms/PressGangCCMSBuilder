@@ -429,6 +429,8 @@ public class DocBookBuildUtilities {
         retValue = retValue.replaceAll("type:\\s*.*($|\\r\\n|\\n)" + "", "");
         // Remove any brand statements
         retValue = retValue.replaceAll("brand:\\s*.*($|\\r\\n|\\n)" + "", "");
+        // BZ#1091776 Remove mainfile
+        retValue = retValue.replaceFirst("mainfile:\\s*.*($|\\r\\n|\\n)", "");
 
         if (!retValue.endsWith("\n")) {
             retValue += "\n";
