@@ -44,6 +44,7 @@ import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingExc
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.DocBookBuildingOptions;
+import org.jboss.pressgang.ccms.contentspec.exceptions.BugLinkException;
 import org.jboss.pressgang.ccms.utils.structures.InjectionError;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorDatabase.ErrorLevel;
@@ -2141,6 +2142,10 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 retValue.append(bugLinkStrategy.generateEntities(bugLinkOptions, buildData.getBuildName(), buildData.getBuildDate()));
             } catch (UnsupportedEncodingException e) {
                 throw new BuildProcessingException(e);
+            } catch (BugLinkException e) {
+                throw new BuildProcessingException(e);
+            } catch (final Exception ex) {
+                throw new BuildProcessingException("Failed to insert Bug Links into the DOM Document", ex);
             }
         }
 
@@ -2434,12 +2439,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
     }
 
     protected void addLevelsInitialContent(final BuildData buildData, final InitialContent initialContent, final Document chapter,
-            final Element parentNode) {
+            final Element parentNode) throws BuildProcessingException {
         addLevelsInitialContent(buildData, initialContent, chapter, parentNode, true);
     }
 
     protected void addLevelsInitialContent(final BuildData buildData, final InitialContent initialContent, final Document chapter,
-            final Element parentNode, final boolean includeInfo) {
+            final Element parentNode, final boolean includeInfo) throws BuildProcessingException {
         // Copy the body content of the topics to the level's front matter
         for (final SpecTopic initialContentTopic : initialContent.getSpecTopics()) {
             // Insert the topic DOM document into the parent document
