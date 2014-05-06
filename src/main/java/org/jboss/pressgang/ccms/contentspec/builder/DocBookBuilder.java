@@ -2066,17 +2066,18 @@ public class DocBookBuilder implements ShutdownAbleApp {
     private String getBookAbstract(final ContentSpec contentSpec) {
         final String retValue;
         if (contentSpec.getAbstract() == null && contentSpec.getAbstractTopic() == null) {
-            retValue = BuilderConstants.DEFAULT_ABSTRACT;
+            retValue = DocBookUtilities.escapeForXML(BuilderConstants.DEFAULT_ABSTRACT);
         } else if (contentSpec.getAbstract() == null) {
             retValue = DocBookBuildUtilities.convertDocumentToFormattedString(contentSpec.getAbstractTopic().getXMLDocument(),
                     getXMLFormatProperties());
         } else if (contentSpec.getAbstract().matches("^<(formal|sim)?para>(.|\\s)*")) {
-            retValue = "<abstract>\n\t\t" + contentSpec.getAbstract() + "\n\t</abstract>\n";
+            retValue = "<abstract>\n\t\t" + DocBookUtilities.escapeForXML(contentSpec.getAbstract()) + "\n\t</abstract>\n";
         } else {
-            retValue = "<abstract>\n\t\t<para>\n\t\t\t" + contentSpec.getAbstract() + "\n\t\t</para>\n\t</abstract>\n";
+            retValue = "<abstract>\n\t\t<para>\n\t\t\t" + DocBookUtilities.escapeForXML(contentSpec.getAbstract())
+                    + "\n\t\t</para>\n\t</abstract>\n";
         }
 
-        return DocBookBuildUtilities.escapeForReplaceAll(DocBookUtilities.escapeForXML(retValue));
+        return DocBookBuildUtilities.escapeForReplaceAll(retValue);
     }
 
     /**
