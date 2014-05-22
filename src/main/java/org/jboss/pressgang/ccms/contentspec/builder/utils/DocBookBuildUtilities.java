@@ -422,15 +422,24 @@ public class DocBookBuildUtilities {
      * @param userPublicanCfg The User publican.cfg file to be cleaned.
      * @return The cleaned publican.cfg file.
      */
+    /**
+     * Clean a user specified publican.cfg to remove content that should be set for a build.
+     *
+     * @param userPublicanCfg The User publican.cfg file to be cleaned.
+     * @return The cleaned publican.cfg file.
+     */
     public static String cleanUserPublicanCfg(final String userPublicanCfg) {
         // Remove any xml_lang statements
-        String retValue = userPublicanCfg.replaceAll("xml_lang:\\s*.*?($|\\r\\n|\\n)", "");
+        String retValue = userPublicanCfg.replaceAll("(#( |\\t)*)?xml_lang:\\s*.*?($|\\r\\n|\\n)", "");
         // Remove any type statements
-        retValue = retValue.replaceAll("type:\\s*.*($|\\r\\n|\\n)" + "", "");
+        retValue = retValue.replaceAll("(#( |\\t)*)?type:\\s*.*($|\\r\\n|\\n)" + "", "");
         // Remove any brand statements
-        retValue = retValue.replaceAll("brand:\\s*.*($|\\r\\n|\\n)" + "", "");
+        retValue = retValue.replaceAll("(#( |\\t)*)?brand:\\s*.*($|\\r\\n|\\n)" + "", "");
         // BZ#1091776 Remove mainfile
-        retValue = retValue.replaceFirst("mainfile:\\s*.*($|\\r\\n|\\n)", "");
+        retValue = retValue.replaceAll("(^|\\n)( |\\t)*mainfile:\\s*.*($|\\r\\n|\\n)", "");
+
+        // Remove any whitespace before the text
+        retValue = retValue.replaceAll("(^|\\n)\\s*", "$1");
 
         if (!retValue.endsWith("\n")) {
             retValue += "\n";
