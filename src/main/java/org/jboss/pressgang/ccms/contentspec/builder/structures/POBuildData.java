@@ -19,8 +19,12 @@ public class POBuildData extends BuildData {
             DataProviderFactory providerFactory, boolean translationBuild) {
         super(requester, contentSpec, buildOptions, zanataDetails, providerFactory, translationBuild);
 
-        translatedConstantsResourceBundle = ResourceBundle.getBundle("org.jboss.pressgang.ccms.contentspec.builder.Constants",
-                BuildData.LOCALE_MAP.get(buildOptions.getLocale()), new UTF8ResourceBundleControl());
+        if (getBuildLocale().equals(getPOBuildLocale())) {
+            translatedConstantsResourceBundle = getConstants();
+        } else {
+            translatedConstantsResourceBundle = ResourceBundle.getBundle("org.jboss.pressgang.ccms.contentspec.builder.Constants",
+                    BuildData.LOCALE_MAP.get(getPOBuildLocale()), new UTF8ResourceBundleControl());
+        }
     }
 
     public Map<String, Map<String, TranslationDetails>> getTranslationMap() {
@@ -45,5 +49,13 @@ public class POBuildData extends BuildData {
 
     public ResourceBundle getTranslationConstants() {
         return translatedConstantsResourceBundle;
+    }
+
+    public String getPOBuildLocale() {
+        return getBuildOptions().getLocale() == null ? getBuildLocale() : getBuildOptions().getLocale();
+    }
+
+    public String getPOOutputLocale() {
+        return getBuildOptions().getOutputLocale() == null ? getPOBuildLocale() : getBuildOptions().getOutputLocale();
     }
 }

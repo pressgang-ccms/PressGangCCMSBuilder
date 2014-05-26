@@ -19,6 +19,7 @@ import org.jboss.pressgang.ccms.contentspec.Level;
 import org.jboss.pressgang.ccms.contentspec.Node;
 import org.jboss.pressgang.ccms.contentspec.SpecNode;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
+import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuilderCreationException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
@@ -135,16 +136,40 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
      */
     @Override
     protected HashMap<String, byte[]> doBuildZipPass(final BuildData buildData) throws BuildProcessingException {
+        final POBuildData poBuildData = (POBuildData) buildData;
+
         // Create the mapping required for the PO files
-        doPOPopulatePass((POBuildData) buildData);
+        if (buildData.getBuildLocale().equals(poBuildData.getPOBuildLocale())) {
+            doPOTPopulatePass(poBuildData);
+        } else {
+            doPOPopulatePass(poBuildData);
+        }
 
         // Build the core of the book
         final HashMap<String, byte[]> files = super.doBuildZipPass(buildData);
 
         // Add PO files
-        buildPOPass((POBuildData) buildData);
+        buildPOPass(poBuildData);
 
         return files;
+    }
+
+    protected void doPOTPopulatePass(final POBuildData buildData) throws BuildProcessingException {
+        for (final BaseTopicWrapper<?> topic : buildData.getBuildDatabase().getAllTopics()) {
+            // Find the actual content spec node relating to the DB cs node
+            final List<ITopicNode> topicNodes = buildData.getBuildDatabase().getTopicNodesForTopicID(topic.getTopicId());
+
+            // Make sure we will have a topic node to process
+            if (topicNodes.isEmpty()) {
+                continue;
+            }
+
+            final ITopicNode topicNode = topicNodes.get(0);
+
+            final Map<String, TranslationDetails> topicTranslations = new HashMap<String, TranslationDetails>();
+            getTranslationStringsFromOriginalTopic(buildData, topicNode, topicTranslations);
+            buildData.getTranslationMap().put(topic.getTopicId().toString(), topicTranslations);
+        }
     }
 
     protected void doPOPopulatePass(final POBuildData buildData) throws BuildProcessingException {
@@ -154,7 +179,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
         }
 
         final ContentSpec contentSpec = buildData.getContentSpec();
-        final String locale = buildData.getBuildOptions().getLocale();
+        final String locale = buildData.getPOBuildLocale();
         log.info("Doing " + locale + " Populate PO Pass");
 
         final CollectionWrapper<TranslatedContentSpecWrapper> translatedContentSpecs = providerFactory.getProvider(
@@ -485,15 +510,21 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
     }
 
     protected void buildPOPass(final POBuildData buildData) throws BuildProcessingException {
-        log.info("\tBuilding the PO Files");
+        if (!buildData.getDefaultLocale().equals(buildData.getPOBuildLocale())) {
+            log.info("\tBuilding the POT Files");
+        } else {
+            log.info("\tBuilding the POT/PO Files");
+        }
 
         buildBookBasePOPass(buildData);
 
         buildBookAdditionsPOPass(buildData);
 
-        // Add the translated images to the book
-        final String imageFolder = buildData.getRootBookFolder() + buildData.getBuildOptions().getOutputLocale() + "/images/";
-        addImagesToBook(buildData, buildData.getBuildOptions().getLocale(), imageFolder, false, false);
+        if (!buildData.getDefaultLocale().equals(buildData.getPOBuildLocale())) {
+            // Add the translated images to the book
+            final String imageFolder = buildData.getRootBookFolder() + buildData.getPOOutputLocale() + "/images/";
+            addImagesToBook(buildData, buildData.getPOBuildLocale(), imageFolder, false, false);
+        }
     }
 
     protected void buildBookAdditionsPOPass(final POBuildData buildData) throws BuildProcessingException {
@@ -515,8 +546,6 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
         } else {
             buildPODefaultFile(buildData, AUTHOR_GROUP_FILE_NAME);
         }
-        // Translated Author_Group
-        buildLocaleAuthorGroup(buildData);
 
         // en-US Revision_History
         if (contentSpec.getRevisionHistory() != null) {
@@ -529,8 +558,15 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
         } else {
             buildPODefaultRevisionHistory(buildData);
         }
-        // Translated Revision_History
-        buildLocaleRevisionHistory(buildData);
+
+        // If we are building for another locale add in the additional information
+        if (!buildData.getBuildLocale().equals(buildData.getPOBuildLocale())) {
+            // Translated Author_Group
+            buildLocaleAuthorGroup(buildData);
+
+            // Translated Revision_History
+            buildLocaleRevisionHistory(buildData);
+        }
 
         // Book_Info
         buildBookInfoPO(buildData);
@@ -565,7 +601,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                     doc, "appendix", buildData.getEntityFileName(), getXMLFormatProperties());
 
             // Add the XML to the ZIP
-            addToZip(buildData.getRootBookFolder() + buildData.getBuildOptions().getOutputLocale() + "/" + REVISION_HISTORY_FILE_NAME,
+            addToZip(buildData.getRootBookFolder() + buildData.getPOOutputLocale() + "/" + REVISION_HISTORY_FILE_NAME,
                     revisionHistory, buildData);
         }
     }
@@ -589,7 +625,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                     doc, "authorgroup", buildData.getEntityFileName(), getXMLFormatProperties());
 
             // Add the XML to the ZIP
-            addToZip(buildData.getRootBookFolder() + buildData.getBuildOptions().getOutputLocale() + "/" + AUTHOR_GROUP_FILE_NAME,
+            addToZip(buildData.getRootBookFolder() + buildData.getPOOutputLocale() + "/" + AUTHOR_GROUP_FILE_NAME,
                     revisionHistory, buildData);
         }
     }
@@ -617,7 +653,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
         createPOFile(buildData, "Revision_History", translations);
     }
 
-    protected void buildPODefaultFile(final BuildData buildData, final String fileName) throws BuildProcessingException {
+    protected void buildPODefaultFile(final POBuildData buildData, final String fileName) throws BuildProcessingException {
         final Map<String, TranslationDetails> translations = new LinkedHashMap<String, TranslationDetails>();
 
         // Get any untranslated strings from the XML
@@ -649,6 +685,12 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
 
         if (contentSpec.getAbstractTopic() != null) {
             addStringsForTopic(buildData, contentSpec.getAbstractTopic(), translations);
+        } else if (contentSpec.getAbstractNode() == null) {
+            translations.put(BuilderConstants.DEFAULT_ABSTRACT_TEXT, new TranslationDetails(null, false, "para"));
+        }
+
+        if (contentSpec.getSubtitleNode() == null) {
+            translations.put(BuilderConstants.SUBTITLE_DEFAULT, new TranslationDetails(null, false, "subtitle"));
         }
 
         createPOFile(buildData, "Book_Info", translations);
@@ -1282,7 +1324,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
      * @param translations    The mapping of original strings to translation strings, that will be used to build the po/pot files.
      * @throws BuildProcessingException
      */
-    protected void createPOFile(final BuildData buildData, final String filePathAndName,
+    protected void createPOFile(final POBuildData buildData, final String filePathAndName,
             final Map<String, TranslationDetails> translations) throws BuildProcessingException {
         // Don't create files where there is nothing to translate
         if (!translations.isEmpty()) {
@@ -1300,7 +1342,9 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
             }
 
             addPOTToZip(filePathAndName + ".pot", potFile.toString(), buildData);
-            addPOToZip(filePathAndName + ".po", poFile.toString(), buildData);
+            if (!buildData.getDefaultLocale().equals(buildData.getPOBuildLocale())) {
+                addPOToZip(filePathAndName + ".po", poFile.toString(), buildData);
+            }
         }
     }
 
@@ -1420,13 +1464,11 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                 .replace("\r", "\\r");
     }
 
-    protected void addPOTToZip(final String path, final String file, final BuildData buildData) throws BuildProcessingException {
+    protected void addPOTToZip(final String path, final String file, final POBuildData buildData) throws BuildProcessingException {
         addToZip(buildData.getRootBookFolder() + "pot/" + path, file, buildData);
     }
 
-    protected void addPOToZip(final String path, final String file, final BuildData buildData) throws BuildProcessingException {
-        final String outputLocale = buildData.getBuildOptions().getOutputLocale() == null ? buildData.getBuildOptions().getLocale() :
-                buildData.getBuildOptions().getOutputLocale();
-        addToZip(buildData.getRootBookFolder() + outputLocale + "/" + path, file, buildData);
+    protected void addPOToZip(final String path, final String file, final POBuildData buildData) throws BuildProcessingException {
+        addToZip(buildData.getRootBookFolder() + buildData.getPOOutputLocale() + "/" + path, file, buildData);
     }
 }

@@ -88,8 +88,10 @@ public class BuilderConstants {
 
     public static final String LINUX_PUBLICAN_COMMON_CONTENT = "/usr/share/publican/Common_Content/";
 
+    public static final String DEFAULT_ABSTRACT_TEXT = "A brief paragraph describing this book. This will be used as the description for " +
+            "the rpm package.";
     public static final String DEFAULT_ABSTRACT = "<abstract>\n\t\t<para>\n" +
-            "\t\t\tA brief paragraph describing this book. This will be used as the description for the rpm package.\n" +
+            "\t\t\t" + DEFAULT_ABSTRACT_TEXT + "\n" +
             "\t\t</para>\n" +
             "\t</abstract>\n";
 
