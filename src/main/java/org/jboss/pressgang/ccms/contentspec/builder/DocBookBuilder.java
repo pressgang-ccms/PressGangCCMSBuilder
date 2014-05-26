@@ -852,6 +852,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 if (latestTranslatedTopic != null && latestPushedTranslatedTopic != null && latestPushedTranslatedTopic.getTopicRevision
                         ().equals(
                         latestTranslatedTopic.getTopicRevision())) {
+                    latestTranslatedTopic.setTopic(topic);
                     translatedTopic = latestTranslatedTopic;
                 } else if (latestPushedTranslatedTopic != null) {
                     latestPushedTranslatedTopic.setTopic(topic);

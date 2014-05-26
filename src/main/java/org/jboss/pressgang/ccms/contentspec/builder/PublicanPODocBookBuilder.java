@@ -510,7 +510,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
     }
 
     protected void buildPOPass(final POBuildData buildData) throws BuildProcessingException {
-        if (!buildData.getDefaultLocale().equals(buildData.getPOBuildLocale())) {
+        if (buildData.getDefaultLocale().equals(buildData.getPOBuildLocale())) {
             log.info("\tBuilding the POT Files");
         } else {
             log.info("\tBuilding the POT/PO Files");
