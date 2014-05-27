@@ -570,12 +570,17 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
 
         // Book_Info
         buildBookInfoPO(buildData);
-        // Preface
-        buildBookPrefacePO(buildData);
-        // Feedback
-        if (contentSpec.getFeedback() != null) {
-            buildPOTopic(buildData, contentSpec.getFeedback(), "Feedback");
+
+        // Check if we should include the default preface content
+        if (contentSpec.getUseDefaultPreface()) {
+            // Preface
+            buildBookPrefacePO(buildData);
+            // Feedback
+            if (contentSpec.getFeedback() != null) {
+                buildPOTopic(buildData, contentSpec.getFeedback(), "Feedback");
+            }
         }
+
         // Legal Notice
         if (contentSpec.getLegalNotice() != null) {
             buildPOTopic(buildData, contentSpec.getLegalNotice(), "Legal_Notice");

@@ -1680,9 +1680,11 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 DocBookBuildUtilities.getKeyValueNodeText(buildData, contentSpec.getVersionNode()));
         basicBook = basicBook.replaceAll(BuilderConstants.DRAFT_REGEX, buildData.getBuildOptions().getDraft() ? "status=\"draft\"" : "");
 
-        // Add the preface to the book.xml
-        basicBook = basicBook.replaceAll(BuilderConstants.PREFACE_REGEX,
-                "<xi:include href=\"Preface.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
+        if (contentSpec.getUseDefaultPreface()) {
+            // Add the preface to the book.xml
+            basicBook = basicBook.replaceAll(BuilderConstants.PREFACE_REGEX,
+                    "<xi:include href=\"Preface.xml\" xmlns:xi=\"http://www.w3.org/2001/XInclude\" />");
+        }
 
         // Remove the Injection sequence as we'll add the revision history and xiinclude element later
         basicBook = basicBook.replaceAll(BuilderConstants.XIINCLUDES_INJECTION_STRING, "");
@@ -1869,16 +1871,18 @@ public class DocBookBuilder implements ShutdownAbleApp {
             buildAuthorGroup(buildData);
         }
 
-        // Add the Feedback.xml if the override exists
-        if (overrides.containsKey(CSConstants.FEEDBACK_OVERRIDE) && overrideFiles.containsKey(CSConstants.FEEDBACK_OVERRIDE)) {
-            // Add the override Feedback.xml file to the book
-            addToZip(buildData.getBookLocaleFolder() + FEEDBACK_FILE_NAME, overrideFiles.get(CSConstants.FEEDBACK_OVERRIDE), buildData);
-        } else if (contentSpec.getFeedback() != null) {
-            final String feedbackXml = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(),
-                    contentSpec.getFeedback().getXMLDocument(), DocBookUtilities.TOPIC_ROOT_NODE_NAME, buildData.getEntityFileName(),
-                    getXMLFormatProperties());
-            // Add the feedback directly to the book
-            addToZip(buildData.getBookLocaleFolder() + FEEDBACK_FILE_NAME, feedbackXml, buildData);
+        // Add the Feedback.xml if the override exists and we are using the default preface
+        if (contentSpec.getUseDefaultPreface()) {
+            if (overrides.containsKey(CSConstants.FEEDBACK_OVERRIDE) && overrideFiles.containsKey(CSConstants.FEEDBACK_OVERRIDE)) {
+                // Add the override Feedback.xml file to the book
+                addToZip(buildData.getBookLocaleFolder() + FEEDBACK_FILE_NAME, overrideFiles.get(CSConstants.FEEDBACK_OVERRIDE), buildData);
+            } else if (contentSpec.getFeedback() != null) {
+                final String feedbackXml = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(),
+                        contentSpec.getFeedback().getXMLDocument(), DocBookUtilities.TOPIC_ROOT_NODE_NAME, buildData.getEntityFileName(),
+                        getXMLFormatProperties());
+                // Add the feedback directly to the book
+                addToZip(buildData.getBookLocaleFolder() + FEEDBACK_FILE_NAME, feedbackXml, buildData);
+            }
         }
 
         // Setup Legal_Notice.xml
@@ -2152,39 +2156,43 @@ public class DocBookBuilder implements ShutdownAbleApp {
      */
     protected void buildBookPreface(final BuildData buildData) throws BuildProcessingException {
         final ContentSpec contentSpec = buildData.getContentSpec();
-        final Map<String, String> overrides = buildData.getBuildOptions().getOverrides();
-        final Map<String, byte[]> overrideFiles = buildData.getOverrideFiles();
 
-        final Document prefaceDoc;
-        try {
-            prefaceDoc = XMLUtilities.convertStringToDocument("<preface></preface>");
-        } catch (Exception e) {
-            throw new BuildProcessingException(e);
+        // Check that should actually use the preface
+        if (contentSpec.getUseDefaultPreface()) {
+            final Map<String, String> overrides = buildData.getBuildOptions().getOverrides();
+            final Map<String, byte[]> overrideFiles = buildData.getOverrideFiles();
+
+            final Document prefaceDoc;
+            try {
+                prefaceDoc = XMLUtilities.convertStringToDocument("<preface></preface>");
+            } catch (Exception e) {
+                throw new BuildProcessingException(e);
+            }
+
+            // Add the title
+            final String prefaceTitleTranslation = buildData.getConstants().getString("PREFACE");
+            final Element titleEle = prefaceDoc.createElement("title");
+            titleEle.setTextContent(prefaceTitleTranslation);
+            prefaceDoc.getDocumentElement().appendChild(titleEle);
+
+            // Add the Conventions.xml
+            final Element conventions = XMLUtilities.createXIInclude(prefaceDoc, "Common_Content/Conventions.xml");
+            prefaceDoc.getDocumentElement().appendChild(conventions);
+
+            // Add the Feedback.xml
+            if (overrides.containsKey(CSConstants.FEEDBACK_OVERRIDE) && overrideFiles.containsKey(
+                    CSConstants.FEEDBACK_OVERRIDE) || contentSpec.getFeedback() != null) {
+                final Element xinclude = XMLUtilities.createXIInclude(prefaceDoc, "Feedback.xml");
+                prefaceDoc.getDocumentElement().appendChild(xinclude);
+            } else {
+                final Element xinclude = XMLUtilities.createXIInclude(prefaceDoc, "Common_Content/Feedback.xml");
+                prefaceDoc.getDocumentElement().appendChild(xinclude);
+            }
+
+            final String prefaceXml = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(), prefaceDoc,
+                    "preface", buildData.getEntityFileName(), getXMLFormatProperties());
+            addToZip(buildData.getBookLocaleFolder() + PREFACE_FILE_NAME, prefaceXml, buildData);
         }
-
-        // Add the title
-        final String prefaceTitleTranslation = buildData.getConstants().getString("PREFACE");
-        final Element titleEle = prefaceDoc.createElement("title");
-        titleEle.setTextContent(prefaceTitleTranslation);
-        prefaceDoc.getDocumentElement().appendChild(titleEle);
-
-        // Add the Conventions.xml
-        final Element conventions = XMLUtilities.createXIInclude(prefaceDoc, "Common_Content/Conventions.xml");
-        prefaceDoc.getDocumentElement().appendChild(conventions);
-
-        // Add the Feedback.xml
-        if (overrides.containsKey(CSConstants.FEEDBACK_OVERRIDE) && overrideFiles.containsKey(
-                CSConstants.FEEDBACK_OVERRIDE) || contentSpec.getFeedback() != null) {
-            final Element xinclude = XMLUtilities.createXIInclude(prefaceDoc, "Feedback.xml");
-            prefaceDoc.getDocumentElement().appendChild(xinclude);
-        } else {
-            final Element xinclude = XMLUtilities.createXIInclude(prefaceDoc, "Common_Content/Feedback.xml");
-            prefaceDoc.getDocumentElement().appendChild(xinclude);
-        }
-
-        final String prefaceXml = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(), prefaceDoc,
-                "preface", buildData.getEntityFileName(), getXMLFormatProperties());
-        addToZip(buildData.getBookLocaleFolder() + PREFACE_FILE_NAME, prefaceXml, buildData);
     }
 
     /**
