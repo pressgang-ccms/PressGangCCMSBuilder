@@ -194,7 +194,7 @@ public class BuildData {
     }
 
     public String getDefaultLocale() {
-        return locale;
+        return defaultLocale;
     }
 
     public DocBookBuildingOptions getBuildOptions() {
