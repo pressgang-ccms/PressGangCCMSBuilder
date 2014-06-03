@@ -402,6 +402,7 @@ public class DocBookXMLPreProcessor {
         // Find if the document contains elements where the bug links would need to be injected as a child.
         final NodeList refEntryNodes = rootNode.getElementsByTagName("refentry");
         final NodeList simpleSectNodes = rootNode.getElementsByTagName("simplesect");
+        final NodeList sectionNodes = rootNode.getElementsByTagName("section");
 
         // For refentries inject the links into the last <refentry>
         if (refEntryNodes.getLength() > 0) {
@@ -431,6 +432,11 @@ public class DocBookXMLPreProcessor {
         // For simplesects inject the links into the last <simplesect>
         if (simpleSectNodes.getLength() > 0) {
             rootEle = (Element) simpleSectNodes.item(simpleSectNodes.getLength() - 1);
+        }
+
+        // For section inject the links into the last <section>
+        if (sectionNodes.getLength() > 0) {
+            rootEle = (Element) sectionNodes.item(sectionNodes.getLength() - 1);
         }
 
         return rootEle;

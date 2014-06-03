@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.io.JsonStringEncoder;
+import org.jboss.pressgang.ccms.contentspec.CommonContent;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.ITopicNode;
 import org.jboss.pressgang.ccms.contentspec.InfoTopic;
@@ -1741,22 +1742,15 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 }
             } else if (node instanceof SpecTopic) {
                 final SpecTopic specTopic = (SpecTopic) node;
-
-                Node topicNode = null;
-                if (flattenStructure) {
-                    // Include the topic as is, into the chapter
-                    topicNode = bookBase.importNode(specTopic.getXMLDocument().getDocumentElement(), true);
-                } else {
-                    final String topicFileName = createTopicXMLFile(buildData, specTopic, buildData.getBookTopicsFolder());
-                    if (topicFileName != null) {
-                        topicNode = XMLUtilities.createXIInclude(bookBase, "topics/" + topicFileName);
-                    }
-                }
+                final Node topicNode = createTopicDOMNode(specTopic, bookBase, flattenStructure, buildData.getBookTopicsFolder());
 
                 // Add the node to the Book
                 if (topicNode != null) {
                     bookBase.getDocumentElement().appendChild(topicNode);
                 }
+            } else if (node instanceof CommonContent) {
+                final Node xiInclude = XMLUtilities.createXIInclude(bookBase, "Common_Content/" + ((CommonContent) node).getFixedTitle());
+                bookBase.getDocumentElement().appendChild(xiInclude);
             }
         }
 
@@ -2470,27 +2464,17 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 }
 
                 childNodes.add(sectionNode);
+            } else if (node instanceof  CommonContent) {
+                final CommonContent commonContent = (CommonContent) node;
+                final Node xiInclude = XMLUtilities.createXIInclude(doc, "Common_Content/" + commonContent.getFixedTitle());
+                if (commonContent.getParent() != null && commonContent.getParent().getLevelType() == LevelType.PART) {
+                    intro.appendChild(xiInclude);
+                } else {
+                    childNodes.add(xiInclude);
+                }
             } else if (node instanceof SpecTopic) {
                 final SpecTopic specTopic = (SpecTopic) node;
-                final Document topicDoc = specTopic.getXMLDocument();
-
-                Node topicNode = null;
-                if (flattenStructure) {
-                    // Include the topic as is, into the chapter
-                    topicNode = doc.importNode(topicDoc.getDocumentElement(), true);
-                } else {
-                    // Create the topic file and add the reference to the chapter
-                    final String topicFileName = createTopicXMLFile(buildData, specTopic, parentFileLocation);
-                    if (topicFileName != null) {
-
-                        // Remove the initial file location as we only want where it lives in the topics directory
-                        final String fixedParentFileLocation = buildData.getBuildOptions().getFlattenTopics() ? "topics/" :
-                                parentFileLocation.replace(
-                                buildData.getBookLocaleFolder(), "");
-
-                        topicNode = XMLUtilities.createXIInclude(doc, fixedParentFileLocation + topicFileName);
-                    }
-                }
+                final Node topicNode = createTopicDOMNode(specTopic, doc, flattenStructure, parentFileLocation);
 
                 // Add the node to the chapter
                 if (topicNode != null) {
@@ -2521,10 +2505,18 @@ public class DocBookBuilder implements ShutdownAbleApp {
     protected void addLevelsInitialContent(final BuildData buildData, final InitialContent initialContent, final Document chapter,
             final Element parentNode, final boolean includeInfo) throws BuildProcessingException {
         // Copy the body content of the topics to the level's front matter
-        for (final SpecTopic initialContentTopic : initialContent.getSpecTopics()) {
-            // Insert the topic DOM document into the parent document
-            addTopicContentsToLevelDocument(buildData.getDocBookVersion(), initialContent, initialContentTopic, parentNode, chapter,
-                    includeInfo);
+        boolean containsCommonContent = false;
+        for (final org.jboss.pressgang.ccms.contentspec.Node initialContentNode : initialContent.getChildNodes()) {
+            if (initialContentNode instanceof CommonContent) {
+                final Node node = XMLUtilities.createXIInclude(chapter,
+                        "Common_Content/" + ((CommonContent) initialContentNode).getFixedTitle());
+                parentNode.appendChild(node);
+                containsCommonContent = true;
+            } else if (initialContentNode instanceof SpecTopic) {
+                // Insert the topic DOM document into the parent document
+                addTopicContentsToLevelDocument(buildData.getDocBookVersion(), initialContent, (SpecTopic) initialContentNode, parentNode,
+                        chapter, includeInfo);
+            }
         }
 
         final DocBookXMLPreProcessor xmlPreProcessor = buildData.getXMLPreProcessor();
@@ -2532,8 +2524,10 @@ public class DocBookBuilder implements ShutdownAbleApp {
         // Process the see also/prereq injections for the level
         processLevelInjections(buildData, initialContent, chapter, parentNode, xmlPreProcessor);
 
-        // Add the bug links for the front matter content
-        xmlPreProcessor.processInitialContentBugLink(buildData, initialContent, chapter, parentNode);
+        // Add the bug links for the front matter content if it has no common content
+        if (!containsCommonContent) {
+            xmlPreProcessor.processInitialContentBugLink(buildData, initialContent, chapter, parentNode);
+        }
     }
 
     /**
@@ -2615,6 +2609,32 @@ public class DocBookBuilder implements ShutdownAbleApp {
         while (sectionChildren.getLength() > 0) {
             parentNode.appendChild(sectionChildren.item(0));
         }
+    }
+
+    protected Node createTopicDOMNode(final SpecTopic specTopic, final Document doc, final boolean flattenStructure,
+            final String parentFileLocation) throws BuildProcessingException {
+            final Document topicDoc = specTopic.getXMLDocument();
+
+        final Node topicNode;
+        if (flattenStructure) {
+            // Include the topic as is, into the chapter
+            topicNode = doc.importNode(topicDoc.getDocumentElement(), true);
+        } else {
+            // Create the topic file and add the reference to the chapter
+            final String topicFileName = createTopicXMLFile(buildData, specTopic, parentFileLocation);
+            if (topicFileName != null) {
+
+                // Remove the initial file location as we only want where it lives in the topics directory
+                final String fixedParentFileLocation = buildData.getBuildOptions().getFlattenTopics() ? "topics/" :
+                        parentFileLocation.replace(buildData.getBookLocaleFolder(), "");
+
+                topicNode = XMLUtilities.createXIInclude(doc, fixedParentFileLocation + topicFileName);
+            } else {
+                topicNode = null;
+            }
+        }
+
+        return topicNode;
     }
 
     /**
