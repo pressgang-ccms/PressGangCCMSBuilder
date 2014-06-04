@@ -220,18 +220,26 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
 
                 final CSNodeWrapper csNode = translatedCSNode.getCSNode();
 
-                // Only process nodes that have content pushed to Zanata
+                // Only process nodes that have content pushed to Translation
                 if (!isNullOrEmpty(translatedCSNode.getOriginalString())) {
                     if (translatedCSNode.getTranslatedStrings() != null) {
+                        final String tagName = getCSNodeTagName(csNode);
                         final List<TranslatedCSNodeStringWrapper> translatedCSNodeStrings = translatedCSNode.getTranslatedStrings()
                                 .getItems();
+
+                        boolean foundTranslation = false;
                         for (final TranslatedCSNodeStringWrapper translatedCSNodeString : translatedCSNodeStrings) {
                             if (translatedCSNodeString.getLocale().equals(locale)) {
                                 final TranslationDetails translationDetails = new TranslationDetails(
-                                        translatedCSNodeString.getTranslatedString(), translatedCSNodeString.isFuzzy(),
-                                        getCSNodeTagName(csNode));
+                                        translatedCSNodeString.getTranslatedString(), translatedCSNodeString.isFuzzy(), tagName);
                                 translations.put(translatedCSNode.getOriginalString(), translationDetails);
+                                foundTranslation = true;
+                                break;
                             }
+                        }
+
+                        if (!foundTranslation) {
+                            translations.put(translatedCSNode.getOriginalString(), new TranslationDetails(null, false, tagName));
                         }
                     }
                 } else {
