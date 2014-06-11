@@ -3679,6 +3679,10 @@ public class DocBookBuilder implements ShutdownAbleApp {
                             }
 
                             buildData.getImageLocations().add(new TopicImageData(topic, fileRefAttribute.getNodeValue()));
+                        } else if (!BuilderConstants.COMMON_CONTENT_FILE_REF_PATTERN.matcher(fileRefValue).matches()) {
+                            // The file isn't common content or a pressgang image so mark it as a missing image.
+                            fileRefAttribute.setNodeValue("images/" + BuilderConstants.FAILPENGUIN_PNG_NAME + ".jpg");
+                            buildData.getImageLocations().add(new TopicImageData(topic, fileRefAttribute.getNodeValue()));
                         }
                     }
                 }
