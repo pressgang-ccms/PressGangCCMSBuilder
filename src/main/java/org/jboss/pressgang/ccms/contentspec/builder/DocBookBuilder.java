@@ -1639,9 +1639,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
         // Add the base book information
         final HashMap<String, byte[]> files = buildData.getOutputFiles();
 
-        // Build the book base
-        buildBookBase(buildData);
-
         // Add the additional files
         buildBookAdditions(buildData);
 
@@ -1650,6 +1647,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         // add any additional files to the book
         addAdditionalFilesToBook(buildData);
+
+        // Build the book base
+        buildBookBase(buildData);
 
         return files;
     }
@@ -2727,7 +2727,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         success = false;
                         buildData.getErrorDatabase().addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES,
                                 "No image filename specified. Must be in the format [ImageFileID].extension e.g. 123.png, " +
-                                        "" + "or images/321.jpg");
+                                        "or images/321.jpg");
                     } else {
                         final ImageWrapper imageFile = imageProvider.getImage(Integer.parseInt(imageID));
                         // TODO Uncomment this once Image Revisions are fixed.
