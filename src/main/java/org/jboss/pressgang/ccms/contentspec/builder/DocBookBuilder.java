@@ -1717,9 +1717,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
             if (node instanceof Level) {
                 final Level level = (Level) node;
 
-                if (level instanceof InitialContent && level.hasSpecTopics()) {
+                if (level instanceof InitialContent && (level.hasSpecTopics() || level.hasCommonContents())) {
                     addLevelsInitialContent(buildData, (InitialContent) level, bookBase, bookBase.getDocumentElement(), false);
-                } else if (level.hasSpecTopics()) {
+                } else if (level.hasSpecTopics() || level.hasCommonContents()) {
                     // If the book is an article than just include it directly and don't create a new file
                     if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
                         // Create the section and its title
@@ -2450,7 +2450,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 setUpRootElement(buildData, childLevel, doc, sectionNode);
 
                 // Ignore sections that have no spec topics
-                if (!childLevel.hasSpecTopics()) {
+                if (!childLevel.hasSpecTopics() && !childLevel.hasCommonContents()) {
                     if (buildData.getBuildOptions().isAllowEmptySections()) {
                         Element warning = doc.createElement("warning");
                         warning.setTextContent("No Content");

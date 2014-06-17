@@ -738,9 +738,9 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
             if (node instanceof Level) {
                 final Level level = (Level) node;
 
-                if (level instanceof InitialContent && level.hasSpecTopics()) {
+                if (level instanceof InitialContent && (level.hasSpecTopics() || level.hasCommonContents())) {
                     addStringsForInitialContent(buildData, (InitialContent) level, containerTranslations);
-                } else if (level.hasSpecTopics()) {
+                } else if (level.hasSpecTopics() || level.hasCommonContents()) {
                     if (contentSpec.getBookType() == BookType.ARTICLE || contentSpec.getBookType() == BookType.ARTICLE_DRAFT) {
                         addStringsForContainer(buildData, level, containerTranslations, "topics/", flattenStructure);
                     } else {
