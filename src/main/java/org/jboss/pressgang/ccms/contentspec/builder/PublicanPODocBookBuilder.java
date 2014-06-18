@@ -41,6 +41,7 @@ import org.jboss.pressgang.ccms.provider.DataProviderFactory;
 import org.jboss.pressgang.ccms.provider.TranslatedContentSpecProvider;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.StringUtilities;
+import org.jboss.pressgang.ccms.utils.common.TopicUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
 import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
 import org.jboss.pressgang.ccms.utils.constants.CommonFilterConstants;
@@ -57,8 +58,10 @@ import org.jboss.pressgang.ccms.wrapper.TranslatedTopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.base.BaseTopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.collection.CollectionWrapper;
 import org.jboss.pressgang.ccms.zanata.ZanataDetails;
+import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
 
 public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
     private static SimpleDateFormat POT_DATE_FORMAT = new SimpleDateFormat("YYYY-MM-dd HH:mmZ");
@@ -339,7 +342,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
             for (final TranslatedTopicStringWrapper translatedTopicString : latestTranslatedTopic
                     .getTranslatedTopicStrings().getItems()) {
                 // Run the formatter over the string so that it will be the same as the XML stored in PressGang.
-                final String fixedOriginalString = formatTranslationString(translatedTopicString.getOriginalString());
+                final String fixedOriginalString = formatTranslationString(buildData, translatedTopicString.getOriginalString());
 
                 final TranslationDetails translationDetails = new TranslationDetails(
                         translatedTopicString.getTranslatedString(), translatedTopicString.isFuzzy());
@@ -356,7 +359,8 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
 
         // Get any untranslated strings from the XML
         try {
-            final Document doc = XMLUtilities.convertStringToDocument(latestPushedTranslatedTopic.getXml());
+            final Document doc = TopicUtilities.convertXMLStringToDocument(latestPushedTranslatedTopic.getXml(),
+                    latestPushedTranslatedTopic.getXmlFormat());
             final List<StringToNodeCollection> stringToNodeCollections = DocBookUtilities.getTranslatableStringsV3(doc,
                     false);
 
@@ -471,6 +475,18 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
     @SuppressWarnings("deprecation")
     protected void checkAndFixV1Translations(final Document doc, final Map<String, TranslationDetails> currentTopicTranslations,
             final Map<String, TranslationDetails> topicTranslations) {
+
+        // Get the namespaces to add to the individual strings
+        final StringBuilder globalNamespaces = new StringBuilder();
+        final NamedNodeMap attrs = doc.getDocumentElement().getAttributes();
+        for (int i = 0; i < attrs.getLength(); i++) {
+            final Attr attr = (Attr) attrs.item(i);
+            if (attr.getName().startsWith("xmlns")) {
+                globalNamespaces.append(" ");
+                globalNamespaces.append(attr.getNodeName()).append("=\"").append(attr.getNodeValue()).append("\"");
+            }
+        }
+
         /*
          * Since V1 of the getTranslatableStrings() method wasn't breaking down content correctly,
          * we need to break it down further using the fixed V2/V3 method and then add the strings.
@@ -485,8 +501,8 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                     final TranslationDetails translatedString = currentTopicTranslations.get(originalString);
 
                     // wrap the original/translation in a root element
-                    final String wrappedOriginalString = "<tempRoot>" + originalString + "</tempRoot>";
-                    final String wrappedTranslation = "<tempRoot>" + translatedString.getTranslation() + "</tempRoot>";
+                    final String wrappedOriginalString = "<tempRoot" + globalNamespaces.toString() + ">" + originalString + "</tempRoot>";
+                    final String wrappedTranslation = "<tempRoot" + globalNamespaces.toString() + ">" + translatedString.getTranslation() + "</tempRoot>";
 
                     // Break down the original and translated strings
                     final Document originalDocument = XMLUtilities.convertStringToDocument(wrappedOriginalString);
@@ -601,7 +617,8 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
 
             Document doc = null;
             try {
-                doc = XMLUtilities.convertStringToDocument(buildData.getTranslatedRevisionHistory());
+                doc = TopicUtilities.convertXMLStringToDocument(buildData.getTranslatedRevisionHistory(),
+                        buildData.getDocBookVersion().getId());
             } catch (Exception e) {
                 // TODO Work out what to do with invalid translated XML
                 return;
@@ -625,7 +642,8 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
 
             Document doc = null;
             try {
-                doc = XMLUtilities.convertStringToDocument(buildData.getTranslatedAuthorGroup());
+                doc = TopicUtilities.convertXMLStringToDocument(buildData.getTranslatedAuthorGroup(),
+                        buildData.getDocBookVersion().getId());
             } catch (Exception e) {
                 // TODO Work out what to do with invalid translated XML
                 return;
@@ -982,7 +1000,8 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
         if (translationString == null) return null;
 
         try {
-            final Document doc = XMLUtilities.convertStringToDocument("<temp>" + translationString + "</temp>");
+            final Document doc = TopicUtilities.convertXMLStringToDocument("<temp>" + translationString + "</temp>",
+                    buildData.getDocBookVersion().getId());
 
             // Resolve the injections
             final List<Integer> types = Arrays.asList(DocBookXMLPreProcessor.XREF_INJECTION_POINT);
@@ -1019,12 +1038,15 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
     /**
      * Formats a string so that it will be compatible with publicans expectations.
      *
+     *
+     * @param buildData         Information and data structures for the build.
      * @param translationString The string to be formatted.
      * @return The formatted string.
      */
-    protected String formatTranslationString(final String translationString) {
+    protected String formatTranslationString(POBuildData buildData, final String translationString) {
         try {
-            final Document doc = XMLUtilities.convertStringToDocument("<temp>" + translationString + "</temp>");
+            final Document doc = TopicUtilities.convertXMLStringToDocument("<temp>" + translationString + "</temp>",
+                    buildData.getDocBookVersion().getId());
 
             return XMLUtilities.convertNodeToString(doc.getDocumentElement(), false);
         } catch (Exception e) {
