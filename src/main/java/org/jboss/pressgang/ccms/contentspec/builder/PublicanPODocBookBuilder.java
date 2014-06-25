@@ -62,6 +62,8 @@ import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.NodeList;
+import org.w3c.dom.Text;
 
 public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
     private static SimpleDateFormat POT_DATE_FORMAT = new SimpleDateFormat("YYYY-MM-dd HH:mmZ");
@@ -940,12 +942,11 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                 if (ignoredSourceStrings != null && ignoredSourceStrings.contains(entry.getKey())) {
                     continue;
                 } else {
-                    final String cleanedOriginalString = resolveInjectionsAndCleanComments(buildData, specTopic, entry.getKey());
+                    final String cleanedOriginalString = cleanForPublican(buildData, specTopic, entry.getKey());
                     if (entry.getValue() == null) {
                         translations.put(cleanedOriginalString, null);
                     } else {
-                        final String cleanedTranslationString = resolveInjectionsAndCleanComments(buildData, specTopic,
-                                entry.getValue().getTranslation());
+                        final String cleanedTranslationString = cleanForPublican(buildData, specTopic, entry.getValue().getTranslation());
                         translations.put(cleanedOriginalString, new TranslationDetails(cleanedTranslationString,
                                 entry.getValue().isFuzzy(), entry.getValue().getTagName()));
                     }
@@ -988,15 +989,15 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
     }
 
     /**
-     * Resolves the injections and removes any left over comments from source/translation strings.
+     * Resolves the injections, changes &apos; and &quot; entities to characters and removes any left over comments from
+     * source/translation strings.
      *
      * @param buildData         Information and data structures for the build.
      * @param specTopic         The topic to resolve the injections for.
      * @param translationString The string to have its injections resolved and comments cleaned.
-     * @return The cleaned string that can be used in a POT/PO file.
+     * @return The cleaned string that can be used in a publican POT/PO file.
      */
-    protected String resolveInjectionsAndCleanComments(final BuildData buildData, final SpecTopic specTopic,
-            final String translationString) {
+    protected String cleanForPublican(final BuildData buildData, final SpecTopic specTopic, final String translationString) {
         if (translationString == null) return null;
 
         try {
@@ -1029,9 +1030,32 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                 comment.getParentNode().removeChild(comment);
             }
 
+            // Fix up &apos; and &quot; see Translate.pm line 234-240 in publican
+            fixUpEntitiesForPublican(doc, doc.getDocumentElement());
+
             return XMLUtilities.convertNodeToString(doc.getDocumentElement(), false);
         } catch (Exception e) {
             return translationString;
+        }
+    }
+
+    private void fixUpEntitiesForPublican(final Document doc, final org.w3c.dom.Node parent) {
+        final NodeList children = parent.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            final org.w3c.dom.Node childNode = children.item(i);
+            if (childNode.getNodeType() == org.w3c.dom.Node.ENTITY_REFERENCE_NODE) {
+                // Check if it's an apos or quot node
+                if ("apos".equalsIgnoreCase(childNode.getNodeName())) {
+                    final Text textNode = doc.createTextNode("'");
+                    parent.replaceChild(textNode, childNode);
+                } else if ("quot".equalsIgnoreCase(childNode.getNodeName())) {
+                    final Text textNode = doc.createTextNode("\"");
+                    parent.replaceChild(textNode, childNode);
+                }
+            } else {
+                // Check the node for children that might contain the entities
+                fixUpEntitiesForPublican(doc, childNode);
+            }
         }
     }
 
@@ -1429,6 +1453,9 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
      */
     protected void addPOEntry(final String tag, final String source, final String translation, final boolean fuzzy,
             final StringBuilder poFile) {
+        // perform a check to make sure the source isn't an empty string, as this could be the case after removing the comments
+        if (source == null || source.length() == 0) return;
+
         poFile.append("\n");
         if (!isNullOrEmpty(tag)) {
             poFile.append("#. Tag: ").append(tag).append("\n");
