@@ -113,11 +113,21 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
             publicanCfg += "show_remarks: 1\n";
         }
 
-        publicanCfg += "docname: " + buildData.getEscapedBookTitle().replaceAll("_", " ") + "\n";
-        publicanCfg += "product: " + escapeProduct(buildData.getOriginalBookProduct()) + "\n";
+        // Add docname if it wasn't specified
+        if (publicanCfg.indexOf("\ndocname:") == -1) {
+            publicanCfg += "docname: " + buildData.getEscapedBookTitle().replaceAll("_", " ") + "\n";
+        }
+
+        // Add product if it wasn't specified
+        if (publicanCfg.indexOf("\nproduct:") == -1) {
+            publicanCfg += "product: " + escapeProduct(buildData.getOriginalBookProduct()) + "\n";
+        }
+
+        // Add the mainfile attribute
+        publicanCfg += "mainfile: " + buildData.getEscapedBookTitle() + "\n";
 
         // Add a version if one wasn't specified
-        if (!publicanCfg.contains("version:")) {
+        if (!publicanCfg.contains("\nversion:")) {
             String version = contentSpec.getBookVersion();
             if (isNullOrEmpty(version)) {
                 version = DocBookBuildUtilities.getKeyValueNodeText(buildData, contentSpec.getVersionNode());
@@ -158,22 +168,25 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
             publicanCfg.append(DocBookBuildUtilities.cleanUserPublicanCfg(entry.getValue()));
 
             // Add the dtdver property
-            if (publicanCfg.indexOf("dtdver:") == -1 && buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+            if (publicanCfg.indexOf("\ndtdver:") == -1 && buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
                 publicanCfg.append("dtdver: \"5.0\"\n");
             }
 
             // Add docname if it wasn't specified
-            if (publicanCfg.indexOf("docname:") == -1) {
+            if (publicanCfg.indexOf("\ndocname:") == -1) {
                 publicanCfg.append("docname: ").append(buildData.getEscapedBookTitle().replaceAll("_", " ")).append("\n");
             }
 
             // Add product if it wasn't specified
-            if (publicanCfg.indexOf("product:") == -1) {
+            if (publicanCfg.indexOf("\nproduct:") == -1) {
                 publicanCfg.append("product: ").append(escapeProduct(buildData.getOriginalBookProduct())).append("\n");
             }
 
+            // Add the mainfile attribute
+            publicanCfg.append("mainfile: ").append(buildData.getEscapedBookTitle()).append("\n");
+
             // Add version if it wasn't specified
-            if (publicanCfg.indexOf("version:") == -1) {
+            if (publicanCfg.indexOf("\nversion:") == -1) {
                 String version = contentSpec.getBookVersion();
                 if (isNullOrEmpty(version)) {
                     version = DocBookBuildUtilities.getKeyValueNodeText(buildData, contentSpec.getVersionNode());
