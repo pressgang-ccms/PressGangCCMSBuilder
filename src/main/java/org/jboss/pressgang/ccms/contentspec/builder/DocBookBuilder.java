@@ -722,7 +722,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @param topics
      * @return
      */
-    protected boolean populateDatabaseTopics(final BuildData buildData, final Map<String, BaseTopicWrapper<?>> topics) {
+    protected boolean populateDatabaseTopics(final BuildData buildData, final Map<String, BaseTopicWrapper<?>> topics) throws BuildProcessingException {
         boolean fixedUrlsSuccess = false;
         final List<TopicWrapper> allTopics = new ArrayList<TopicWrapper>();
         final List<TopicWrapper> latestTopics = new ArrayList<TopicWrapper>();
@@ -3845,7 +3845,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @param processedFileNames A modifiable Set of filenames that have already been processed.
      * @return True if the fixed url property tags were able to be created for all topics, and false otherwise.
      */
-    protected boolean setFixedURLsPass(final BuildData buildData, final List<TopicWrapper> topics, final Set<String> processedFileNames) {
+    protected boolean setFixedURLsPass(final BuildData buildData, final List<TopicWrapper> topics, final Set<String> processedFileNames) throws BuildProcessingException {
         log.info("Doing Fixed URL Pass");
 
         boolean success = true;
@@ -4000,7 +4000,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         if (!success) {
-            log.error("\tFailed to update the Fixed URLs for the topics");
+            throw new BuildProcessingException("Failed to update the Fixed URLs for the topics. Please try again and if the issue " +
+                    "persists please log a bug.");
         }
 
         // did we blow the try count?
