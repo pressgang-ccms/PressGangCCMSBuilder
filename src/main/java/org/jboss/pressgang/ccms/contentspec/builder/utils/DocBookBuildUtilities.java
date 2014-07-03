@@ -432,13 +432,15 @@ public class DocBookBuildUtilities {
      */
     public static String cleanUserPublicanCfg(final String userPublicanCfg) {
         // Remove any xml_lang statements
-        String retValue = userPublicanCfg.replaceAll("(#( |\\t)*)?xml_lang:\\s*.*?($|\\r\\n|\\n)", "");
+        String retValue = userPublicanCfg.replaceAll("(#( |\\t)*)?xml_lang\\s*:\\s*.*?($|\\r\\n|\\n)", "");
         // Remove any type statements
-        retValue = retValue.replaceAll("(#( |\\t)*)?type:\\s*.*($|\\r\\n|\\n)" + "", "");
+        retValue = retValue.replaceAll("(#( |\\t)*)?type\\s*:\\s*.*($|\\r\\n|\\n)" + "", "");
         // Remove any brand statements
-        retValue = retValue.replaceAll("(#( |\\t)*)?brand:\\s*.*($|\\r\\n|\\n)" + "", "");
+        retValue = retValue.replaceAll("(#( |\\t)*)?brand\\s*:\\s*.*($|\\r\\n|\\n)" + "", "");
+        // Remove any dtdver statements
+        retValue = retValue.replaceAll("(^|\\n)( |\\t)*dtdver\\s*:\\s*.*($|\\r\\n|\\n)", "");
         // BZ#1091776 Remove mainfile
-        retValue = retValue.replaceAll("(^|\\n)( |\\t)*mainfile:\\s*.*($|\\r\\n|\\n)", "");
+        retValue = retValue.replaceAll("(^|\\n)( |\\t)*mainfile\\s*:\\s*.*($|\\r\\n|\\n)", "");
 
         // Remove any whitespace before the text
         retValue = retValue.replaceAll("(^|\\n)\\s*", "$1");

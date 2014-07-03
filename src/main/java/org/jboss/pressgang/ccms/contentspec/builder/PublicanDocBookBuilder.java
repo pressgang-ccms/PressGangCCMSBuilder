@@ -3,6 +3,8 @@ package org.jboss.pressgang.ccms.contentspec.builder;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.Level;
@@ -19,6 +21,9 @@ import org.jboss.pressgang.ccms.utils.structures.DocBookVersion;
 import org.w3c.dom.Document;
 
 public class PublicanDocBookBuilder extends DocBookBuilder {
+    protected static final Pattern DOCNAME_PATTERN = Pattern.compile("(^|\\n)( |\\t)*docname\\s*:\\s*.*($|\\r\\n|\\n)");
+    protected static final Pattern PRODUCT_PATTERN = Pattern.compile("(^|\\n)( |\\t)*product\\s*:\\s*.*($|\\r\\n|\\n)");
+    protected static final Pattern VERSION_PATTERN = Pattern.compile("(^|\\n)( |\\t)*version\\s*:\\s*.*($|\\r\\n|\\n)");
 
     public PublicanDocBookBuilder(final DataProviderFactory providerFactory) throws BuilderCreationException {
         super(providerFactory);
@@ -73,13 +78,13 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
 
         // Setup publican.cfg
         String publicanCfg = publicanCfgTemplate.replaceAll(BuilderConstants.BRAND_REGEX, brand);
-        publicanCfg = publicanCfg.replaceFirst("type:\\s*.*($|\\r\\n|\\n)",
+        publicanCfg = publicanCfg.replaceFirst("type\\s*:\\s*.*($|\\r\\n|\\n)",
                 "type: " + contentSpec.getBookType().toString().replaceAll("-Draft", "") + "\n");
-        publicanCfg = publicanCfg.replaceAll("xml_lang:\\s*.*?($|\\r\\n|\\n)", "xml_lang: " + buildData.getOutputLocale() + "\n");
+        publicanCfg = publicanCfg.replaceAll("xml_lang\\s*:\\s*.*?($|\\r\\n|\\n)", "xml_lang: " + buildData.getOutputLocale() + "\n");
 
         // Remove the image width
-        publicanCfg = publicanCfg.replaceFirst("max_image_width:\\s*\\d+\\s*(\\r)?\\n", "");
-        publicanCfg = publicanCfg.replaceFirst("toc_section_depth:\\s*\\d+\\s*(\\r)?\\n", "");
+        publicanCfg = publicanCfg.replaceFirst("max_image_width\\s*:\\s*\\d+\\s*(\\r)?\\n", "");
+        publicanCfg = publicanCfg.replaceFirst("toc_section_depth\\s*:\\s*\\d+\\s*(\\r)?\\n", "");
 
         // Minor formatting cleanup
         publicanCfg = publicanCfg.trim() + "\n";
@@ -97,7 +102,7 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
 
             // Remove the git_branch if the content spec contains a git_branch
             if (contentSpec.getPublicanCfg().contains("git_branch")) {
-                publicanCfg = publicanCfg.replaceFirst("git_branch:\\s*.*(\\r)?(\\n)?", "");
+                publicanCfg = publicanCfg.replaceFirst("git_branch\\s*:\\s*.*(\\r)?(\\n)?", "");
             }
 
             publicanCfg += DocBookBuildUtilities.cleanUserPublicanCfg(contentSpec.getPublicanCfg());
@@ -108,18 +113,20 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
         if (buildData.getBuildOptions().getPublicanShowRemarks()) {
             // Remove any current show_remarks definitions
             if (publicanCfg.contains("show_remarks")) {
-                publicanCfg = publicanCfg.replaceAll("show_remarks:\\s*\\d+\\s*(\\r)?(\\n)?", "");
+                publicanCfg = publicanCfg.replaceAll("show_remarks\\s*:\\s*\\d+\\s*(\\r)?(\\n)?", "");
             }
             publicanCfg += "show_remarks: 1\n";
         }
 
         // Add docname if it wasn't specified
-        if (publicanCfg.indexOf("\ndocname:") == -1) {
+        Matcher m = DOCNAME_PATTERN.matcher(publicanCfg);
+        if (!m.find()) {
             publicanCfg += "docname: " + buildData.getEscapedBookTitle().replaceAll("_", " ") + "\n";
         }
 
         // Add product if it wasn't specified
-        if (publicanCfg.indexOf("\nproduct:") == -1) {
+        m = PRODUCT_PATTERN.matcher(publicanCfg);
+        if (!m.find()) {
             publicanCfg += "product: " + escapeProduct(buildData.getOriginalBookProduct()) + "\n";
         }
 
@@ -127,7 +134,8 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
         publicanCfg += "mainfile: " + buildData.getEscapedBookTitle() + "\n";
 
         // Add a version if one wasn't specified
-        if (!publicanCfg.contains("\nversion:")) {
+        m = VERSION_PATTERN.matcher(publicanCfg);
+        if (!m.find()) {
             String version = contentSpec.getBookVersion();
             if (isNullOrEmpty(version)) {
                 version = DocBookBuildUtilities.getKeyValueNodeText(buildData, contentSpec.getVersionNode());
@@ -168,17 +176,19 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
             publicanCfg.append(DocBookBuildUtilities.cleanUserPublicanCfg(entry.getValue()));
 
             // Add the dtdver property
-            if (publicanCfg.indexOf("\ndtdver:") == -1 && buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
+            if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
                 publicanCfg.append("dtdver: \"5.0\"\n");
             }
 
             // Add docname if it wasn't specified
-            if (publicanCfg.indexOf("\ndocname:") == -1) {
+            Matcher m = DOCNAME_PATTERN.matcher(publicanCfg);
+            if (!m.find()) {
                 publicanCfg.append("docname: ").append(buildData.getEscapedBookTitle().replaceAll("_", " ")).append("\n");
             }
 
             // Add product if it wasn't specified
-            if (publicanCfg.indexOf("\nproduct:") == -1) {
+            m = PRODUCT_PATTERN.matcher(publicanCfg);
+            if (!m.find()) {
                 publicanCfg.append("product: ").append(escapeProduct(buildData.getOriginalBookProduct())).append("\n");
             }
 
@@ -186,7 +196,8 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
             publicanCfg.append("mainfile: ").append(buildData.getEscapedBookTitle()).append("\n");
 
             // Add version if it wasn't specified
-            if (publicanCfg.indexOf("\nversion:") == -1) {
+            m = VERSION_PATTERN.matcher(publicanCfg);
+            if (!m.find()) {
                 String version = contentSpec.getBookVersion();
                 if (isNullOrEmpty(version)) {
                     version = DocBookBuildUtilities.getKeyValueNodeText(buildData, contentSpec.getVersionNode());
@@ -202,7 +213,7 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
             if (buildData.getBuildOptions().getPublicanShowRemarks()) {
                 // Remove any current show_remarks definitions
                 if (publicanCfg.indexOf("show_remarks") != -1) {
-                    fixedPublicanCfg = fixedPublicanCfg.replaceAll("show_remarks:\\s*\\d+\\s*(\\r)?(\\n)?", "");
+                    fixedPublicanCfg = fixedPublicanCfg.replaceAll("show_remarks\\s*:\\s*\\d+\\s*(\\r)?(\\n)?", "");
                 }
                 fixedPublicanCfg += "show_remarks: 1\n";
             }
