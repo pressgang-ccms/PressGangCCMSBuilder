@@ -3762,7 +3762,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         // Check the content of the XML for things not picked up by DTD validation
-        final List<String> xmlErrors = DocBookBuildUtilities.checkTopicForInvalidContent(topic, topicDoc, buildData);
+        final List<String> xmlErrors = DocBookBuildUtilities.checkTopicForInvalidContent(topicNode, topic, topicDoc, buildData);
         if (xmlErrors.size() > 0) {
             final String xmlStringInCDATA = DocBookBuildUtilities.convertDocumentToCDATAFormattedString(topicDoc, getXMLFormatProperties());
 
