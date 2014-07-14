@@ -155,6 +155,9 @@ public class ContentSpecBuilder implements ShutdownAbleApp {
             docbookBuilder = new DocBookBuilder(providerFactory);
         }
 
+        // Always skip nested section validation for translation builds
+        builderOptions.setSkipNestedSectionValidation(true);
+
         final HashMap<String, byte[]> files = docbookBuilder.buildTranslatedBook(contentSpec, requester, builderOptions, overrideFiles,
                 zanataDetails);
 

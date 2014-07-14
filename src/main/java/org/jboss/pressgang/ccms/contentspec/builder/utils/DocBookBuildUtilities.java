@@ -775,7 +775,7 @@ public class DocBookBuildUtilities {
         } else if (topicNode.getTopicType() == TopicType.NORMAL || topicNode.getTopicType() == TopicType.INITIAL_CONTENT) {
             // Check that nested sections aren't used
             final List<Node> subSections = XMLUtilities.getDirectChildNodes(doc.getDocumentElement(), "section");
-            if (subSections.size() > 0) {
+            if (subSections.size() > 0 && !buildData.getBuildOptions().isSkipNestedSectionValidation()) {
                 xmlErrors.add("Nested sections cannot be used in topics. Please consider breaking the content into multiple topics.");
             }
         }
