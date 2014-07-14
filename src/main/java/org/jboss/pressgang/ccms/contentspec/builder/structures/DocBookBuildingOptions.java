@@ -35,6 +35,7 @@ public class DocBookBuildingOptions implements Serializable {
     private Integer maxRevision = null;
     private Boolean calculateChunkDepth = false;
     private Boolean resolveEntities = false;
+    private Boolean skipNestedSectionValidation = false;
 
     public DocBookBuildingOptions() {
 
@@ -254,5 +255,13 @@ public class DocBookBuildingOptions implements Serializable {
 
     public void setResolveEntities(Boolean resolveEntities) {
         this.resolveEntities = resolveEntities;
+    }
+
+    public Boolean isSkipNestedSectionValidation() {
+        return skipNestedSectionValidation;
+    }
+
+    public void setSkipNestedSectionValidation(Boolean skipNestedSectionValidation) {
+        this.skipNestedSectionValidation = skipNestedSectionValidation;
     }
 }
