@@ -10,14 +10,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import com.google.code.regexp.Matcher;
-import com.google.code.regexp.Pattern;
-import com.ibm.icu.text.NumberFormat;
-import com.ibm.icu.text.RuleBasedNumberFormat;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.ITopicNode;
 import org.jboss.pressgang.ccms.contentspec.KeyValueNode;
 import org.jboss.pressgang.ccms.contentspec.Level;
+import org.jboss.pressgang.ccms.contentspec.SpecNode;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
@@ -50,10 +47,7 @@ import org.w3c.dom.NodeList;
  */
 public class DocBookBuildUtilities {
     private static final Logger log = LoggerFactory.getLogger(DocBookBuildUtilities.class);
-    private static final String STARTS_WITH_NUMBER_RE = "^(?<Numbers>\\d+)(?<EverythingElse>.*)$";
-    // See http://stackoverflow.com/a/4307261/1330640
-    private static String UNICODE_WORD = "\\pL\\pM\\p{Nd}\\p{Nl}\\p{Pc}[\\p{InEnclosedAlphanumerics}&&\\p{So}]";
-    private static final String STARTS_WITH_INVALID_SEQUENCE_RE = "^(?<InvalidSeq>[^" + UNICODE_WORD + "]+)(?<EverythingElse>.*)$";
+
     private static final String[] DATE_FORMATS = new String[]{"MM-dd-yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "yyyy/MM/dd", "EEE MMM dd yyyy",
             "EEE, MMM dd yyyy", "EEE MMM dd yyyy Z", "EEE dd MMM yyyy", "EEE, dd MMM yyyy", "EEE dd MMM yyyy Z", "yyyyMMdd",
             "yyyyMMdd'T'HHmmss.SSSZ"};
@@ -66,7 +60,7 @@ public class DocBookBuildUtilities {
      */
     public static void addLevelsToDatabase(final BuildDatabase buildDatabase, final Level level) {
         // Add the level to the database
-        buildDatabase.add(level, DocBookBuildUtilities.createURLTitle(level.getTitle()));
+        buildDatabase.add(level);
 
         // Add the child levels to the database
         for (final Level childLevel : level.getChildLevels()) {
@@ -181,8 +175,7 @@ public class DocBookBuildUtilities {
             final Map<SpecTopic, Set<String>> usedIdAttributes) {
         // Make sure the id doesn't match the spec topic's unique link
         if (topicNode instanceof SpecTopic && id.equals(
-                ((SpecTopic) topicNode).getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
-                        buildData.isUseFixedUrls()))) {
+                ((SpecTopic) topicNode).getUniqueLinkId(buildData.isUseFixedUrls()))) {
             return false;
         }
 
@@ -231,56 +224,6 @@ public class DocBookBuildUtilities {
         final NodeList elements = node.getChildNodes();
         for (int i = 0; i < elements.getLength(); ++i) {
             getTopicLinkIds(elements.item(i), linkIds);
-        }
-    }
-
-    /**
-     * Creates the URL specific title for a topic or level.
-     *
-     * @param title The title that will be used to create the URL Title.
-     * @return The URL representation of the title.
-     */
-    public static String createURLTitle(final String title) {
-        String baseTitle = title;
-        // Remove XML Elements from the Title.
-        baseTitle = baseTitle.replaceAll("</(.*?)>", "").replaceAll("<(.*?)>", "");
-
-        // Check if the title starts with an invalid sequence
-        final Pattern invalidSequencePattern = Pattern.compile(STARTS_WITH_INVALID_SEQUENCE_RE);
-        final Matcher invalidSequenceMatcher = invalidSequencePattern.matcher(baseTitle);
-
-        if (invalidSequenceMatcher.find()) {
-            baseTitle = invalidSequenceMatcher.group("EverythingElse");
-        }
-
-        // Start by removing any prefixed numbers (you can't start an xref id with numbers)
-        final Pattern pattern = Pattern.compile(STARTS_WITH_NUMBER_RE);
-        final Matcher matcher = pattern.matcher(baseTitle);
-
-        if (matcher.find()) {
-            final String numbers = matcher.group("Numbers");
-            final String everythingElse = matcher.group("EverythingElse");
-
-            if (numbers != null && everythingElse != null) {
-                final NumberFormat formatter = new RuleBasedNumberFormat(RuleBasedNumberFormat.SPELLOUT);
-                final String numbersSpeltOut = formatter.format(Integer.parseInt(numbers));
-                baseTitle = numbersSpeltOut + everythingElse;
-
-                // Capitalize the first character
-                if (baseTitle.length() > 0) {
-                    baseTitle = baseTitle.substring(0, 1).toUpperCase() + baseTitle.substring(1, baseTitle.length());
-                }
-            }
-        }
-
-        // Escape the title
-        final String escapedTitle = DocBookUtilities.escapeTitle(baseTitle);
-
-        // We don't want only numeric fixed urls, as that is completely meaningless.
-        if (escapedTitle.matches("^\\d+$")) {
-            return "";
-        } else {
-            return escapedTitle;
         }
     }
 
@@ -577,26 +520,23 @@ public class DocBookBuildUtilities {
      * Sets the topic xref id to the topic database id.
      *
      * @param buildData Information and data structures for the build.
-     * @param topic     The topic to be used to set the id attribute.
+     * @param topicNode     The topic to be used to set the id attribute.
      * @param doc       The document object for the topics XML.
      */
-    public static void processTopicID(final BuildData buildData, final BaseTopicWrapper<?> topic, final Document doc) {
+    public static void processTopicID(final BuildData buildData, final ITopicNode topicNode, final Document doc) {
+        final BaseTopicWrapper<?> topic = topicNode.getTopic();
+
         // Ignore info topics
         if (!topic.hasTag(buildData.getServerEntities().getInfoTagId())) {
             // Get the id value
-            final String errorXRefID;
-            if (buildData.isUseFixedUrls()) {
-                errorXRefID = topic.getXRefPropertyOrId(buildData.getServerEntities().getFixedUrlPropertyTagId());
-            } else {
-                errorXRefID = topic.getXRefId();
-            }
+            final String errorXRefID = ((SpecNode) topicNode).getUniqueLinkId(buildData.isUseFixedUrls());
 
             // Set the id
             setDOMElementId(buildData.getDocBookVersion(), doc.getDocumentElement(), errorXRefID);
         }
 
         // Add the remap parameter
-        final Integer topicId = topic.getTopicId();
+        final Integer topicId = topicNode.getDBId();
         doc.getDocumentElement().setAttribute("remap", "TID_" + topicId);
     }
 
@@ -637,7 +577,7 @@ public class DocBookBuildUtilities {
         if (DocBookUtilities.TOPIC_ROOT_NODE_NAME.equals(doc.getDocumentElement().getNodeName())) {
             DocBookUtilities.setSectionTitle(buildData.getDocBookVersion(), topic.getTitle(), doc);
         }
-        processTopicID(buildData, topic, doc);
+
         return doc;
     }
 
@@ -652,7 +592,9 @@ public class DocBookBuildUtilities {
     public static void setTopicNodeXMLForError(final BuildData buildData, final ITopicNode topicNode,
             final String template) throws BuildProcessingException {
         final BaseTopicWrapper<?> topic = topicNode.getTopic();
-        topicNode.setXMLDocument(setTopicXMLForError(buildData, topic, template));
+        final Document doc = setTopicXMLForError(buildData, topic, template);
+        processTopicID(buildData, topicNode, doc);
+        topicNode.setXMLDocument(doc);
     }
 
     /**
@@ -844,27 +786,6 @@ public class DocBookBuildUtilities {
             throw new BuildProcessingException("The translated document has no <authorgroup> element and therefore can't be merged.");
         } else {
             throw new BuildProcessingException("The main document has no <authorgroup> element and therefore can't be merged.");
-        }
-    }
-
-    public static boolean useStaticFixedURLForTopic(final BuildData buildData, final BaseTopicWrapper<?> topic) {
-        return topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId())
-                || topic.hasTag(buildData.getServerEntities().getLegalNoticeTagId())
-                || topic.hasTag(buildData.getServerEntities().getAuthorGroupTagId())
-                || topic.hasTag(buildData.getServerEntities().getAbstractTagId());
-    }
-
-    public static String getStaticFixedURLForTopic(final BuildData buildData, final BaseTopicWrapper<?> topic) {
-        if (topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId())) {
-            return "appe-" + buildData.getEscapedBookTitle() + "-Revision_History";
-        } else if (topic.hasTag(buildData.getServerEntities().getLegalNoticeTagId())) {
-            return "Legal_Notice";
-        } else if (topic.hasTag(buildData.getServerEntities().getAuthorGroupTagId())) {
-            return "Author_Group";
-        } else if (topic.hasTag(buildData.getServerEntities().getAbstractTagId())) {
-            return "Abstract";
-        } else {
-            return null;
         }
     }
 

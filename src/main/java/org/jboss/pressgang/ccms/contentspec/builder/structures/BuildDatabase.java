@@ -1,6 +1,7 @@
 package org.jboss.pressgang.ccms.contentspec.builder.structures;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -19,7 +20,7 @@ import org.jboss.pressgang.ccms.wrapper.base.BaseTopicWrapper;
 public class BuildDatabase {
     private Map<Integer, List<ITopicNode>> topics = new HashMap<Integer, List<ITopicNode>>();
     private Map<String, List<ITopicNode>> topicsKeys = new HashMap<String, List<ITopicNode>>();
-    private Map<String, List<Level>> levelTitles = new HashMap<String, List<Level>>();
+    private List<Level> levels = new ArrayList<Level>();
 
     /**
      * Add a SpecTopic to the database.
@@ -48,68 +49,11 @@ public class BuildDatabase {
      * Add a Level to the database.
      *
      * @param level        The Level object to be added.
-     * @param escapedTitle The escaped title of the Level.
      */
-    public void add(final Level level, final String escapedTitle) {
+    public void add(final Level level) {
         if (level == null) return;
 
-        if (!levelTitles.containsKey(escapedTitle)) {
-            levelTitles.put(escapedTitle, new LinkedList<Level>());
-        }
-
-        if (levelTitles.get(escapedTitle).size() > 0) {
-            level.setDuplicateId(Integer.toString(levelTitles.get(escapedTitle).size()));
-        }
-
-        levelTitles.get(escapedTitle).add(level);
-    }
-
-    /**
-     * Sets the Duplicate IDs for all the SpecTopics in the Database.
-     *
-     * @param buildData
-     */
-    public void setDatabaseDuplicateIds(final BuildData buildData) {
-        // Create the mapping of topic titles to spec topics
-        final Map<String, List<SpecTopic>> topicsTitles = new HashMap<String, List<SpecTopic>>();
-        for (final Entry<Integer, List<ITopicNode>> topicEntry : topics.entrySet()) {
-            final List<ITopicNode> specTopics = topicEntry.getValue();
-            for (final ITopicNode topicNode : specTopics) {
-                if (topicNode instanceof SpecTopic) {
-                    final SpecTopic specTopic = (SpecTopic) topicNode;
-                    String topicTitle = specTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
-                            buildData.isUseFixedUrls());
-
-                    if (!topicsTitles.containsKey(topicTitle)) {
-                        topicsTitles.put(topicTitle, new LinkedList<SpecTopic>());
-                    }
-
-                    topicsTitles.get(topicTitle).add(specTopic);
-                }
-            }
-        }
-
-        // Set the spec topic duplicate ids based on topic title
-        for (final Entry<String, List<SpecTopic>> topicTitleEntry : topicsTitles.entrySet()) {
-            final List<SpecTopic> specTopics = topicTitleEntry.getValue();
-            if (specTopics.size() > 1) {
-                for (int i = 1; i < specTopics.size(); i++) {
-                    specTopics.get(i).setDuplicateId(Integer.toString(i));
-                }
-            }
-        }
-
-        // Levels
-        for (final Entry<String, List<Level>> levelTitleEntry : levelTitles.entrySet()) {
-            final List<Level> levels = levelTitleEntry.getValue();
-            for (int i = 0; i < levels.size(); i++) {
-                if (i != 0) {
-                    levels.get(i).setDuplicateId(Integer.toString(i));
-                } else {
-                    levels.get(i).setDuplicateId(null);
-                }
-            }
-        }
+        levels.add(level);
     }
 
     /**
@@ -197,12 +141,7 @@ public class BuildDatabase {
      * @return A list of Level objects.
      */
     public List<Level> getAllLevels() {
-        final ArrayList<Level> levels = new ArrayList<Level>();
-        for (final Entry<String, List<Level>> levelTitleEntry : levelTitles.entrySet()) {
-            levels.addAll(levelTitleEntry.getValue());
-        }
-
-        return levels;
+        return Collections.unmodifiableList(levels);
     }
 
     /**
@@ -214,9 +153,7 @@ public class BuildDatabase {
         final ArrayList<SpecNode> retValue = new ArrayList<SpecNode>();
 
         // Add all the levels
-        for (final Entry<String, List<Level>> levelTitleEntry : levelTitles.entrySet()) {
-            retValue.addAll(levelTitleEntry.getValue());
-        }
+        retValue.addAll(levels);
 
         // Add all the topics
         for (final Entry<Integer, List<ITopicNode>> topicEntry : topics.entrySet()) {
@@ -240,11 +177,8 @@ public class BuildDatabase {
         final Set<String> ids = new HashSet<String>();
 
         // Add all the level id attributes
-        for (final Entry<String, List<Level>> levelTitleEntry : levelTitles.entrySet()) {
-            final List<Level> levels = levelTitleEntry.getValue();
-            for (final Level level : levels) {
-                ids.add(level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(), buildData.isUseFixedUrls()));
-            }
+        for (final Level level : levels) {
+            ids.add(level.getUniqueLinkId(buildData.isUseFixedUrls()));
         }
 
         // Add all the topic id attributes
@@ -253,7 +187,7 @@ public class BuildDatabase {
             for (final ITopicNode topic : topics) {
                 if (topic instanceof SpecTopic) {
                     final SpecTopic specTopic = (SpecTopic) topic;
-                    ids.add(specTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(), buildData.isUseFixedUrls()));
+                    ids.add(specTopic.getUniqueLinkId(buildData.isUseFixedUrls()));
                 }
             }
         }

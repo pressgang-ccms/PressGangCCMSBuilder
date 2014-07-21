@@ -27,6 +27,7 @@ public class BuilderConstants {
      */
     public static final String INJECT_ID_RE = "(\\d+|T(\\d+|(\\-[ ]*[A-Za-z][A-Za-z\\d\\-_]*)))";
     public static final Pattern TOPIC_ID_PATTERN = Pattern.compile("^\\d+$");
+    public static final Pattern PARSER_UNIQUE_ID_PATTERN = Pattern.compile("^L\\d+(-.*)?$");
 
     // Regex strings used to replace content
     public static final String ESCAPED_TITLE_REGEX = "<<contentSpec\\.escapedTitle>>";

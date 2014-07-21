@@ -434,8 +434,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
 
         final HashMap<org.w3c.dom.Node, InjectionListData> customInjections = new HashMap<org.w3c.dom.Node, InjectionListData>();
         preProcessor.collectInjectionData(buildData.getContentSpec(), topicNode, new ArrayList<String>(), doc, buildData.getBuildDatabase(),
-                new ArrayList<String>(), customInjections, buildData.isUseFixedUrls(),
-                buildData.getServerEntities().getFixedUrlPropertyTagId(), types);
+                new ArrayList<String>(), customInjections, buildData.isUseFixedUrls(), types);
 
         // Now convert the custom injection points
         for (final org.w3c.dom.Node customInjectionCommentNode : customInjections.keySet()) {
@@ -773,8 +772,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                 if (flattenStructure) {
                     addStringsForTopic(buildData, specTopic, containerTranslations);
                 } else {
-                    final String topicFileName = specTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
-                            buildData.isUseFixedUrls());
+                    final String topicFileName = specTopic.getUniqueLinkId(buildData.isUseFixedUrls());
 
                     buildPOTopic(buildData, specTopic, "topics/" + topicFileName);
                 }
@@ -804,8 +802,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
         final Map<String, TranslationDetails> containerTranslations = new LinkedHashMap<String, TranslationDetails>();
 
         // Get the level file name
-        final String containerName = level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
-                buildData.isUseFixedUrls());
+        final String containerName = level.getUniqueLinkId(buildData.isUseFixedUrls());
 
         // Add the contents of the level
         addStringsForContainer(buildData, level, containerTranslations, "topics/" + containerName + "/", flattenStructure);
@@ -819,8 +816,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
         final Map<String, TranslationDetails> containerTranslations = new LinkedHashMap<String, TranslationDetails>();
 
         // Get the level file name
-        final String containerName = level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
-                buildData.isUseFixedUrls());
+        final String containerName = level.getUniqueLinkId(buildData.isUseFixedUrls());
 
         // Add the contents of the level
         addStringsForContainer(buildData, level, containerTranslations, parentFileDirectory + containerName + "/", flattenStructure);
@@ -874,8 +870,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                 if (flattenStructure) {
                     addStringsForTopic(buildData, specTopic, containerTranslations);
                 } else {
-                    final String topicFileName = specTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
-                            buildData.isUseFixedUrls());
+                    final String topicFileName = specTopic.getUniqueLinkId(buildData.isUseFixedUrls());
                     final String fixedParentFileLocation = buildData.getBuildOptions().getFlattenTopics() ? "topics/" : parentFileLocation;
 
                     buildPOTopic(buildData, specTopic, fixedParentFileLocation + topicFileName);
@@ -1008,8 +1003,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
             final List<Integer> types = Arrays.asList(DocBookXMLPreProcessor.XREF_INJECTION_POINT);
             final DocBookXMLPreProcessor preProcessor = buildData.getXMLPreProcessor();
             preProcessor.processInjections(buildData.getContentSpec(), specTopic, new ArrayList<String>(), doc,
-                    buildData.getBuildOptions(), buildData.getBuildDatabase(), buildData.isUseFixedUrls(),
-                    buildData.getServerEntities().getFixedUrlPropertyTagId(), types);
+                    buildData.getBuildOptions(), buildData.getBuildDatabase(), buildData.isUseFixedUrls(), types);
 
             // Remove any comments
             final List<org.w3c.dom.Node> comments = XMLUtilities.getComments(doc.getDocumentElement());
@@ -1161,7 +1155,6 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
             final Map<String, TranslationDetails> translations) {
         if (!relationships.isEmpty()) {
             if (key != null) {
-                final Integer fixedUrlPropertyTagId = buildData.getServerEntities().getFixedUrlPropertyTagId();
                 final boolean useFixedUrls = buildData.isUseFixedUrls();
 
                 // Get the process title name
@@ -1181,7 +1174,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                 }
 
                 // Build up the link
-                final String titleLinkId = ((Level) specTopic.getParent()).getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls);
+                final String titleLinkId = ((Level) specTopic.getParent()).getUniqueLinkId(useFixedUrls);
                 final String originalTitleLink = DocBookUtilities.buildLink(titleLinkId, titleRoleName, container.getTitle());
 
                 final String originalString = buildData.getConstants().getString(key);
@@ -1212,7 +1205,6 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
      */
     protected void addStringsFromRelationships(final BuildData buildData, final List<Relationship> relationships, final String roleName,
             final Map<String, TranslationDetails> translations) {
-        final Integer fixedUrlPropertyTagId = buildData.getServerEntities().getFixedUrlPropertyTagId();
         final boolean useFixedUrls = buildData.isUseFixedUrls();
 
         for (final Relationship relationship : relationships) {
@@ -1223,7 +1215,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                 relatedNode = ((TargetRelationship) relationship).getSecondaryRelationship();
             }
 
-            final String xrefString = DocBookUtilities.buildXRef(relatedNode.getUniqueLinkId(fixedUrlPropertyTagId, useFixedUrls), roleName);
+            final String xrefString = DocBookUtilities.buildXRef(relatedNode.getUniqueLinkId(useFixedUrls), roleName);
             translations.put(xrefString, new TranslationDetails(xrefString, false, "para"));
         }
     }

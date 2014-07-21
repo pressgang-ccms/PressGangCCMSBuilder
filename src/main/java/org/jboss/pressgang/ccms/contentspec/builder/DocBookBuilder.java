@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -38,6 +37,7 @@ import org.jboss.pressgang.ccms.contentspec.InfoTopic;
 import org.jboss.pressgang.ccms.contentspec.InitialContent;
 import org.jboss.pressgang.ccms.contentspec.KeyValueNode;
 import org.jboss.pressgang.ccms.contentspec.Level;
+import org.jboss.pressgang.ccms.contentspec.SpecNode;
 import org.jboss.pressgang.ccms.contentspec.SpecTopic;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkOptions;
@@ -63,8 +63,10 @@ import org.jboss.pressgang.ccms.contentspec.sort.AuthorInformationComparator;
 import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
+import org.jboss.pressgang.ccms.contentspec.utils.FixedURLGenerator;
 import org.jboss.pressgang.ccms.contentspec.utils.TranslationUtilities;
 import org.jboss.pressgang.ccms.provider.BlobConstantProvider;
+import org.jboss.pressgang.ccms.provider.CSNodeProvider;
 import org.jboss.pressgang.ccms.provider.ContentSpecProvider;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
 import org.jboss.pressgang.ccms.provider.FileProvider;
@@ -78,7 +80,6 @@ import org.jboss.pressgang.ccms.provider.TranslatedCSNodeProvider;
 import org.jboss.pressgang.ccms.provider.TranslatedContentSpecProvider;
 import org.jboss.pressgang.ccms.provider.TranslatedTopicProvider;
 import org.jboss.pressgang.ccms.provider.exception.NotFoundException;
-import org.jboss.pressgang.ccms.provider.exception.ProviderException;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.ResourceUtilities;
@@ -107,7 +108,6 @@ import org.jboss.pressgang.ccms.wrapper.TranslatedContentSpecWrapper;
 import org.jboss.pressgang.ccms.wrapper.TranslatedTopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.base.BaseTopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.collection.CollectionWrapper;
-import org.jboss.pressgang.ccms.wrapper.collection.UpdateableCollectionWrapper;
 import org.jboss.pressgang.ccms.zanata.ZanataDetails;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -195,6 +195,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
     protected final XMLFormatProperties xmlFormatProperties = new XMLFormatProperties();
     protected final DataProviderFactory providerFactory;
     protected final ContentSpecProvider contentSpecProvider;
+    protected final CSNodeProvider csNodeProvider;
     protected final TranslatedCSNodeProvider translatedCSNodeProvider;
     protected final TopicProvider topicProvider;
     protected final TranslatedTopicProvider translatedTopicProvider;
@@ -233,6 +234,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         this.providerFactory = providerFactory;
 
         contentSpecProvider = providerFactory.getProvider(ContentSpecProvider.class);
+        csNodeProvider = providerFactory.getProvider(CSNodeProvider.class);
         translatedCSNodeProvider = providerFactory.getProvider(TranslatedCSNodeProvider.class);
         topicProvider = providerFactory.getProvider(TopicProvider.class);
         translatedTopicProvider = providerFactory.getProvider(TranslatedTopicProvider.class);
@@ -478,6 +480,15 @@ public class DocBookBuilder implements ShutdownAbleApp {
             return null;
         }
 
+        final boolean fixedUrlsSuccess = doFixedURLsPass(buildData);
+        buildData.setUseFixedUrls(fixedUrlsSuccess);
+
+        // Check if the app should be shutdown
+        if (isShuttingDown.get()) {
+            shutdown.set(true);
+            return null;
+        }
+
         final Map<SpecTopic, Set<String>> usedIdAttributes = new HashMap<SpecTopic, Set<String>>();
         doSpecTopicFirstPass(buildData, usedIdAttributes, entities);
 
@@ -536,8 +547,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
     protected BuildData createBuildData(final String fixedRequester, final ContentSpec contentSpec,
             final DocBookBuildingOptions buildingOptions, final ZanataDetails zanataDetails, final DataProviderFactory providerFactory,
             final boolean translationBuild) {
-        return new BuildData(fixedRequester, contentSpec, buildingOptions, zanataDetails, providerFactory,
-                translationBuild);
+        return new BuildData(fixedRequester, contentSpec, buildingOptions, zanataDetails, providerFactory, translationBuild);
     }
 
     /**
@@ -688,15 +698,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         final ContentSpec contentSpec = buildData.getContentSpec();
         final Map<String, BaseTopicWrapper<?>> topics = new HashMap<String, BaseTopicWrapper<?>>();
-        final boolean fixedUrlsSuccess;
         if (buildData.isTranslationBuild()) {
             //Translations should reference an existing historical topic with the fixed urls set, so we assume this to be the case
-            fixedUrlsSuccess = true;
             populateTranslatedTopicDatabase(buildData, topics);
         } else {
-            fixedUrlsSuccess = populateDatabaseTopics(buildData, topics);
+            populateDatabaseTopics(buildData, topics);
         }
-        buildData.setUseFixedUrls(fixedUrlsSuccess);
 
         // Check if the app should be shutdown
         if (isShuttingDown.get()) {
@@ -722,8 +729,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @param topics
      * @return
      */
-    protected boolean populateDatabaseTopics(final BuildData buildData, final Map<String, BaseTopicWrapper<?>> topics) throws BuildProcessingException {
-        boolean fixedUrlsSuccess = false;
+    protected void populateDatabaseTopics(final BuildData buildData,
+            final Map<String, BaseTopicWrapper<?>> topics) throws BuildProcessingException {
         final List<TopicWrapper> allTopics = new ArrayList<TopicWrapper>();
         final List<TopicWrapper> latestTopics = new ArrayList<TopicWrapper>();
         final List<TopicWrapper> revisionTopics = new ArrayList<TopicWrapper>();
@@ -752,30 +759,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
             topics.put(key, topic);
             buildData.getBuildDatabase().add(topicNode, key);
         }
-
-        final Set<String> processedFileNames = new HashSet<String>();
-        // If we are doing a build on a server then we shouldn't set the fixed urls
-        if (buildData.getBuildOptions().isServerBuild()) {
-            // Ensure that our revision topics FixedURLs are still valid
-            setFixedURLsForRevisionsPass(buildData, allTopics, processedFileNames);
-            fixedUrlsSuccess = true;
-        } else {
-            if (latestTopics != null) {
-                /*
-                 * assign fixed urls property tags to the topics. If fixedUrlsSuccess is true, the id of the topic sections,
-                 * xref injection points and file names in the zip file will be taken from the fixed url property tag,
-                 * defaulting back to the TopicID## format if for some reason that property tag does not exist.
-                 */
-                fixedUrlsSuccess = setFixedURLsPass(buildData, latestTopics, processedFileNames);
-            } else {
-                fixedUrlsSuccess = true;
-            }
-
-            // Ensure that our revision topics FixedURLs are still valid
-            setFixedURLsForRevisionsPass(buildData, revisionTopics, processedFileNames);
-        }
-
-        return fixedUrlsSuccess;
     }
 
     /**
@@ -805,16 +788,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 log.info("\tPopulate " + buildData.getBuildLocale() + " Database Pass " + percent + "% Done");
             }
         }
-
-        // Ensure that our translated topics FixedURLs are still valid
-        final Set<String> processedFileNames = new HashSet<String>();
-
-        // Ensure that the fixed urls are still unique
-        final List<TranslatedTopicWrapper> translatedTopicList = new ArrayList<TranslatedTopicWrapper>();
-        for (final Entry<String, BaseTopicWrapper<?>> topicEntry : translatedTopics.entrySet()) {
-            translatedTopicList.add((TranslatedTopicWrapper) topicEntry.getValue());
-        }
-        setFixedURLsForRevisionsPass(buildData, translatedTopicList, processedFileNames);
     }
 
     /**
@@ -1159,9 +1132,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     processTopicSectionInfo(buildData, topic, topicDoc);
                 }
 
-                // Set the root element ID
-                DocBookBuildUtilities.processTopicID(buildData, topic, topicDoc);
-
                 // Add the document & topic to the database spec topics
                 final List<ITopicNode> specTopics = buildData.getBuildDatabase().getTopicNodesForKey(key);
                 for (final ITopicNode specTopic : specTopics) {
@@ -1276,14 +1246,18 @@ public class DocBookBuilder implements ShutdownAbleApp {
             assert topic != null;
 
             if (doc != null) {
+                // Set the root element ID
+                DocBookBuildUtilities.processTopicID(buildData, specTopic, doc);
+
+                // Resolve the entities if required
                 if (buildData.getBuildOptions().isResolveEntities()) {
-                    // Expand the entities
                     try {
                         TranslationUtilities.resolveCustomTopicEntities(entities, doc);
                     } catch (Exception e) {
                         // Do Nothing
                     }
                 }
+
                 // Process the conditional statements
                 processConditions(buildData, specTopic, doc);
 
@@ -1323,8 +1297,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(
                             (TranslatedTopicWrapper) topic);
                     if (pushedTranslatedTopic != null && specTopic.getRevision() != null && !pushedTranslatedTopic.getTopicRevision()
-                            .equals(
-                            specTopic.getRevision())) {
+                            .equals(specTopic.getRevision())) {
                         if (EntityUtilities.isDummyTopic(topic)) {
                             buildData.getErrorDatabase().addWarning(topic, ErrorType.OLD_UNTRANSLATED,
                                     BuilderConstants.WARNING_OLD_UNTRANSLATED_TOPIC);
@@ -1367,9 +1340,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
         log.info("Doing " + buildData.getBuildLocale() + " Topic Link Pass");
 
         validateTopicLinks(buildData, bookIdAttributes);
-
-        // Apply the duplicate ids for the spec topics
-        buildData.getBuildDatabase().setDatabaseDuplicateIds(buildData);
     }
 
     /**
@@ -1517,9 +1487,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
                     if (invalidLinks.containsKey(linkId)) {
                         final SpecTopic linkedTopic = invalidLinks.get(linkId);
-                        ((Element) linkNode).setAttribute("linkend",
-                                linkedTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
-                                        buildData.isUseFixedUrls()));
+                        ((Element) linkNode).setAttribute("linkend", linkedTopic.getUniqueLinkId(buildData.isUseFixedUrls()));
                     }
                 }
             }
@@ -1540,7 +1508,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final BaseTopicWrapper<?> topic = topicNode.getTopic();
         final Document doc = topicNode.getXMLDocument();
         final boolean useFixedUrls = buildData.isUseFixedUrls();
-        final Integer fixedUrlPropertyTagId = buildData.getServerEntities().getFixedUrlPropertyTagId();
         boolean valid = true;
 
         // Process the injection points
@@ -1550,21 +1517,20 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
             if (topicNode instanceof SpecTopic) {
                 final SpecTopic specTopic = (SpecTopic) topicNode;
-                xmlPreProcessor.processPrevRelationshipInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
-                xmlPreProcessor.processNextRelationshipInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
+                xmlPreProcessor.processPrevRelationshipInjections(specTopic, doc, useFixedUrls);
+                xmlPreProcessor.processNextRelationshipInjections(specTopic, doc, useFixedUrls);
 
                 // Front Matter topics are injected later as they need to be grouped
                 if (topicNode.getTopicType() != TopicType.INITIAL_CONTENT) {
-                    xmlPreProcessor.processPrerequisiteInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
-                    xmlPreProcessor.processLinkListRelationshipInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
-                    xmlPreProcessor.processSeeAlsoInjections(specTopic, doc, useFixedUrls, fixedUrlPropertyTagId);
+                    xmlPreProcessor.processPrerequisiteInjections(specTopic, doc, useFixedUrls);
+                    xmlPreProcessor.processLinkListRelationshipInjections(specTopic, doc, useFixedUrls);
+                    xmlPreProcessor.processSeeAlsoInjections(specTopic, doc, useFixedUrls);
                 }
             }
 
             // Process the topics XML and insert the injection links
             final List<String> customInjectionErrors = xmlPreProcessor.processInjections(buildData.getContentSpec(), topicNode,
-                    customInjectionIds, doc, buildData.getBuildOptions(), buildData.getBuildDatabase(), useFixedUrls,
-                    fixedUrlPropertyTagId);
+                    customInjectionIds, doc, buildData.getBuildOptions(), buildData.getBuildDatabase(), useFixedUrls);
 
             // Check if the app should be shutdown
             if (isShuttingDown.get()) {
@@ -1589,13 +1555,12 @@ public class DocBookBuilder implements ShutdownAbleApp {
     protected void processLevelInjections(final BuildData buildData, final Level level, final Document doc, final Element node,
             final DocBookXMLPreProcessor xmlPreProcessor) {
         final boolean useFixedUrls = buildData.isUseFixedUrls();
-        final Integer fixedUrlPropertyTagId = buildData.getServerEntities().getFixedUrlPropertyTagId();
 
         // Process the injection points
         if (buildData.getInjectionOptions().isInjectionAllowed()) {
-            xmlPreProcessor.processPrerequisiteInjections(level, doc, node, useFixedUrls, fixedUrlPropertyTagId);
-            xmlPreProcessor.processLinkListRelationshipInjections(level, doc, node, useFixedUrls, fixedUrlPropertyTagId);
-            xmlPreProcessor.processSeeAlsoInjections(level, doc, node, useFixedUrls, fixedUrlPropertyTagId);
+            xmlPreProcessor.processPrerequisiteInjections(level, doc, node, useFixedUrls);
+            xmlPreProcessor.processLinkListRelationshipInjections(level, doc, node, useFixedUrls);
+            xmlPreProcessor.processSeeAlsoInjections(level, doc, node, useFixedUrls);
         }
     }
 
@@ -1939,8 +1904,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 final Integer topicId = topic.getTopicId();
                 final List<ITopicNode> topicNodes = buildData.getBuildDatabase().getTopicNodesForTopicID(topicId);
                 final SpecTopic specTopic = (SpecTopic) topicNodes.get(0);
-                final String fixedUrl = specTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
-                        buildData.isUseFixedUrls());
+                final String fixedUrl = specTopic.getUniqueLinkId(buildData.isUseFixedUrls());
 
                 // Find the new since value to use
                 final List<PropertyTagInTopicWrapper> newSinceProperties = topic.getProperties(
@@ -2183,8 +2147,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 prefaceDoc.getDocumentElement().appendChild(xinclude);
             }
 
-            final String prefaceXml = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(), prefaceDoc,
-                    "preface", buildData.getEntityFileName(), getXMLFormatProperties());
+            final String prefaceXml = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(),
+                    prefaceDoc, "preface", buildData.getEntityFileName(), getXMLFormatProperties());
             addToZip(buildData.getBookLocaleFolder() + PREFACE_FILE_NAME, prefaceXml, buildData);
         }
     }
@@ -2261,8 +2225,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         // Create the title
-        final String containerName = level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
-                buildData.isUseFixedUrls());
+        final String containerName = level.getUniqueLinkId(buildData.isUseFixedUrls());
         final String containerXMLName = containerName + ".xml";
 
         // Create the xiInclude to be added to the book.xml file
@@ -2304,8 +2267,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         // Get the name of the element based on the type
         final String elementName = container.getLevelType() == LevelType.PROCESS ? "chapter" : container.getLevelType().getTitle()
-                .toLowerCase(
-                Locale.ENGLISH);
+                .toLowerCase(Locale.ENGLISH);
 
         Document chapter = null;
         try {
@@ -2317,8 +2279,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         // Create the title
-        final String chapterName = container.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
-                buildData.isUseFixedUrls());
+        final String chapterName = container.getUniqueLinkId(buildData.isUseFixedUrls());
         final String chapterXMLName = chapterName + ".xml";
 
         // Setup the title and id
@@ -2391,8 +2352,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
             ele.appendChild(titleNode);
         }
 
-        DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), ele,
-                level.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(), buildData.isUseFixedUrls()));
+        DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), ele, level.getUniqueLinkId(buildData.isUseFixedUrls()));
     }
 
     /**
@@ -2412,8 +2372,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         // Get the name of the element based on the type
         final String elementName = container.getLevelType() == LevelType.PROCESS ? "chapter" : container.getLevelType().getTitle()
-                .toLowerCase(
-                Locale.ENGLISH);
+                .toLowerCase(Locale.ENGLISH);
         final Element intro = doc.createElement(elementName + "intro");
 
         // Storage container to hold the levels so they can be added in proper order with the intro
@@ -2464,7 +2423,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 }
 
                 childNodes.add(sectionNode);
-            } else if (node instanceof  CommonContent) {
+            } else if (node instanceof CommonContent) {
                 final CommonContent commonContent = (CommonContent) node;
                 final Node xiInclude = XMLUtilities.createXIInclude(doc, "Common_Content/" + commonContent.getFixedTitle());
                 if (commonContent.getParent() != null && commonContent.getParent().getLevelType() == LevelType.PART) {
@@ -2613,7 +2572,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
     protected Node createTopicDOMNode(final SpecTopic specTopic, final Document doc, final boolean flattenStructure,
             final String parentFileLocation) throws BuildProcessingException {
-            final Document topicDoc = specTopic.getXMLDocument();
+        final Document topicDoc = specTopic.getXMLDocument();
 
         final Node topicNode;
         if (flattenStructure) {
@@ -2625,8 +2584,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
             if (topicFileName != null) {
 
                 // Remove the initial file location as we only want where it lives in the topics directory
-                final String fixedParentFileLocation = buildData.getBuildOptions().getFlattenTopics() ? "topics/" :
-                        parentFileLocation.replace(buildData.getBookLocaleFolder(), "");
+                final String fixedParentFileLocation = buildData.getBuildOptions().getFlattenTopics() ? "topics/" : parentFileLocation
+                        .replace(buildData.getBookLocaleFolder(), "");
 
                 topicNode = XMLUtilities.createXIInclude(doc, fixedParentFileLocation + topicFileName);
             } else {
@@ -2651,8 +2610,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final BaseTopicWrapper<?> topic = specTopic.getTopic();
 
         if (topic != null) {
-            topicFileName = specTopic.getUniqueLinkId(buildData.getServerEntities().getFixedUrlPropertyTagId(),
-                    buildData.isUseFixedUrls()) + ".xml";
+            topicFileName = specTopic.getUniqueLinkId(buildData.isUseFixedUrls()) + ".xml";
 
             final String fixedParentFileLocation = buildData.getBuildOptions().getFlattenTopics() ? buildData.getBookTopicsFolder() :
                     parentFileLocation;
@@ -2681,8 +2639,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
      *
      * @param buildData Information and data structures for the build.
      */
-    protected void addImagesToBook(final BuildData buildData, final String locale, final String imageFolder,
-            boolean revertToDefaultLocale, boolean logErrors) {
+    protected void addImagesToBook(final BuildData buildData, final String locale, final String imageFolder, boolean revertToDefaultLocale,
+            boolean logErrors) {
         // Load the database constants
         final byte[] failpenguinPng = blobConstantProvider.getBlobConstant(
                 buildData.getServerEntities().getFailPenguinBlobConstantId()).getValue();
@@ -2727,7 +2685,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         success = false;
                         buildData.getErrorDatabase().addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES,
                                 "No image filename specified. Must be in the format [ImageFileID].extension e.g. 123.png, " +
-                                        "or images/321.jpg");
+                                        "" + "or images/321.jpg");
                     } else {
                         final ImageWrapper imageFile = imageProvider.getImage(Integer.parseInt(imageID));
                         // TODO Uncomment this once Image Revisions are fixed.
@@ -2765,7 +2723,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     success = false;
                     if (logErrors) {
                         buildData.getErrorDatabase().addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES,
-                                imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123" +
+                                imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g." +
+                                        " 123" +
                                         ".png, or images/321.jpg");
                         log.debug("", ex);
                     }
@@ -2773,7 +2732,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     success = false;
                     if (logErrors) {
                         buildData.getErrorDatabase().addError(imageLocation.getTopic(), ErrorType.INVALID_IMAGES,
-                                imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g. 123" +
+                                imageLocation.getImageName() + " is not a valid image. Must be in the format [ImageFileID].extension e.g." +
+                                        " 123" +
                                         ".png, or images/321.jpg");
                         log.debug("", ex);
                     }
@@ -2834,7 +2794,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
 
         // Set the id
         if (specTopic != null) {
-            DocBookBuildUtilities.processTopicID(buildData, specTopic.getTopic(), authorDoc);
+            DocBookBuildUtilities.processTopicID(buildData, specTopic, authorDoc);
         } else {
             DocBookBuildUtilities.setDOMElementId(buildData.getDocBookVersion(), authorDoc.getDocumentElement(), "Author_Group");
         }
@@ -3837,333 +3797,40 @@ public class DocBookBuilder implements ShutdownAbleApp {
     }
 
     /**
-     * This method does a pass over all the topics returned by the query and attempts to create unique Fixed URL if one does not
+     * This method does a pass over all the spec nodes and attempts to create unique Fixed URL if one does not
      * already exist.
      *
-     * @param buildData          Information and data structures for the build.
-     * @param topics             The list of topics to set the Fixed URL's for.
-     * @param processedFileNames A modifiable Set of filenames that have already been processed.
-     * @return True if the fixed url property tags were able to be created for all topics, and false otherwise.
+     * @param buildData Information and data structures for the build.
+     * @return True if the fixed url property tags were able to be created, and false otherwise.
      */
-    protected boolean setFixedURLsPass(final BuildData buildData, final List<TopicWrapper> topics, final Set<String> processedFileNames) throws BuildProcessingException {
+    protected boolean doFixedURLsPass(final BuildData buildData) throws BuildProcessingException {
         log.info("Doing Fixed URL Pass");
 
+        final Set<String> processedFileNames = new HashSet<String>();
+        final Set<SpecNode> nodesWithoutFixedUrls = new HashSet<SpecNode>();
         boolean success = true;
 
         try {
-            final CollectionWrapper<TopicWrapper> allUpdatedTopics = topicProvider.newTopicCollection();
-            CollectionWrapper<TopicWrapper> updateTopics = topicProvider.newTopicCollection();
+            // Collect any current fixed urls or nodes that need configuring
+            FixedURLGenerator.collectFixedUrlInformation(buildData.getBuildDatabase().getAllSpecNodes(), nodesWithoutFixedUrls,
+                    processedFileNames);
 
-            for (final TopicWrapper topic : topics) {
-                // Check if the app should be shutdown
-                if (isShuttingDown.get()) {
-                    return false;
-                }
-
-                if (topic.hasTag(buildData.getServerEntities().getInfoTagId())) {
-                    // Completely ignore info topics, as we cannot relate to them
-                    continue;
-                } else if (DocBookBuildUtilities.useStaticFixedURLForTopic(buildData, topic)) {
-                    // Ignore certain topics as those are unique per book and should have a static name
-                    final String value = DocBookBuildUtilities.getStaticFixedURLForTopic(buildData, topic);
-                    setFixedURLPropertyTag(buildData, topic, value);
-                } else {
-                    try {
-                        // Create the PropertyTagCollection to be used to update any data
-                        final UpdateableCollectionWrapper<PropertyTagInTopicWrapper> updatePropertyTags = propertyTagProvider
-                                .newPropertyTagInTopicCollection(
-                                topic);
-
-                        // Get a list of all property tag items that exist for the current topic
-                        final List<PropertyTagInTopicWrapper> existingUniqueURLs = topic.getProperties(
-                                buildData.getServerEntities().getFixedUrlPropertyTagId());
-
-                        // Remove any Duplicate Fixed URL's
-                        PropertyTagInTopicWrapper existingUniqueURL = null;
-                        for (int i = 0; i < existingUniqueURLs.size(); i++) {
-                            final PropertyTagInTopicWrapper propertyTag = existingUniqueURLs.get(i);
-                            if (i == 0) {
-                                existingUniqueURL = propertyTag;
-                            } else {
-                                updatePropertyTags.addRemoveItem(propertyTag);
-                                topic.getProperties().getItems().remove(propertyTag);
-                            }
-                        }
-
-                        if (existingUniqueURL == null || !existingUniqueURL.isValid()) {
-                            // generate the base url
-                            String baseUrlName = DocBookBuildUtilities.createURLTitle(topic.getTitle());
-
-                            // deal with topics that have no valid characters
-                            if (isNullOrEmpty(baseUrlName)) {
-                                baseUrlName = "TopicID" + topic.getTopicId();
-                            }
-
-                            // generate a unique fixed url
-                            String postFix = "";
-
-                            for (int uniqueCount = 1; uniqueCount <= BuilderConstants.MAXIMUM_SET_PROP_TAG_NAME_RETRY; ++uniqueCount) {
-                                // Check to make sure we aren't already using the name locally
-                                if (processedFileNames.contains(baseUrlName + postFix)) {
-                                    postFix = uniqueCount + "";
-                                    continue;
-                                }
-
-                                // Check that the fixed url is unique on the server
-                                final String query = "query;propertyTag" + buildData.getServerEntities().getFixedUrlPropertyTagId() + "=" +
-                                        URLEncoder.encode(baseUrlName + postFix, ENCODING);
-                                final CollectionWrapper<TopicWrapper> queryTopics = topicProvider.getTopicsWithQuery(query);
-
-                                if (queryTopics.size() != 0) {
-                                    postFix = uniqueCount + "";
-                                } else {
-                                    break;
-                                }
-                            }
-
-                            // Check if the app should be shutdown
-                            if (isShuttingDown.get()) {
-                                return false;
-                            }
-
-                            // persist the new fixed url, as long as we are not looking at a landing page topic
-                            if (topic.getId() >= 0) {
-
-                                // update any old fixed url property tags
-                                boolean found = false;
-                                if (topic.getProperties() != null && topic.getProperties().getItems() != null) {
-                                    final List<PropertyTagInTopicWrapper> propertyTags = topic.getProperties().getItems();
-                                    for (final PropertyTagInTopicWrapper existing : propertyTags) {
-                                        if (existing.getId().equals(buildData.getServerEntities().getFixedUrlPropertyTagId())) {
-                                            if (found) {
-                                                // If we've already found one then we need to remove any duplicates
-                                                updatePropertyTags.addRemoveItem(existing);
-                                            } else {
-                                                found = true;
-                                                existing.setValue(baseUrlName + postFix);
-
-                                                updatePropertyTags.addUpdateItem(existing);
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // If we didn't find any tags then add a new one
-                                if (!found) {
-                                    final PropertyTagInTopicWrapper propertyTag = propertyTagProvider.newPropertyTagInTopic(topic);
-                                    propertyTag.setId(buildData.getServerEntities().getFixedUrlPropertyTagId());
-                                    propertyTag.setValue(baseUrlName + postFix);
-
-                                    updatePropertyTags.addNewItem(propertyTag);
-                                }
-                                processedFileNames.add(baseUrlName + postFix);
-                            }
-                        } else {
-                            processedFileNames.add(existingUniqueURL.getValue());
-                        }
-
-                        // If we have changes then create a basic topic so that the property tags can be updated.
-                        if (!updatePropertyTags.getItems().isEmpty()) {
-                            final TopicWrapper updateTopic = topicProvider.newTopic();
-                            updateTopic.setId(topic.getId());
-
-                            updateTopic.setProperties(updatePropertyTags);
-                            updateTopics.addItem(updateTopic);
-                            allUpdatedTopics.addItem(updateTopic);
-                        }
-                    } catch (ProviderException e) {
-                        success = false;
-                    }
-                }
-
-                // Do batch updates to avoid the timeout issue. See BZ#1065586
-                if (updateTopics.size() >= BuilderConstants.FIXED_URL_BATCH_SIZE) {
-                    log.debug("Doing batch update of fixed urls");
-                    topicProvider.updateTopics(updateTopics);
-                    updateTopics = topicProvider.newTopicCollection();
-                }
+            // Warn the user about using temporary fixed urls
+            if (!nodesWithoutFixedUrls.isEmpty()) {
+                log.info("\tUsing " + nodesWithoutFixedUrls.size() + " temporary Fixed URLs");
             }
 
-            if (updateTopics.getItems() != null && updateTopics.getItems().size() != 0) {
-                topicProvider.updateTopics(updateTopics);
-            }
-
-            // Check if the app should be shutdown
-            if (isShuttingDown.get()) {
-                return false;
-            }
-
-            updateFixedURLsForTopics(buildData, allUpdatedTopics, topics);
-        } catch (final Exception ex) {
-            log.debug(ex);
+            // Generate the fixed urls for the missing nodes
+            FixedURLGenerator.generateFixedUrlForNodes(nodesWithoutFixedUrls, processedFileNames,
+                    buildData.getServerEntities().getFixedUrlPropertyTagId());
+        } catch (Exception e) {
             success = false;
+            log.debug("", e);
+            throw new BuildProcessingException(
+                    "Failed to update the Fixed URLs. Please try again and if the issue persists please log a bug.");
         }
 
-        if (!success) {
-            throw new BuildProcessingException("Failed to update the Fixed URLs for the topics. Please try again and if the issue " +
-                    "persists please log a bug.");
-        }
-
-        // did we blow the try count?
         return success;
-    }
-
-    /**
-     * Ensure that the FixedURL Properties for revision topics are still valid inside the book. Revision topics can either be
-     * Normal Topics or Translated Topics (which are actually a saved normal revision).
-     *
-     * @param buildData          Information and data structures for the build.
-     * @param topics             The list of revision topics.
-     * @param processedFileNames A List of file names that has already been processed. (ie in the setFixedURLsPass() method)
-     */
-    protected <T extends BaseTopicWrapper<T>> void setFixedURLsForRevisionsPass(final BuildData buildData, final List<T> topics,
-            final Set<String> processedFileNames) {
-        log.info("Doing Revisions Fixed URL Pass");
-
-        /*
-         * Now loop over the revision topics, and make sure their fixed url property tags are unique. They only have to be
-         * unique within the book.
-         */
-        for (final BaseTopicWrapper<?> topic : topics) {
-            if (topic.hasTag(buildData.getServerEntities().getInfoTagId())) {
-                // Completely ignore info topics, as we cannot relate to them
-                continue;
-            } else if (DocBookBuildUtilities.useStaticFixedURLForTopic(buildData, topic)) {
-                // Ignore certain topics as those are unique per book and should have a static name
-                final String value = DocBookBuildUtilities.getStaticFixedURLForTopic(buildData, topic);
-                setFixedURLPropertyTag(buildData, topic, value);
-            } else {
-                // Get the existing property tag and value
-                final PropertyTagInTopicWrapper existingUniqueURL = topic.getProperty(
-                        buildData.getServerEntities().getFixedUrlPropertyTagId());
-                String value = existingUniqueURL == null ? null : existingUniqueURL.getValue();
-
-                // Check if a new value needs to be calculated
-                if (value == null || value.isEmpty() || processedFileNames.contains(value)) {
-                    String baseUrlName;
-                    if (topic instanceof TranslatedTopicWrapper) {
-                        baseUrlName = DocBookBuildUtilities.createURLTitle(((TranslatedTopicWrapper) topic).getTopic().getTitle());
-                    } else {
-                        baseUrlName = DocBookBuildUtilities.createURLTitle(topic.getTitle());
-                    }
-
-                    // If the title has no characters that can be used in a url, then just use a generic one
-                    if (isNullOrEmpty(baseUrlName) || baseUrlName.matches("^\\d+$")) {
-                        baseUrlName = "TopicID" + topic.getTopicId();
-                    }
-
-                    String postFix = "";
-                    for (int uniqueCount = 1; ; ++uniqueCount) {
-                        if (!processedFileNames.contains(baseUrlName + postFix)) {
-                            value = baseUrlName + postFix;
-                            break;
-                        } else {
-                            postFix = uniqueCount + "";
-                        }
-                    }
-                }
-
-                // Set the property tag value and add it to the processed file names
-                setFixedURLPropertyTag(buildData, topic, value);
-                processedFileNames.add(value);
-            }
-        }
-    }
-
-    /**
-     * Sets the Fixed URL Property Tag value for a Topic. If a Fixed URL Property Tag doesn't exist then one is created and added to the
-     * topic.
-     *
-     * @param buildData Information and data structures for the build.
-     * @param topic     The topic to set the Fixed URL Property Tag for.
-     * @param fixedURL  The Fixed URL value to be set.
-     */
-    protected void setFixedURLPropertyTag(final BuildData buildData, final BaseTopicWrapper<?> topic, final String fixedURL) {
-        // Get the existing property tag
-        PropertyTagInTopicWrapper existingUniqueURL = topic.getProperty(buildData.getServerEntities().getFixedUrlPropertyTagId());
-
-        // Create a property tag if none exists
-        if (existingUniqueURL == null) {
-            existingUniqueURL = propertyTagProvider.newPropertyTagInTopic(topic);
-            existingUniqueURL.setId(buildData.getServerEntities().getFixedUrlPropertyTagId());
-            if (topic.getProperties() == null) {
-                topic.setProperties(propertyTagProvider.newPropertyTagInTopicCollection(topic));
-            }
-            topic.getProperties().addItem(existingUniqueURL);
-        }
-
-        // Update the fixed url
-        existingUniqueURL.setValue(fixedURL);
-    }
-
-    /**
-     * Update the Fixed URL Property Tags from a collection of updated topics.
-     *
-     * @param buildData      Information and data structures for the build.
-     * @param updatedTopics  The collection of updated topics.
-     * @param originalTopics The collection of original topics.
-     */
-    protected void updateFixedURLsForTopics(final BuildData buildData, final CollectionWrapper<TopicWrapper> updatedTopics,
-            final List<TopicWrapper> originalTopics) {
-        /* copy the topics fixed url properties to our local collection */
-        if (updatedTopics.getItems() != null && updatedTopics.getItems().size() != 0) {
-            final List<TopicWrapper> updateItems = updatedTopics.getItems();
-            for (final TopicWrapper topicWithFixedUrl : updateItems) {
-                for (final TopicWrapper topic : originalTopics) {
-                    final PropertyTagInTopicWrapper fixedUrlProp = topicWithFixedUrl.getProperty(
-                            buildData.getServerEntities().getFixedUrlPropertyTagId());
-
-                    if (topic != null && topicWithFixedUrl.getId().equals(topic.getId())) {
-                        CollectionWrapper<PropertyTagInTopicWrapper> properties = topic.getProperties();
-                        if (properties == null) {
-                            properties = propertyTagProvider.newPropertyTagInTopicCollection(topic);
-                        } else if (properties.getItems() != null) {
-                            // remove any current url's
-                            final List<PropertyTagInTopicWrapper> propertyTags = new ArrayList<PropertyTagInTopicWrapper>(
-                                    properties.getItems());
-                            for (final PropertyTagInTopicWrapper prop : propertyTags) {
-                                if (prop.getId().equals(buildData.getServerEntities().getFixedUrlPropertyTagId())) {
-                                    properties.remove(prop);
-                                }
-                            }
-                        }
-
-                        if (fixedUrlProp != null) {
-                            properties.addItem(fixedUrlProp);
-                        }
-                    }
-
-                    /*
-                     * we also have to copy the fixed urls into the related topics
-                     */
-                    if (topic != null && topic.getOutgoingRelationships() != null && topic.getOutgoingRelationships().getItems() != null) {
-                        final List<TopicWrapper> relatedTopics = topic.getOutgoingRelationships().getItems();
-                        for (final TopicWrapper relatedTopic : relatedTopics) {
-                            if (topicWithFixedUrl.getId().equals(relatedTopic.getId())) {
-                                CollectionWrapper<PropertyTagInTopicWrapper> relatedTopicProperties = relatedTopic.getProperties();
-                                if (relatedTopicProperties == null) {
-                                    relatedTopicProperties = propertyTagProvider.newPropertyTagInTopicCollection(relatedTopic);
-                                } else if (relatedTopicProperties.getItems() != null) {
-                                    // remove any current url's
-                                    final List<PropertyTagInTopicWrapper> relatedTopicPropertyTags = new
-                                            ArrayList<PropertyTagInTopicWrapper>(
-                                            relatedTopicProperties.getItems());
-                                    for (final PropertyTagInTopicWrapper prop : relatedTopicPropertyTags) {
-                                        if (prop.getId().equals(buildData.getServerEntities().getFixedUrlPropertyTagId())) {
-                                            relatedTopicProperties.remove(prop);
-                                        }
-                                    }
-                                }
-
-                                if (fixedUrlProp != null) {
-                                    relatedTopicProperties.addItem(fixedUrlProp);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     /**
@@ -4171,7 +3838,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
      *
      * @param path      The path to add the file to.
      * @param file      The file to add to the ZIP.
-     * @param buildData
+     * @param buildData Information and data structures for the build.
      */
     protected void addToZip(final String path, final String file, BuildData buildData) throws BuildProcessingException {
         try {
@@ -4216,8 +3883,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         for (final LanguageFileWrapper languageFile : languageFiles) {
                             if (languageFile.getLocale().equals(buildData.getBuildLocale())) {
                                 languageFileFile = languageFile;
-                            } else if (languageFile.getLocale().equals(
-                                    buildData.getDefaultLocale()) && languageFileFile == null) {
+                            } else if (languageFile.getLocale().equals(buildData.getDefaultLocale()) && languageFileFile == null) {
                                 languageFileFile = languageFile;
                             }
                         }
