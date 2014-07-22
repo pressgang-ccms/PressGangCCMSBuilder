@@ -62,6 +62,7 @@ import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
 import org.jboss.pressgang.ccms.contentspec.sort.AuthorInformationComparator;
 import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
+import org.jboss.pressgang.ccms.contentspec.utils.CustomTopicXMLValidator;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.FixedURLGenerator;
 import org.jboss.pressgang.ccms.contentspec.utils.TranslationUtilities;
@@ -3722,12 +3723,19 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         // Check the content of the XML for things not picked up by DTD validation
-        final List<String> xmlErrors = DocBookBuildUtilities.checkTopicForInvalidContent(topicNode, topic, topicDoc, buildData);
+        final List<String> xmlErrors = CustomTopicXMLValidator.checkTopicForInvalidContent(buildData.getServerSettings(), topic,
+                topicDoc, buildData.getBuildOptions().isSkipNestedSectionValidation());
         if (xmlErrors.size() > 0) {
             final String xmlStringInCDATA = DocBookBuildUtilities.convertDocumentToCDATAFormattedString(topicDoc, getXMLFormatProperties());
 
+            // Escape the XML Errors as they will currently be in plain text
+            final List<String> escapedXmlErrors = new ArrayList<String>();
+            for (final String xmlError : xmlErrors) {
+                escapedXmlErrors.add(StringEscapeUtils.escapeXml(xmlError));
+            }
+
             // Add the error and processed XML to the error message
-            final String errorMessage = CollectionUtilities.toSeperatedString(xmlErrors,
+            final String errorMessage = CollectionUtilities.toSeperatedString(escapedXmlErrors,
                     "</para><para>" + BuilderConstants.ERROR_INVALID_TOPIC_XML + " ");
             buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
                     BuilderConstants.ERROR_INVALID_TOPIC_XML + " " + errorMessage + "</para><para>The processed XML is <programlisting>" +

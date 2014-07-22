@@ -1,6 +1,5 @@
 package org.jboss.pressgang.ccms.contentspec.builder.utils;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -20,7 +19,6 @@ import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
-import org.jboss.pressgang.ccms.contentspec.enums.TopicType;
 import org.jboss.pressgang.ccms.contentspec.sort.RevisionNodeSort;
 import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
@@ -47,10 +45,6 @@ import org.w3c.dom.NodeList;
  */
 public class DocBookBuildUtilities {
     private static final Logger log = LoggerFactory.getLogger(DocBookBuildUtilities.class);
-
-    private static final String[] DATE_FORMATS = new String[]{"MM-dd-yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "yyyy/MM/dd", "EEE MMM dd yyyy",
-            "EEE, MMM dd yyyy", "EEE MMM dd yyyy Z", "EEE dd MMM yyyy", "EEE, dd MMM yyyy", "EEE dd MMM yyyy Z", "yyyyMMdd",
-            "yyyyMMdd'T'HHmmss.SSSZ"};
 
     /**
      * Adds the levels in the provided Level object to the content spec database.
@@ -630,99 +624,6 @@ public class DocBookBuildUtilities {
         for (int i = 0; i < elements.getLength(); ++i) {
             collectIdAttributes(docBookVersion, topic, elements.item(i), usedIdAttributes);
         }
-    }
-
-    public static List<String> checkTopicForInvalidContent(final ITopicNode topicNode, final BaseTopicWrapper<?> topic,
-            final Document topicDoc, final BuildData buildData) {
-        final List<String> xmlErrors = new ArrayList<String>();
-        // Check to ensure that if the topic has a table, that the table isn't missing any entries
-        if (!DocBookUtilities.validateTables(topicDoc)) {
-            xmlErrors.add("Table column declaration doesn't match the number of entry elements.");
-        }
-        // Check that the root element matches the topic type
-        final String rootElementErrors = checkTopicRootElement(buildData, topic, topicDoc);
-        if (rootElementErrors != null) {
-            xmlErrors.add(rootElementErrors);
-        }
-        // Check that the content matches the topic type
-        xmlErrors.addAll(checkTopicContentBasedOnType(buildData, topicNode, topicDoc));
-
-        return xmlErrors;
-    }
-
-    /**
-     * @param buildData Information and data structures for the build.
-     * @param topic
-     * @param doc
-     * @return
-     */
-    protected static String checkTopicRootElement(final BuildData buildData, final BaseTopicWrapper<?> topic, final Document doc) {
-        final StringBuilder xmlErrors = new StringBuilder();
-        if (topic.hasTag(buildData.getServerEntities().getRevisionHistoryTagId())) {
-            if (!doc.getDocumentElement().getNodeName().equals("appendix")) {
-                xmlErrors.append("Revision History topics must be an &lt;appendix&gt;.\n");
-            }
-        } else if (topic.hasTag(buildData.getServerEntities().getLegalNoticeTagId())) {
-            if (!doc.getDocumentElement().getNodeName().equals("legalnotice")) {
-                xmlErrors.append("Legal Notice topics must be a &lt;legalnotice&gt;.\n");
-            }
-        } else if (topic.hasTag(buildData.getServerEntities().getAuthorGroupTagId())) {
-            if (!doc.getDocumentElement().getNodeName().equals("authorgroup")) {
-                xmlErrors.append("Author Group topics must be an &lt;authorgroup&gt;.\n");
-            }
-        } else if (topic.hasTag(buildData.getServerEntities().getAbstractTagId())) {
-            if (!doc.getDocumentElement().getNodeName().equals("abstract")) {
-                xmlErrors.append("Abstract topics must be an &lt;abstract&gt;.\n");
-            }
-        } else if (topic.hasTag(buildData.getServerEntities().getInfoTagId())) {
-            if (buildData.getDocBookVersion() == DocBookVersion.DOCBOOK_50) {
-                if (!doc.getDocumentElement().getNodeName().equals("info")) {
-                    xmlErrors.append("Info topics must be an &lt;info&gt;.\n");
-                }
-            } else {
-                if (!doc.getDocumentElement().getNodeName().equals("sectioninfo")) {
-                    xmlErrors.append("Info topics must be a &lt;sectioninfo&gt;.\n");
-                }
-            }
-        } else {
-            if (!doc.getDocumentElement().getNodeName().equals(DocBookUtilities.TOPIC_ROOT_NODE_NAME)) {
-                xmlErrors.append("Topics must be a &lt;" + DocBookUtilities.TOPIC_ROOT_NODE_NAME + "&gt;.\n");
-            }
-        }
-
-        return xmlErrors.length() == 0 ? null : xmlErrors.toString();
-    }
-
-    /**
-     * Check a topic and return an error messages if the content doesn't match the topic type.
-     *
-     * @param buildData Information and data structures for the build.
-     * @param topicNode
-     * @param doc
-     * @return
-     */
-    protected static List<String> checkTopicContentBasedOnType(final BuildData buildData, final ITopicNode topicNode, final Document doc) {
-        final List<String> xmlErrors = new ArrayList<String>();
-        if (topicNode.getTopicType() == TopicType.REVISION_HISTORY) {
-            // Check to make sure that a revhistory entry exists
-            final String revHistoryErrors = DocBookUtilities.validateRevisionHistory(doc, DATE_FORMATS);
-            if (revHistoryErrors != null) {
-                xmlErrors.add(revHistoryErrors);
-            }
-        } else if (topicNode.getTopicType() == TopicType.INFO) {
-            // Check that the info topic doesn't contain invalid fields
-            if (DocBookUtilities.checkForInvalidInfoElements(doc)) {
-                xmlErrors.add("Info topics cannot contain &lt;title&gt;, &lt;subtitle&gt; or &lt;titleabbrev&gt; elements.");
-            }
-        } else if (topicNode.getTopicType() == TopicType.NORMAL || topicNode.getTopicType() == TopicType.INITIAL_CONTENT) {
-            // Check that nested sections aren't used
-            final List<Node> subSections = XMLUtilities.getDirectChildNodes(doc.getDocumentElement(), "section");
-            if (subSections.size() > 0 && !buildData.getBuildOptions().isSkipNestedSectionValidation()) {
-                xmlErrors.add("Nested sections cannot be used in topics. Please consider breaking the content into multiple topics.");
-            }
-        }
-
-        return xmlErrors;
     }
 
     public static void mergeRevisionHistories(final Document mainDoc, final Document mergeDoc) throws BuildProcessingException {
