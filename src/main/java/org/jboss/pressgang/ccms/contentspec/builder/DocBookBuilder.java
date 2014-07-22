@@ -3733,8 +3733,13 @@ public class DocBookBuilder implements ShutdownAbleApp {
             }
 
             // Add the error and processed XML to the error message
-            final String errorMessage = CollectionUtilities.toSeperatedString(escapedXmlErrors,
-                    "</para><para>" + BuilderConstants.ERROR_INVALID_TOPIC_XML + " ");
+            final String errorMessage;
+            if (escapedXmlErrors.size() > 1) {
+                errorMessage = "<itemizedlist><listitem><para>" + CollectionUtilities.toSeperatedString(escapedXmlErrors,
+                    "</para></listitem><listitem><para>") + "</para></listitem></itemizedlist>";
+            } else {
+                errorMessage = escapedXmlErrors.get(0);
+            }
             buildData.getErrorDatabase().addError(topic, ErrorType.INVALID_CONTENT,
                     BuilderConstants.ERROR_INVALID_TOPIC_XML + " " + errorMessage + "</para><para>The processed XML is <programlisting>" +
                             xmlStringInCDATA + "</programlisting>");
