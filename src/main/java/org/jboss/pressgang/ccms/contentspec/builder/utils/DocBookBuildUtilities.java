@@ -19,8 +19,10 @@ import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.builder.exception.BuildProcessingException;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.BuildDatabase;
+import org.jboss.pressgang.ccms.contentspec.enums.TopicType;
 import org.jboss.pressgang.ccms.contentspec.sort.RevisionNodeSort;
 import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
+import org.jboss.pressgang.ccms.contentspec.utils.CustomTopicXMLValidator;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.common.XMLUtilities;
 import org.jboss.pressgang.ccms.utils.structures.DocBookVersion;
@@ -624,6 +626,22 @@ public class DocBookBuildUtilities {
         for (int i = 0; i < elements.getLength(); ++i) {
             collectIdAttributes(docBookVersion, topic, elements.item(i), usedIdAttributes);
         }
+    }
+
+    public static List<String> checkTopicForInvalidContent(final ITopicNode topicNode, final BaseTopicWrapper<?> topic,
+            final Document topicDoc, final BuildData buildData) {
+        // Do the base custom topic validation
+        final List<String> xmlErrors = CustomTopicXMLValidator.checkTopicForInvalidContent(buildData.getServerSettings(), topic,
+                topicDoc, buildData.getBuildOptions().isSkipNestedSectionValidation());
+
+        // Check to make sure the XML can be used in the initial content
+        if (topicNode.getTopicType() == TopicType.INITIAL_CONTENT && topicNode instanceof SpecTopic) {
+            if (!CustomTopicXMLValidator.doesTopicHaveValidXMLForInitialContent((SpecTopic) topicNode, topic)) {
+                xmlErrors.add(BuilderConstants.ERROR_TOPIC_CANNOT_BE_USED_AS_INITIAL_CONTENT);
+            }
+        }
+
+        return xmlErrors;
     }
 
     public static void mergeRevisionHistories(final Document mainDoc, final Document mergeDoc) throws BuildProcessingException {

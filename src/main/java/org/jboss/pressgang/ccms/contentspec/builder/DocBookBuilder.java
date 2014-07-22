@@ -62,7 +62,6 @@ import org.jboss.pressgang.ccms.contentspec.interfaces.ShutdownAbleApp;
 import org.jboss.pressgang.ccms.contentspec.sort.AuthorInformationComparator;
 import org.jboss.pressgang.ccms.contentspec.structures.XMLFormatProperties;
 import org.jboss.pressgang.ccms.contentspec.utils.ContentSpecUtilities;
-import org.jboss.pressgang.ccms.contentspec.utils.CustomTopicXMLValidator;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
 import org.jboss.pressgang.ccms.contentspec.utils.FixedURLGenerator;
 import org.jboss.pressgang.ccms.contentspec.utils.TranslationUtilities;
@@ -3723,8 +3722,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         }
 
         // Check the content of the XML for things not picked up by DTD validation
-        final List<String> xmlErrors = CustomTopicXMLValidator.checkTopicForInvalidContent(buildData.getServerSettings(), topic,
-                topicDoc, buildData.getBuildOptions().isSkipNestedSectionValidation());
+        final List<String> xmlErrors = DocBookBuildUtilities.checkTopicForInvalidContent(topicNode, topic, topicDoc, buildData);
         if (xmlErrors.size() > 0) {
             final String xmlStringInCDATA = DocBookBuildUtilities.convertDocumentToCDATAFormattedString(topicDoc, getXMLFormatProperties());
 

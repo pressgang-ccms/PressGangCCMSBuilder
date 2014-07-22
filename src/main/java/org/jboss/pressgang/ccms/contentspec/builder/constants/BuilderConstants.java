@@ -198,4 +198,7 @@ public class BuilderConstants {
     public static final List<String> VALID_PROGRAM_LISTING_LANGS_LOWERCASE = Arrays.asList("java", "sql", "c", "c++", "bash", "perl",
             "javascript", "python", "xml", "ruby", "c#", "html", "css", "javadoc", "haskell", "lua", "makefile", "pascal", "rpm spec",
             "diff");
+
+    public static final String ERROR_TOPIC_CANNOT_BE_USED_AS_INITIAL_CONTENT = "The Topic has content that" +
+            " cannot be used in the initial content of a Chapter/Preface/Section/Appendix/Part.";
 }
