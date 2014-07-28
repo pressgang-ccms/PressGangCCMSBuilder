@@ -126,7 +126,7 @@ public class JDocBookBuilder extends DocBookBuilder {
                 }
 
                 // Fix the Doctype
-                final String entityFileName = "../" + buildData.getEscapedBookTitle() + ".ent";
+                final String entityFileName = "../" + buildData.getEntityFileName();
                 final String fixedFile = DocBookBuildUtilities.addDocBookPreamble(buildData.getDocBookVersion(), file, rootElementName,
                         entityFileName);
 
@@ -139,7 +139,6 @@ public class JDocBookBuilder extends DocBookBuilder {
     protected void buildPom(final BuildData buildData) throws BuildProcessingException {
         final ContentSpec contentSpec = buildData.getContentSpec();
         final String outputLocale = buildData.getOutputLocale();
-        final String escapedTitle = buildData.getEscapedBookTitle();
         final String originalProduct = buildData.getOriginalBookProduct();
 
         // Get the template from the server
@@ -147,9 +146,9 @@ public class JDocBookBuilder extends DocBookBuilder {
 
         // Replace the generic template values
         pomXML = pomXML.replaceFirst("<translation>.*</translation>", "<translation>" + outputLocale + "</translation>").replaceFirst(
-                "<docname>.*</docname>", "<docname>" + escapedTitle + "</docname>").replaceFirst("<docproduct>.*</docproduct>",
-                "<docproduct>" + DocBookUtilities.escapeTitle(originalProduct) +
-                        "</docproduct>").replaceFirst("<bookname>.*</bookname>",
+                "<docname>.*</docname>", "<docname>" + buildData.getRootBookFileName() + "</docname>").replaceFirst(
+                "<docproduct>.*</docproduct>", "<docproduct>" + DocBookUtilities.escapeTitle(originalProduct) +
+                "</docproduct>").replaceFirst("<bookname>.*</bookname>",
                 "<bookname>" + contentSpec.getTitle() + "</bookname>").replaceFirst("<bookproduct>.*</bookproduct>",
                 "<bookproduct>" + contentSpec.getProduct() + "</bookproduct>");
 
@@ -167,7 +166,7 @@ public class JDocBookBuilder extends DocBookBuilder {
         if (contentSpec.getArtifactId() != null) {
             artifactId = DocBookBuildUtilities.escapeForReplaceAll(contentSpec.getArtifactId());
         } else {
-            artifactId = escapedTitle.toLowerCase().replace("_", "-") + "-" + outputLocale;
+            artifactId = buildData.getEscapedBookTitle().toLowerCase().replace("_", "-") + "-" + outputLocale;
         }
         pomXML = pomXML.replaceFirst("<artifactId>.*</artifactId>", "<artifactId>" + artifactId + "</artifactId>");
 

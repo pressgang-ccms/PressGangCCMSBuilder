@@ -779,7 +779,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
             }
         }
 
-        createPOFile(buildData, buildData.getEscapedBookTitle(), containerTranslations);
+        createPOFile(buildData, buildData.getRootBookFileName(), containerTranslations);
 
         // Add the default error content
         if (!buildData.getBuildOptions().getSuppressErrorsPage() && buildData.getErrorDatabase().hasItems(buildData.getBuildLocale())) {

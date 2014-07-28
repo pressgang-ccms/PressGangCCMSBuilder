@@ -1627,7 +1627,6 @@ public class DocBookBuilder implements ShutdownAbleApp {
      */
     protected void buildBookBase(final BuildData buildData) throws BuildProcessingException {
         final ContentSpec contentSpec = buildData.getContentSpec();
-        final String escapedTitle = buildData.getEscapedBookTitle();
 
         // Get the template from the server
         final String bookXmlTemplate;
@@ -1780,7 +1779,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
         final String rootElementName = contentSpec.getBookType().toString().toLowerCase().replace("-draft", "");
         final String book = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(), bookBase,
                 rootElementName, buildData.getEntityFileName(), getXMLFormatProperties());
-        addToZip(buildData.getBookLocaleFolder() + escapedTitle + ".xml", book, buildData);
+        addToZip(buildData.getBookLocaleFolder() + buildData.getRootBookFileName() + ".xml", book, buildData);
     }
 
     /**

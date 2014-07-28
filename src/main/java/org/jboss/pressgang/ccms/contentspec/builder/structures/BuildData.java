@@ -14,6 +14,7 @@ import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkOptions;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkStrategyFactory;
 import org.jboss.pressgang.ccms.contentspec.builder.DocBookXMLPreProcessor;
 import org.jboss.pressgang.ccms.contentspec.builder.UTF8ResourceBundleControl;
+import org.jboss.pressgang.ccms.contentspec.builder.constants.BuilderConstants;
 import org.jboss.pressgang.ccms.contentspec.entities.InjectionOptions;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
 import org.jboss.pressgang.ccms.contentspec.enums.BugLinkType;
@@ -73,6 +74,7 @@ public class BuildData {
      * The escaped version of the books title.
      */
     private final String escapedTitle;
+    private final String rootBookFileName;
     /**
      * The locale the book is to be built in.
      */
@@ -123,6 +125,11 @@ public class BuildData {
         this.buildOptions = buildOptions;
         this.zanataDetails = zanataDetails;
         escapedTitle = DocBookUtilities.escapeTitle(contentSpec.getTitleNode().getValue());
+        if (BuilderConstants.VALID_PUBLICAN_DOCNAME_PATTERN.matcher(escapedTitle).matches()) {
+            rootBookFileName = escapedTitle;
+        } else {
+            rootBookFileName = contentSpec.getBookType().toString().replace("-Draft", "");
+        }
         this.translationBuild = translationBuild;
         buildDate = new Date();
 
@@ -134,7 +141,7 @@ public class BuildData {
             outputLocale = buildOptions.getOutputLocale() == null ? locale : buildOptions.getOutputLocale();
         } else {
             locale = defaultLocale;
-            outputLocale = locale;
+            outputLocale = buildOptions.getOutputLocale() == null ? locale : buildOptions.getOutputLocale();
         }
 
         applyBuildOptionsFromSpec(contentSpec, buildOptions);
@@ -187,6 +194,10 @@ public class BuildData {
 
     public String getEscapedBookTitle() {
         return escapedTitle;
+    }
+
+    public String getRootBookFileName() {
+        return rootBookFileName;
     }
 
     public String getBuildLocale() {
@@ -245,7 +256,7 @@ public class BuildData {
     }
 
     public String getEntityFileName() {
-        return getEscapedBookTitle() + ".ent";
+        return getRootBookFileName() + ".ent";
     }
 
     public String getBuildName() {
