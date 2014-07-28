@@ -134,7 +134,7 @@ public class BuildData {
             outputLocale = buildOptions.getOutputLocale() == null ? locale : buildOptions.getOutputLocale();
         } else {
             locale = defaultLocale;
-            outputLocale = locale;
+            outputLocale = buildOptions.getOutputLocale() == null ? locale : buildOptions.getOutputLocale();
         }
 
         applyBuildOptionsFromSpec(contentSpec, buildOptions);
