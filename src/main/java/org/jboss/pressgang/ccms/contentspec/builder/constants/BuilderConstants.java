@@ -21,6 +21,7 @@ public class BuilderConstants {
 
     public static final Pattern IMAGE_FILE_REF_PATTERN = Pattern.compile("^((\\./)?images/)?\\d+(-\\d+)?\\.\\w+$");
     public static final Pattern COMMON_CONTENT_FILE_REF_PATTERN = Pattern.compile("^Common_Content/.*$");
+    public static final Pattern VALID_PUBLICAN_DOCNAME_PATTERN = Pattern.compile("^[0-9a-zA-Z_\\-\\.\\+]+$");
 
     /**
      * A regular expression that identifies a topic id

@@ -118,10 +118,13 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
             publicanCfg += "show_remarks: 1\n";
         }
 
-        // Add docname if it wasn't specified
-        Matcher m = DOCNAME_PATTERN.matcher(publicanCfg);
-        if (!m.find()) {
-            publicanCfg += "docname: " + buildData.getEscapedBookTitle().replaceAll("_", " ") + "\n";
+        // Add docname if it wasn't specified and the escaped title is valid
+        Matcher m = null;
+        if (BuilderConstants.VALID_PUBLICAN_DOCNAME_PATTERN.matcher(buildData.getEscapedBookTitle()).matches()) {
+            m = DOCNAME_PATTERN.matcher(publicanCfg);
+            if (!m.find()) {
+                publicanCfg += "docname: " + buildData.getEscapedBookTitle().replaceAll("_", " ") + "\n";
+            }
         }
 
         // Add product if it wasn't specified
@@ -131,7 +134,7 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
         }
 
         // Add the mainfile attribute
-        publicanCfg += "mainfile: " + buildData.getEscapedBookTitle() + "\n";
+        publicanCfg += "mainfile: " + buildData.getRootBookFileName() + "\n";
 
         // Add a version if one wasn't specified
         m = VERSION_PATTERN.matcher(publicanCfg);
@@ -180,10 +183,13 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
                 publicanCfg.append("dtdver: \"5.0\"\n");
             }
 
-            // Add docname if it wasn't specified
-            Matcher m = DOCNAME_PATTERN.matcher(publicanCfg);
-            if (!m.find()) {
-                publicanCfg.append("docname: ").append(buildData.getEscapedBookTitle().replaceAll("_", " ")).append("\n");
+            // Add docname if it wasn't specified and the escaped title is valid
+            Matcher m = null;
+            if (BuilderConstants.VALID_PUBLICAN_DOCNAME_PATTERN.matcher(buildData.getEscapedBookTitle()).matches()) {
+                m = DOCNAME_PATTERN.matcher(publicanCfg);
+                if (!m.find()) {
+                    publicanCfg.append("docname: ").append(buildData.getEscapedBookTitle().replaceAll("_", " ")).append("\n");
+                }
             }
 
             // Add product if it wasn't specified
@@ -193,7 +199,7 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
             }
 
             // Add the mainfile attribute
-            publicanCfg.append("mainfile: ").append(buildData.getEscapedBookTitle()).append("\n");
+            publicanCfg.append("mainfile: ").append(buildData.getRootBookFileName()).append("\n");
 
             // Add version if it wasn't specified
             m = VERSION_PATTERN.matcher(publicanCfg);
