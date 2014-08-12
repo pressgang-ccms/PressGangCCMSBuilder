@@ -253,7 +253,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
 
                         boolean foundTranslation = false;
                         for (final TranslatedCSNodeStringWrapper translatedCSNodeString : translatedCSNodeStrings) {
-                            if (translatedCSNodeString.getLocale().equals(locale)) {
+                            if (translatedCSNodeString.getLocale().getValue().equals(locale)) {
                                 final TranslationDetails translationDetails = new TranslationDetails(
                                         translatedCSNodeString.getTranslatedString(), translatedCSNodeString.isFuzzy(), tagName);
                                 translations.put(translatedCSNode.getOriginalString(), translationDetails);

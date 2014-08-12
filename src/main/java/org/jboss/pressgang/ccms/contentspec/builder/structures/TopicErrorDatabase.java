@@ -117,8 +117,10 @@ public class TopicErrorDatabase {
         if (topicErrorData == null) {
             topicErrorData = new TopicErrorData();
             topicErrorData.setTopic(topic);
-            if (!errors.containsKey(topic.getLocale())) errors.put(topic.getLocale(), new ArrayList<TopicErrorData>());
-            errors.get(topic.getLocale()).add(topicErrorData);
+            if (!errors.containsKey(topic.getLocale().getValue())) {
+                errors.put(topic.getLocale().getValue(), new ArrayList<TopicErrorData>());
+            }
+            errors.get(topic.getLocale().getValue()).add(topicErrorData);
         }
         return topicErrorData;
     }

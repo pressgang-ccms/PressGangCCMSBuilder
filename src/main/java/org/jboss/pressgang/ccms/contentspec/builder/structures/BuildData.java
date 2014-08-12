@@ -38,30 +38,18 @@ import org.jboss.pressgang.ccms.contentspec.entities.InjectionOptions;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
 import org.jboss.pressgang.ccms.contentspec.enums.BugLinkType;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
+import org.jboss.pressgang.ccms.provider.LocaleProvider;
 import org.jboss.pressgang.ccms.provider.ServerSettingsProvider;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
 import org.jboss.pressgang.ccms.utils.structures.DocBookVersion;
+import org.jboss.pressgang.ccms.wrapper.LocaleWrapper;
 import org.jboss.pressgang.ccms.wrapper.ServerEntitiesWrapper;
 import org.jboss.pressgang.ccms.wrapper.ServerSettingsWrapper;
+import org.jboss.pressgang.ccms.wrapper.collection.CollectionWrapper;
 import org.jboss.pressgang.ccms.zanata.ZanataDetails;
 
 public class BuildData {
-    public static final Map<String, Locale> LOCALE_MAP = new HashMap<String, Locale>();
-
-    static {
-        LOCALE_MAP.put("ja", new Locale("ja", "JP"));
-        LOCALE_MAP.put("es", new Locale("es", "ES"));
-        LOCALE_MAP.put("zh-Hans", new Locale("zh", "CN"));
-        LOCALE_MAP.put("zh-TW", new Locale("zh", "TW"));
-        LOCALE_MAP.put("pt-BR", new Locale("pt", "BR"));
-        LOCALE_MAP.put("de", new Locale("de", "DE"));
-        LOCALE_MAP.put("fr", new Locale("fr", "FR"));
-        LOCALE_MAP.put("ko", new Locale("ko", "KR"));
-        LOCALE_MAP.put("it", new Locale("it", "IT"));
-        LOCALE_MAP.put("ru", new Locale("ru", "RU"));
-    }
-
     private final ServerSettingsWrapper serverSettings;
     /**
      * Holds the SpecTopics and their XML that exist within the content specification.
@@ -132,6 +120,8 @@ public class BuildData {
      */
     private final HashMap<String, byte[]> files = new HashMap<String, byte[]>();
     private final ContentSpec contentSpec;
+    private final CollectionWrapper<LocaleWrapper> locales;
+    private final Map<String, LocaleWrapper> localeMap;
 
     private boolean useFixedUrls = false;
     private BaseBugLinkStrategy bugLinkStrategy = null;
@@ -152,27 +142,59 @@ public class BuildData {
         this.translationBuild = translationBuild;
         buildDate = new Date();
 
+        // Load the server settings
         serverSettings = providerFactory.getProvider(ServerSettingsProvider.class).getServerSettings();
 
-        defaultLocale = contentSpec.getLocale() == null ? serverSettings.getDefaultLocale() : contentSpec.getLocale();
+        // Load the locales from the server
+        locales = providerFactory.getProvider(LocaleProvider.class).getLocales();
+        localeMap = buildLocaleMap(locales);
+
+        // Configure the locales to use
+        defaultLocale = contentSpec.getLocale() == null ? serverSettings.getDefaultLocale().getBuildValue() : contentSpec.getLocale();
         if (translationBuild) {
             locale = buildOptions.getLocale() == null ? defaultLocale : buildOptions.getLocale();
-            outputLocale = buildOptions.getOutputLocale() == null ? locale : buildOptions.getOutputLocale();
         } else {
             locale = defaultLocale;
-            outputLocale = buildOptions.getOutputLocale() == null ? locale : buildOptions.getOutputLocale();
+        }
+        if (buildOptions.getOutputLocale() != null) {
+            outputLocale = buildOptions.getOutputLocale();
+        } else if (localeMap.containsKey(locale)) {
+            outputLocale = localeMap.get(locale).getBuildValue();
+        } else {
+            outputLocale = locale;
         }
 
+        // Apply the build values from the spec
         applyBuildOptionsFromSpec(contentSpec, buildOptions);
         applyInjectionOptionsFromSpec(contentSpec, buildOptions);
 
-        if (getBuildLocale().equals("en-US") || !LOCALE_MAP.containsKey(getBuildLocale())) {
+        // Get the resource bundle to use
+        if (getBuildLocale().equals("en-US") || !localeMap.containsKey(getBuildLocale())) {
             constantsResourceBundle = ResourceBundle.getBundle("org.jboss.pressgang.ccms.contentspec.builder.Constants",
                     new UTF8ResourceBundleControl());
         } else {
+            final Locale buildLocale = Locale.forLanguageTag(localeMap.get(getBuildLocale()).getBuildValue());
             constantsResourceBundle = ResourceBundle.getBundle("org.jboss.pressgang.ccms.contentspec.builder.Constants",
-                    LOCALE_MAP.get(getBuildLocale()), new UTF8ResourceBundleControl());
+                    buildLocale, new UTF8ResourceBundleControl());
         }
+    }
+
+    protected Map<String, LocaleWrapper> buildLocaleMap(final CollectionWrapper<LocaleWrapper> locales) {
+        final Map<String, LocaleWrapper> localeMap = new HashMap<String, LocaleWrapper>();
+
+        for (final LocaleWrapper locale : locales.getItems()) {
+            localeMap.put(locale.getValue(), locale);
+        }
+
+        return localeMap;
+    }
+
+    protected Map<String, LocaleWrapper> getLocaleMap() {
+        return localeMap;
+    }
+
+    protected CollectionWrapper<LocaleWrapper> getLocales() {
+        return locales;
     }
 
     public ZanataDetails getZanataDetails() {
@@ -221,6 +243,10 @@ public class BuildData {
 
     public String getBuildLocale() {
         return locale;
+    }
+
+    public LocaleWrapper getBuildLocaleWrapper() {
+        return localeMap.get(locale);
     }
 
     public String getDefaultLocale() {

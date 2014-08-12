@@ -27,9 +27,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorData;
 import org.jboss.pressgang.ccms.contentspec.sort.TagWrapperNameComparator;
 import org.jboss.pressgang.ccms.contentspec.utils.EntityUtilities;
-import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorData;
 import org.jboss.pressgang.ccms.utils.common.CollectionUtilities;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.structures.NameIDSortMap;
@@ -62,9 +62,9 @@ public class ReportUtilities {
                 final TranslatedTopicWrapper translatedTopic = (TranslatedTopicWrapper) topic;
                 if (!EntityUtilities.isDummyTopic(translatedTopic) && translatedTopic.getTopic() != null) {
                     topicTitles = CollectionUtilities.toArrayList(DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(
-                            "[" + translatedTopic.getTopic().getLocale() + "] " + translatedTopic.getTopic().getTitle())),
-                            DocBookUtilities.wrapInListItem(
-                                    DocBookUtilities.wrapInPara("[" + translatedTopic.getLocale() + "] " + translatedTopic.getTitle())));
+                            "[" + translatedTopic.getTopic().getLocale().getValue() + "] " + translatedTopic.getTopic().getTitle())),
+                            DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(
+                                    "[" + translatedTopic.getLocale().getValue() + "] " + translatedTopic.getTitle())));
                 } else {
                     topicTitles = CollectionUtilities.toArrayList(
                             DocBookUtilities.wrapInListItem(DocBookUtilities.wrapInPara(topic.getTitle())));

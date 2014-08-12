@@ -116,6 +116,7 @@ import org.jboss.pressgang.ccms.wrapper.FileWrapper;
 import org.jboss.pressgang.ccms.wrapper.ImageWrapper;
 import org.jboss.pressgang.ccms.wrapper.LanguageFileWrapper;
 import org.jboss.pressgang.ccms.wrapper.LanguageImageWrapper;
+import org.jboss.pressgang.ccms.wrapper.LocaleWrapper;
 import org.jboss.pressgang.ccms.wrapper.PropertyTagInTopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.ServerEntitiesWrapper;
 import org.jboss.pressgang.ccms.wrapper.StringConstantWrapper;
@@ -601,7 +602,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         final List<TranslatedCSNodeStringWrapper> translatedCSNodeStrings = translatedCSNode.getTranslatedStrings()
                                 .getItems();
                         for (final TranslatedCSNodeStringWrapper translatedCSNodeString : translatedCSNodeStrings) {
-                            if (translatedCSNodeString.getLocale().equals(locale)) {
+                            if (translatedCSNodeString.getLocale().getValue().equals(locale)) {
                                 translations.put(translatedCSNode.getOriginalString(), translatedCSNodeString.getTranslatedString());
                             }
                         }
@@ -849,9 +850,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     translatedTopic = latestTranslatedTopic;
                 } else if (latestPushedTranslatedTopic != null) {
                     latestPushedTranslatedTopic.setTopic(topic);
-                    translatedTopic = createDummyTranslatedTopicFromExisting(latestPushedTranslatedTopic, buildData.getBuildLocale());
+                    translatedTopic = createDummyTranslatedTopicFromExisting(latestPushedTranslatedTopic, buildData.getBuildLocaleWrapper());
                 } else {
-                    translatedTopic = createDummyTranslatedTopic(topic, buildData.getBuildLocale());
+                    translatedTopic = createDummyTranslatedTopic(topic, buildData.getBuildLocaleWrapper());
                 }
                 translatedTopic.setTranslatedCSNode(translatedCSNode);
 
@@ -890,7 +891,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
             translatedTopics.put(key, translatedTopic);
             buildData.getBuildDatabase().add(topicNode, key);
         } else {
-            final TranslatedTopicWrapper translatedTopic = createDummyTranslatedTopicFromTopic(topic, buildData.getBuildLocale());
+            final TranslatedTopicWrapper translatedTopic = createDummyTranslatedTopicFromTopic(topic, buildData.getBuildLocaleWrapper());
             translatedTopics.put(key, translatedTopic);
             buildData.getBuildDatabase().add(topicNode, key);
         }
@@ -923,6 +924,22 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @return A Pair whose first element is the Latest Translated Topic and second element is the Latest Pushed Translation.
      */
     protected Pair<TranslatedTopicWrapper, TranslatedTopicWrapper> getLatestTranslations(final BuildData buildData,
+            final CollectionWrapper<TranslatedTopicWrapper> translatedTopics, final Integer rev, final LocaleWrapper baseLocale) {
+        return getLatestTranslations(buildData, translatedTopics, rev, baseLocale.getValue());
+    }
+
+    /**
+     * Find the latest pushed and translated topics for a topic. We need to do this since translations are only added when some
+     * content is added in Zanata. So if the latest translated topic doesn't match the topic revision of the latest pushed then
+     * we will need to create a dummy topic for the latest pushed topic.
+     *
+     * @param buildData        Information and data structures for the build.
+     * @param translatedTopics The translated topics to search find the latest translated topic and pushed translation.
+     * @param rev              The revision for the topic as specified in the ContentSpec.
+     * @param baseLocale       The original sources locale.
+     * @return A Pair whose first element is the Latest Translated Topic and second element is the Latest Pushed Translation.
+     */
+    protected Pair<TranslatedTopicWrapper, TranslatedTopicWrapper> getLatestTranslations(final BuildData buildData,
             final CollectionWrapper<TranslatedTopicWrapper> translatedTopics, final Integer rev, final String baseLocale) {
         TranslatedTopicWrapper latestTranslatedTopic = null;
         TranslatedTopicWrapper latestPushedTranslatedTopic = null;
@@ -931,15 +948,15 @@ public class DocBookBuilder implements ShutdownAbleApp {
             for (final TranslatedTopicWrapper tempTopic : topics) {
                 // Find the Latest Translated Topic
                 if (buildData.getBuildLocale().equals(
-                        tempTopic.getLocale()) && (latestTranslatedTopic == null || latestTranslatedTopic.getTopicRevision() < tempTopic
-                        .getTopicRevision()) && (rev == null || tempTopic.getTopicRevision() <= rev)) {
+                        tempTopic.getLocale().getValue()) && (latestTranslatedTopic == null || latestTranslatedTopic.getTopicRevision() <
+                        tempTopic.getTopicRevision()) && (rev == null || tempTopic.getTopicRevision() <= rev)) {
                     latestTranslatedTopic = tempTopic;
                 }
 
                 // Find the Latest Pushed Topic
                 if (baseLocale.equals(
-                        tempTopic.getLocale()) && (latestPushedTranslatedTopic == null || latestPushedTranslatedTopic.getTopicRevision()
-                        < tempTopic.getTopicRevision()) && (rev == null || tempTopic.getTopicRevision() <= rev)) {
+                        tempTopic.getLocale().getValue()) && (latestPushedTranslatedTopic == null || latestPushedTranslatedTopic
+                        .getTopicRevision() < tempTopic.getTopicRevision()) && (rev == null || tempTopic.getTopicRevision() <= rev)) {
                     latestPushedTranslatedTopic = tempTopic;
                 }
             }
@@ -955,7 +972,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @param locale The locale to build the dummy translations for.
      * @return The dummy translated topic.
      */
-    private TranslatedTopicWrapper createDummyTranslatedTopicFromTopic(final TopicWrapper topic, final String locale) {
+    private TranslatedTopicWrapper createDummyTranslatedTopicFromTopic(final TopicWrapper topic, final LocaleWrapper locale) {
         final TranslatedTopicWrapper pushedTranslatedTopic = EntityUtilities.returnPushedTranslatedTopic(topic);
 
         /*
@@ -977,7 +994,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @param locale The locale to build the dummy translations for.
      * @return The dummy translated topic.
      */
-    private TranslatedTopicWrapper createDummyTranslatedTopic(final TopicWrapper topic, final String locale) {
+    private TranslatedTopicWrapper createDummyTranslatedTopic(final TopicWrapper topic, final LocaleWrapper locale) {
         final TranslatedTopicWrapper translatedTopic = translatedTopicProvider.newTranslatedTopic();
         translatedTopic.setTopic(topic);
         translatedTopic.setId(topic.getId() * -1);
@@ -1005,7 +1022,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
      * @return The dummy translated topic.
      */
     private TranslatedTopicWrapper createDummyTranslatedTopicFromExisting(final TranslatedTopicWrapper translatedTopic,
-            final String locale) {
+            final LocaleWrapper locale) {
         // Make sure some collections are loaded, so the clone works properly
         translatedTopic.getTags();
         translatedTopic.getProperties();
@@ -2718,10 +2735,10 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         if (imageFile.getLanguageImages() != null && imageFile.getLanguageImages().getItems() != null) {
                             final List<LanguageImageWrapper> languageImages = imageFile.getLanguageImages().getItems();
                             for (final LanguageImageWrapper image : languageImages) {
-                                if (image.getLocale().equals(locale)) {
+                                if (image.getLocale().getValue().equals(locale)) {
                                     languageImageFile = image;
                                     break;
-                                } else if (revertToDefaultLocale && image.getLocale().equals(
+                                } else if (revertToDefaultLocale && image.getLocale().getValue().equals(
                                         buildData.getDefaultLocale()) && languageImageFile == null) {
                                     languageImageFile = image;
                                 }
@@ -3910,9 +3927,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     if (fileEntity.getLanguageFiles() != null && fileEntity.getLanguageFiles().getItems() != null) {
                         final List<LanguageFileWrapper> languageFiles = fileEntity.getLanguageFiles().getItems();
                         for (final LanguageFileWrapper languageFile : languageFiles) {
-                            if (languageFile.getLocale().equals(buildData.getBuildLocale())) {
+                            if (languageFile.getLocale().getValue().equals(buildData.getBuildLocale())) {
                                 languageFileFile = languageFile;
-                            } else if (languageFile.getLocale().equals(buildData.getDefaultLocale()) && languageFileFile == null) {
+                            } else if (languageFile.getLocale().getValue().equals(buildData.getDefaultLocale()) && languageFileFile == null) {
                                 languageFileFile = languageFile;
                             }
                         }
