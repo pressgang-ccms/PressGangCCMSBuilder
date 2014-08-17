@@ -38,7 +38,6 @@ import org.jboss.pressgang.ccms.contentspec.entities.InjectionOptions;
 import org.jboss.pressgang.ccms.contentspec.enums.BookType;
 import org.jboss.pressgang.ccms.contentspec.enums.BugLinkType;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
-import org.jboss.pressgang.ccms.provider.LocaleProvider;
 import org.jboss.pressgang.ccms.provider.ServerSettingsProvider;
 import org.jboss.pressgang.ccms.utils.common.DocBookUtilities;
 import org.jboss.pressgang.ccms.utils.constants.CommonConstants;
@@ -120,7 +119,6 @@ public class BuildData {
      */
     private final HashMap<String, byte[]> files = new HashMap<String, byte[]>();
     private final ContentSpec contentSpec;
-    private final CollectionWrapper<LocaleWrapper> locales;
     private final Map<String, LocaleWrapper> localeMap;
 
     private boolean useFixedUrls = false;
@@ -146,8 +144,7 @@ public class BuildData {
         serverSettings = providerFactory.getProvider(ServerSettingsProvider.class).getServerSettings();
 
         // Load the locales from the server
-        locales = providerFactory.getProvider(LocaleProvider.class).getLocales();
-        localeMap = buildLocaleMap(locales);
+        localeMap = buildLocaleMap(serverSettings.getLocales());
 
         // Configure the locales to use
         defaultLocale = contentSpec.getLocale() == null ? serverSettings.getDefaultLocale().getBuildValue() : contentSpec.getLocale();
@@ -194,7 +191,7 @@ public class BuildData {
     }
 
     protected CollectionWrapper<LocaleWrapper> getLocales() {
-        return locales;
+        return serverSettings.getLocales();
     }
 
     public ZanataDetails getZanataDetails() {
