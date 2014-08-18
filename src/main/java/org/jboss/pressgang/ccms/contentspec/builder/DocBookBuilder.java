@@ -636,6 +636,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     translatedCSNode.getNodeId());
             if (node != null) {
                 node.setTranslationUniqueId(translatedCSNode.getId().toString());
+                if (node instanceof KeyValueNode && ((KeyValueNode) node).getValue() instanceof SpecTopic) {
+                    ((SpecTopic) ((KeyValueNode) node).getValue()).setTranslationUniqueId(translatedCSNode.getId().toString());
+                }
             } else {
                 // This shouldn't happen, but take care of it incase it does due to another bug
                 throw new BuildProcessingException(
