@@ -1379,6 +1379,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
         log.info("Doing " + buildData.getBuildLocale() + " Topic Link Pass");
 
         validateTopicLinks(buildData, bookIdAttributes);
+
+        // Apply the duplicate ids for the spec topics
+        buildData.getBuildDatabase().setDatabaseDuplicateIds();
     }
 
     /**

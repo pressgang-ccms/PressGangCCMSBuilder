@@ -123,12 +123,12 @@ public class DocBookBuildUtilities {
                 final String idAttributeValue = idAttribute.getNodeValue();
                 String fixedIdAttributeValue = idAttributeValue;
 
-                // Set the duplicate id incase the topic has been included twice
-                if (topicNode.getDuplicateId() != null) {
-                    fixedIdAttributeValue += "-" + topicNode.getDuplicateId();
-                }
-
                 if (!isRootNode) {
+                    // Set the duplicate id incase the topic has been included twice
+                    if (topicNode.getDuplicateId() != null) {
+                        fixedIdAttributeValue += "-" + topicNode.getDuplicateId();
+                    }
+
                     // The same id may be used across multiple topics, so add the step/line number to make it unique
                     if (!DocBookBuildUtilities.isUniqueAttributeId(buildData, fixedIdAttributeValue, topicNode, usedIdAttributes)) {
                         fixedIdAttributeValue += "-" + topicNode.getStep();

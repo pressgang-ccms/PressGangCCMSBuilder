@@ -76,6 +76,21 @@ public class BuildDatabase {
     }
 
     /**
+     * Sets the Duplicate IDs for all the SpecTopics in the Database.
+     */
+    public void setDatabaseDuplicateIds() {
+        // Set the spec topic duplicate ids based on topic title
+        for (final Entry<Integer, List<ITopicNode>> topicTitleEntry : topics.entrySet()) {
+            final List<ITopicNode> topics = topicTitleEntry.getValue();
+            if (topics.size() > 1) {
+                for (int i = 1; i < topics.size(); i++) {
+                    topics.get(i).setDuplicateId(Integer.toString(i));
+                }
+            }
+        }
+    }
+
+    /**
      * Get a List of all the Topic IDs for the topics in the database.
      *
      * @return A List of Integer objects that represent the Topic IDs.
