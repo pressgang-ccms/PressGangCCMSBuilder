@@ -984,6 +984,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
          */
         if (pushedTranslatedTopic != null) {
             pushedTranslatedTopic.setTopic(topic);
+            pushedTranslatedTopic.setTags(topic.getTags());
+            pushedTranslatedTopic.setProperties(topic.getProperties());
             return createDummyTranslatedTopicFromExisting(pushedTranslatedTopic, locale);
         } else {
             return createDummyTranslatedTopic(topic, locale);
