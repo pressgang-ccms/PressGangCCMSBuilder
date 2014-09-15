@@ -27,6 +27,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
 
+import org.apache.commons.lang.LocaleUtils;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BaseBugLinkStrategy;
 import org.jboss.pressgang.ccms.contentspec.buglinks.BugLinkOptions;
@@ -170,7 +171,7 @@ public class BuildData {
             constantsResourceBundle = ResourceBundle.getBundle("org.jboss.pressgang.ccms.contentspec.builder.Constants",
                     new UTF8ResourceBundleControl());
         } else {
-            final Locale buildLocale = Locale.forLanguageTag(localeMap.get(getBuildLocale()).getBuildValue());
+            final Locale buildLocale = LocaleUtils.toLocale(localeMap.get(getBuildLocale()).getBuildValue().replace('-', '_'));
             constantsResourceBundle = ResourceBundle.getBundle("org.jboss.pressgang.ccms.contentspec.builder.Constants",
                     buildLocale, new UTF8ResourceBundleControl());
         }

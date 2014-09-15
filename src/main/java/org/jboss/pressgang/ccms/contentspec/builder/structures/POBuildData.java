@@ -24,6 +24,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
 
+import org.apache.commons.lang.LocaleUtils;
 import org.jboss.pressgang.ccms.contentspec.ContentSpec;
 import org.jboss.pressgang.ccms.contentspec.builder.UTF8ResourceBundleControl;
 import org.jboss.pressgang.ccms.provider.DataProviderFactory;
@@ -54,7 +55,7 @@ public class POBuildData extends BuildData {
         if (getBuildLocale().equals(getPOBuildLocale())) {
             translatedConstantsResourceBundle = getConstants();
         } else {
-            final Locale buildLocale = Locale.forLanguageTag(getLocaleMap().get(getBuildLocale()).getBuildValue());
+            final Locale buildLocale = LocaleUtils.toLocale(getLocaleMap().get(getBuildLocale()).getBuildValue().replace('-', '_'));
             translatedConstantsResourceBundle = ResourceBundle.getBundle("org.jboss.pressgang.ccms.contentspec.builder.Constants",
                     buildLocale, new UTF8ResourceBundleControl());
         }
