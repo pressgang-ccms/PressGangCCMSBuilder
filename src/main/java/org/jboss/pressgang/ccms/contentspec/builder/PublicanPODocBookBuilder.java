@@ -1353,9 +1353,9 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
 
             for (final Node node : contentSpec.getNodes()) {
                 if (node instanceof KeyValueNode) {
-                    final KeyValueNode<String> keyValueNode = (KeyValueNode<String>) node;
-                    if (metaDataKeys.contains(keyValueNode.getKey())) {
-                        final String value = keyValueNode.getValue();
+                    final KeyValueNode keyValueNode = (KeyValueNode) node;
+                    if (keyValueNode.getValue() instanceof String && metaDataKeys.contains(keyValueNode.getKey())) {
+                        final String value = (String) keyValueNode.getValue();
                         if (translatedTopicStrings.containsKey(value)) {
                             translations.put(value, translatedTopicStrings.get(value));
                         } else {

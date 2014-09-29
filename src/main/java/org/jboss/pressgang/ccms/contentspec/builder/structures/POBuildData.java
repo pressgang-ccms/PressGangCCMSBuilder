@@ -36,6 +36,7 @@ public class POBuildData extends BuildData {
     private String translatedAuthorGroup;
     private final String poLocale;
     private final String poOutputLocale;
+    private final String outputLocale;
     private final ResourceBundle translatedConstantsResourceBundle;
 
     public POBuildData(String requester, ContentSpec contentSpec, DocBookBuildingOptions buildOptions, ZanataDetails zanataDetails,
@@ -52,10 +53,16 @@ public class POBuildData extends BuildData {
             poOutputLocale = poLocale;
         }
 
+        if (getLocaleMap().containsKey(getBuildLocale())) {
+            outputLocale = getLocaleMap().get(getBuildLocale()).getBuildValue();
+        } else {
+            outputLocale = getBuildLocale();
+        }
+
         if (getBuildLocale().equals(getPOBuildLocale())) {
             translatedConstantsResourceBundle = getConstants();
         } else {
-            final Locale buildLocale = LocaleUtils.toLocale(getLocaleMap().get(getBuildLocale()).getBuildValue().replace('-', '_'));
+            final Locale buildLocale = LocaleUtils.toLocale(getLocaleMap().get(poLocale).getBuildValue().replace('-', '_'));
             translatedConstantsResourceBundle = ResourceBundle.getBundle("org.jboss.pressgang.ccms.contentspec.builder.Constants",
                     buildLocale, new UTF8ResourceBundleControl());
         }
@@ -91,5 +98,10 @@ public class POBuildData extends BuildData {
 
     public String getPOOutputLocale() {
         return poOutputLocale;
+    }
+
+    @Override
+    public String getOutputLocale() {
+        return outputLocale;
     }
 }
