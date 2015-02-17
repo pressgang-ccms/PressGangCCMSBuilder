@@ -86,6 +86,12 @@ import org.w3c.dom.Text;
 
 public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
     private static SimpleDateFormat POT_DATE_FORMAT = new SimpleDateFormat("YYYY-MM-dd HH:mmZ");
+    private static Map<String, String> HACK_STRING_MAP = new HashMap<String, String>() {
+        {
+            put("<replaceable />", "<replaceable></replaceable>");
+            put("<trademark class=\"copyright\" />", "<trademark class=\"copyright\"></trademark>");
+        }
+    };
 
     public PublicanPODocBookBuilder(final DataProviderFactory providerFactory) throws BuilderCreationException {
         super(providerFactory);
@@ -404,10 +410,35 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                     // See if it was a V1 translation and fix it if possible
                     checkAndFixV1Translations(doc, currentTopicTranslations, topicTranslations);
 
-                    // Check to see if it was added as part of the V1 or V2 fix. If not then add it as having no translation
+                    // Check to see if it was added as part of the V1 or V2 fix.
                     if (!topicTranslations.containsKey(stringToNode.getTranslationString())) {
-                        final TranslationDetails translationDetails = new TranslationDetails(null, false, tagName);
-                        topicTranslations.put(stringToNode.getTranslationString(), translationDetails);
+                        // Do one last check to make sure it's not just a white space or entity issue from previous version pushes
+                        boolean found = false;
+                        for (final Map.Entry<String, TranslationDetails> entry : currentTopicTranslations.entrySet()) {
+                            if (entry.getKey().trim().equals(stringToNode.getTranslationString())) {
+                                // Found one, but since we aren't 100% sure it is a match mark it as fuzzy
+                                final TranslationDetails translationDetails = entry.getValue();
+                                final TranslationDetails newTranslationDetails = new TranslationDetails(translationDetails.getTranslation(),
+                                        true, tagName);
+                                topicTranslations.put(stringToNode.getTranslationString(), newTranslationDetails);
+
+                                found = true;
+                                break;
+                            } else if (entry.getKey().replace("&gt;", ">").equals(stringToNode.getTranslationString())) {
+                                final TranslationDetails translationDetails = entry.getValue();
+                                translationDetails.setTagName(tagName);
+                                topicTranslations.put(stringToNode.getTranslationString(), translationDetails);
+
+                                found = true;
+                                break;
+                            }
+                        }
+
+                        // Unable to find any possible matching translation,so add it as having no translation
+                        if (!found) {
+                            final TranslationDetails translationDetails = new TranslationDetails(null, false, tagName);
+                            topicTranslations.put(stringToNode.getTranslationString(), translationDetails);
+                        }
                     }
                 }
             }
@@ -956,13 +987,15 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                 if (ignoredSourceStrings != null && ignoredSourceStrings.contains(entry.getKey())) {
                     continue;
                 } else {
-                    final String cleanedOriginalString = cleanForPublican(buildData, specTopic, entry.getKey());
+                    final String tagName = entry.getValue().getTagName();
+                    final String cleanedOriginalString = cleanForPublican(buildData, specTopic, entry.getKey(), tagName);
                     if (entry.getValue() == null) {
                         translations.put(cleanedOriginalString, null);
                     } else {
-                        final String cleanedTranslationString = cleanForPublican(buildData, specTopic, entry.getValue().getTranslation());
+                        final String cleanedTranslationString = cleanForPublican(buildData, specTopic, entry.getValue().getTranslation(),
+                                tagName);
                         translations.put(cleanedOriginalString, new TranslationDetails(cleanedTranslationString,
-                                entry.getValue().isFuzzy(), entry.getValue().getTagName()));
+                                entry.getValue().isFuzzy(), tagName));
                     }
                 }
             }
@@ -1009,9 +1042,11 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
      * @param buildData         Information and data structures for the build.
      * @param specTopic         The topic to resolve the injections for.
      * @param translationString The string to have its injections resolved and comments cleaned.
+     * @param tagName           The name of the tag that wraps this element.
      * @return The cleaned string that can be used in a publican POT/PO file.
      */
-    protected String cleanForPublican(final BuildData buildData, final SpecTopic specTopic, final String translationString) {
+    protected String cleanForPublican(final BuildData buildData, final SpecTopic specTopic, final String translationString,
+            final String tagName) {
         if (translationString == null) return null;
 
         try {
@@ -1046,7 +1081,27 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
             // Fix up &apos; and &quot; see Translate.pm line 234-240 in publican
             fixUpEntitiesForPublican(doc, doc.getDocumentElement());
 
-            return XMLUtilities.convertNodeToString(doc.getDocumentElement(), false);
+            // Convert the content to a string
+            String retvalue =  XMLUtilities.convertNodeToString(doc.getDocumentElement(), false);
+
+            // Publican removes the last new line on verbatim elements, so lets do that as well
+            if (DocBookUtilities.VERBATIM_ELEMENTS.contains(tagName) && retvalue.endsWith("\n")) {
+                retvalue = retvalue.substring(0, retvalue.length() - 1);
+            }
+
+            // Publican removes non-breaking spaces, when building the po files
+            retvalue = retvalue.replace("\u00A0", "");
+
+            // HACK: Some self closing elements are expanded by publican for some reason.
+            // Note: This really should just find a way to stop self closing xml tags, but publican closes some and not others so we'd need
+            // to find out what elements don't self close.
+            for (final Map.Entry<String, String> entry : HACK_STRING_MAP.entrySet()) {
+                if (retvalue.contains(entry.getKey())) {
+                    retvalue = retvalue.replace(entry.getKey(), entry.getValue());
+                }
+            }
+
+            return retvalue;
         } catch (Exception e) {
             return translationString;
         }
