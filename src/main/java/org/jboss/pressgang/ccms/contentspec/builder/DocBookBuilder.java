@@ -1170,7 +1170,7 @@ public class DocBookBuilder implements ShutdownAbleApp {
                     DocBookUtilities.wrapDocumentInSection(topicDoc);
                     DocBookUtilities.setSectionTitle(buildData.getDocBookVersion(), topic.getTitle(), topicDoc);
 
-                    processTopicSectionInfo(buildData, topic, topicDoc);
+                    //processTopicSectionInfo(buildData, topic, topicDoc);
                 }
 
                 // Add the document & topic to the database spec topics

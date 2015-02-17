@@ -67,7 +67,6 @@ import org.jboss.pressgang.ccms.utils.constants.CommonFilterConstants;
 import org.jboss.pressgang.ccms.utils.structures.Pair;
 import org.jboss.pressgang.ccms.utils.structures.StringToNodeCollection;
 import org.jboss.pressgang.ccms.wrapper.CSNodeWrapper;
-import org.jboss.pressgang.ccms.wrapper.TagWrapper;
 import org.jboss.pressgang.ccms.wrapper.TopicWrapper;
 import org.jboss.pressgang.ccms.wrapper.TranslatedCSNodeStringWrapper;
 import org.jboss.pressgang.ccms.wrapper.TranslatedCSNodeWrapper;
@@ -1018,7 +1017,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
         processPOTopicInjections(buildData, specTopic, translations);
 
         // Add the keyword source strings (Note: These won't ever be translated)
-        if (specTopic.getTopicType() != TopicType.INITIAL_CONTENT) {
+        /*if (specTopic.getTopicType() != TopicType.INITIAL_CONTENT) {
             final CollectionWrapper<TagWrapper> tags = specTopic.getTopic().getTags();
             final List<Integer> seoCategoryIds = buildData.getServerSettings().getSEOCategoryIds();
 
@@ -1032,7 +1031,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                     }
                 }
             }
-        }
+        }*/
     }
 
     /**
