@@ -46,6 +46,7 @@ import org.jboss.pressgang.ccms.contentspec.builder.structures.DocBookBuildingOp
 import org.jboss.pressgang.ccms.contentspec.builder.structures.InjectionListData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.POBuildData;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorData;
+import org.jboss.pressgang.ccms.contentspec.builder.structures.TopicErrorDatabase;
 import org.jboss.pressgang.ccms.contentspec.builder.structures.TranslationDetails;
 import org.jboss.pressgang.ccms.contentspec.builder.utils.DocBookBuildUtilities;
 import org.jboss.pressgang.ccms.contentspec.entities.Relationship;
@@ -328,7 +329,20 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
 
         final Map<String, TranslationDetails> topicTranslations = new HashMap<String, TranslationDetails>();
         final TopicErrorData errorData = buildData.getErrorDatabase().getErrorData(topicNode.getTopic());
+
+        // Find out if we have a fatal error
+        boolean hasFatalError = false;
         if (errorData != null && errorData.hasFatalErrors()) {
+            if (!errorData.hasErrorType(TopicErrorDatabase.ErrorType.INVALID_INJECTION)) {
+                // Has no topic injection errors, so the XML is invalid
+                hasFatalError = true;
+            } else if (!buildData.getBuildOptions().getIgnoreMissingCustomInjections()) {
+                // Has injection errors and we aren't avoiding them
+                hasFatalError = true;
+            }
+        }
+
+        if (hasFatalError) {
             // Topics with errors won't have any translations, so just use the original source content
             getTranslationStringsFromOriginalTopic(buildData, topicNode, topicTranslations);
         } else {
@@ -346,7 +360,6 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
             final TranslatedTopicWrapper latestPushedTranslatedTopic = latestTranslation.getFirst();
 
             // Add the strings for the topic
-
             if (latestPushedTranslatedTopic != null) {
                 getTranslationStringsFromTranslatedTopic(buildData, topicNode, latestTranslatedTopic,
                         latestPushedTranslatedTopic, topicTranslations);
@@ -986,15 +999,16 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                 if (ignoredSourceStrings != null && ignoredSourceStrings.contains(entry.getKey())) {
                     continue;
                 } else {
-                    final String tagName = entry.getValue().getTagName();
+                    final TranslationDetails translationDetails = entry.getValue();
+                    final String tagName = translationDetails == null ? null : translationDetails.getTagName();
                     final String cleanedOriginalString = cleanForPublican(buildData, specTopic, entry.getKey(), tagName);
-                    if (entry.getValue() == null) {
+                    if (translationDetails == null) {
                         translations.put(cleanedOriginalString, null);
                     } else {
-                        final String cleanedTranslationString = cleanForPublican(buildData, specTopic, entry.getValue().getTranslation(),
+                        final String cleanedTranslationString = cleanForPublican(buildData, specTopic, translationDetails.getTranslation(),
                                 tagName);
                         translations.put(cleanedOriginalString, new TranslationDetails(cleanedTranslationString,
-                                entry.getValue().isFuzzy(), tagName));
+                                translationDetails.isFuzzy(), tagName));
                     }
                 }
             }
@@ -1084,7 +1098,7 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
             String retvalue =  XMLUtilities.convertNodeToString(doc.getDocumentElement(), false);
 
             // Publican removes the last new line on verbatim elements, so lets do that as well
-            if (DocBookUtilities.VERBATIM_ELEMENTS.contains(tagName) && retvalue.endsWith("\n")) {
+            if (tagName != null && DocBookUtilities.VERBATIM_ELEMENTS.contains(tagName) && retvalue.endsWith("\n")) {
                 retvalue = retvalue.substring(0, retvalue.length() - 1);
             }
 
