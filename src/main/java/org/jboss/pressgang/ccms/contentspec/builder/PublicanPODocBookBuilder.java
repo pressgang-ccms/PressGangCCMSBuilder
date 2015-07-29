@@ -687,7 +687,9 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                 return;
             }
             // Process the conditional statements
-            processConditions(buildData, revisionTopic, doc);
+            if (!buildData.getBuildOptions().isKeepConditions()) {
+                processConditions(buildData, revisionTopic, doc);
+            }
             processSpecTopicInjections(buildData, revisionTopic, buildData.getXMLPreProcessor());
 
             final String revisionHistory = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(),
@@ -712,7 +714,9 @@ public class PublicanPODocBookBuilder extends PublicanDocBookBuilder {
                 return;
             }
             // Process the conditional statements
-            processConditions(buildData, authorGroupTopic, doc);
+            if (!buildData.getBuildOptions().isKeepConditions()) {
+                processConditions(buildData, authorGroupTopic, doc);
+            }
             processSpecTopicInjections(buildData, authorGroupTopic, buildData.getXMLPreProcessor());
 
             final String revisionHistory = DocBookBuildUtilities.convertDocumentToDocBookFormattedString(buildData.getDocBookVersion(),

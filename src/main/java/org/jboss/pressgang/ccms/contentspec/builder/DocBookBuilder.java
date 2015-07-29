@@ -1300,7 +1300,9 @@ public class DocBookBuilder implements ShutdownAbleApp {
                 }
 
                 // Process the conditional statements
-                processConditions(buildData, specTopic, doc);
+                if (!buildData.getBuildOptions().isKeepConditions()) {
+                    processConditions(buildData, specTopic, doc);
+                }
 
                 /*
                  * If the topic is a translated topic then check to see if the translated topic hasn't been pushed for
@@ -1470,7 +1472,8 @@ public class DocBookBuilder implements ShutdownAbleApp {
                         topicNode.getXMLDocument(), usedIdAttributes);
 
                 // Make sure the XML is valid docbook after the standard processing has been done
-                if (validateTopicXML(buildData, topicNode, doc) && topicNode instanceof SpecTopic) {
+                if ((buildData.getBuildOptions().isSkipValidation() || validateTopicXML(buildData, topicNode, doc))
+                        && topicNode instanceof SpecTopic) {
                     // Add the editor/report a bug links (these should always be valid)
                     xmlPreProcessor.processTopicAdditionalInfo(buildData, (SpecTopic) topicNode, doc);
                 } else {
