@@ -168,6 +168,12 @@ public class PublicanDocBookBuilder extends DocBookBuilder {
             publicanCfg += "version: " + escapeVersion(version) + "\n";
         }
 
+        // Add the condition to publican.cfg if conditions are kept in the XML
+        final String condition = contentSpec.getBaseLevel().getConditionStatement(true);
+        if (buildData.getBuildOptions().isKeepConditions() && !isNullOrEmpty(condition)) {
+            publicanCfg += "condition: " + condition.replace("|", ";") + "\n";
+        }
+
         return applyPublicanCfgOverrides(buildData, publicanCfg);
     }
 
